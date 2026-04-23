@@ -1,0 +1,1 @@
+export { CamAnimation } from './CamAnimation';
