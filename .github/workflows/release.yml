@@ -8,8 +8,13 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: write
+
 jobs:
   build:
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -112,7 +117,7 @@ jobs:
           $version = "${{ steps.get_version.outputs.VERSION }}"
           $ext = "${{ matrix.ext }}"
           $arch = "${{ matrix.arch }}"
-          
+
           if ($ext -eq "msi") {
             $file = Get-ChildItem -Path "src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi" | Select-Object -First 1
             $newName = "CamForge-Next_${version}_windows_${arch}.msi"
@@ -120,7 +125,7 @@ jobs:
             $file = Get-ChildItem -Path "src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.exe" | Select-Object -First 1
             $newName = "CamForge-Next_${version}_windows_${arch}.exe"
           }
-          
+
           Copy-Item $file.FullName -Destination $newName
           echo "ARTIFACT_PATH=$newName" >> $env:GITHUB_ENV
         shell: pwsh
@@ -131,7 +136,7 @@ jobs:
           version="${{ steps.get_version.outputs.VERSION }}"
           ext="${{ matrix.ext }}"
           arch="${{ matrix.arch }}"
-          
+
           if [ "$ext" = "dmg" ]; then
             file=$(ls src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg | head -1)
             newName="CamForge-Next_${version}_macos_${arch}.dmg"
@@ -146,7 +151,7 @@ jobs:
           version="${{ steps.get_version.outputs.VERSION }}"
           ext="${{ matrix.ext }}"
           arch="${{ matrix.arch }}"
-          
+
           if [ "$ext" = "deb" ]; then
             file=$(ls src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb | head -1)
             newName="CamForge-Next_${version}_linux_${arch}.deb"
@@ -156,7 +161,7 @@ jobs:
             newName="CamForge-Next_${version}_linux_${arch}.AppImage"
             cp "$file" "$newName"
           fi
-          
+
           echo "ARTIFACT_PATH=$newName" >> $GITHUB_ENV
         shell: bash
 
@@ -195,9 +200,9 @@ jobs:
           name: CamForge-Next v${{ steps.get_version.outputs.VERSION }}
           body: |
             ## CamForge-Next v${{ steps.get_version.outputs.VERSION }}
-            
+
             ### Downloads
-            
+
             | Platform | Architecture | File |
             |:--------:|:------------:|:-----|
             | Windows | x64 | `CamForge-Next_${{ steps.get_version.outputs.VERSION }}_windows_x64.msi` |
@@ -206,9 +211,9 @@ jobs:
             | macOS | x64 (Intel) | `CamForge-Next_${{ steps.get_version.outputs.VERSION }}_macos_x64.dmg` |
             | Linux | x64 | `CamForge-Next_${{ steps.get_version.outputs.VERSION }}_linux_x64.deb` |
             | Linux | x64 | `CamForge-Next_${{ steps.get_version.outputs.VERSION }}_linux_x64.AppImage` |
-            
+
             ### What's Changed
-            
+
             See [CHANGELOG.md](./CHANGELOG.md) for details.
           draft: true
           prerelease: false
