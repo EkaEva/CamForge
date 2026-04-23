@@ -4,7 +4,14 @@
 
 ## 一、系统概述
 
-CamForge-Next 是一款现代化的凸轮机构运动学模拟器桌面应用程序，采用 Tauri v2 + SolidJS 架构，实现跨平台部署。
+CamForge-Next 是一款现代化的凸轮机构运动学模拟器，支持桌面应用和 Web 服务器双模式部署。采用 Tauri v2 + SolidJS 架构实现桌面应用，Axum + SolidJS 架构实现 Web 服务器。
+
+### 部署模式
+
+| 模式 | 技术栈 | 适用场景 |
+|------|--------|----------|
+| 桌面应用 | Tauri v2 + SolidJS | 个人使用、离线使用 |
+| Web 服务器 | Axum + SolidJS | 团队协作、在线演示 |
 
 ### 核心功能
 
@@ -26,13 +33,26 @@ CamForge-Next 是一款现代化的凸轮机构运动学模拟器桌面应用程
 │  │  (UI 层)    │  │  (状态管理) │  │  (业务逻辑)         │  │
 │  └─────────────┘  └─────────────┘  └─────────────────────┘  │
 │                          │                                   │
-│                    Tauri IPC                                │
+│                   API Adapter Layer                          │
+│                    (自动检测环境)                             │
 │                          ▼                                   │
+│              ┌───────────┴───────────┐                       │
+│              ▼                       ▼                       │
+├──────────────────────┬──────────────────────────────────────┤
+│  Desktop (Tauri IPC) │       Web (HTTP/REST API)            │
+│                      │                                       │
+│  ┌────────────────┐  │  ┌────────────────────────────────┐  │
+│  │ camforge-next  │  │  │      camforge-server           │  │
+│  │  (Tauri App)   │  │  │       (Axum Server)            │  │
+│  └────────────────┘  │  └────────────────────────────────┘  │
+│          │           │              │                        │
+│          └───────────┴──────────────┘                        │
+│                      ▼                                       │
 ├─────────────────────────────────────────────────────────────┤
-│                      Backend (Rust)                          │
+│                  camforge-core (Shared Library)              │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │   Commands  │  │  Cam Module │  │    Types/Models     │  │
-│  │  (Tauri)    │  │  (计算核心) │  │  (数据结构)         │  │
+│  │   motion    │  │   profile   │  │      geometry       │  │
+│  │ (运动规律)  │  │  (轮廓计算) │  │     (几何分析)      │  │
 │  └─────────────┘  └─────────────┘  └─────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -41,7 +61,8 @@ CamForge-Next 是一款现代化的凸轮机构运动学模拟器桌面应用程
 
 | 层级 | 技术 | 版本 | 用途 |
 |------|------|------|------|
-| 框架 | Tauri | v2 | 跨平台桌面应用框架 |
+| 桌面框架 | Tauri | v2 | 跨平台桌面应用框架 |
+| Web 框架 | Axum | 0.7 | HTTP API 服务器 |
 | 前端 | SolidJS | 1.9 | 响应式 UI 框架 |
 | 语言 | TypeScript | 5.6 | 类型安全 |
 | 样式 | Tailwind CSS | 4.2 | 原子化 CSS |
@@ -111,30 +132,61 @@ export const [displayOptions, setDisplayOptions] = createSignal<DisplayOptions>(
 
 ## 四、后端架构
 
-### 4.1 目录结构
+### 4.1 Cargo Workspace 结构
+
+项目采用 Cargo Workspace 管理多个 crate：
 
 ```
-src-tauri/src/
-├── cam/                 # 凸轮计算模块
-│   ├── motion.rs        # 运动规律计算
-│   ├── profile.rs       # 轮廓计算
-│   ├── geometry.rs      # 几何分析
-│   └── mod.rs           # 模块导出
-├── commands/            # Tauri 命令
-│   ├── simulation.rs    # 模拟命令
-│   └── export.rs        # 导出命令
-├── types/               # 数据类型
-│   └── params.rs        # 参数定义
-├── lib.rs               # 库入口
-└── main.rs              # 程序入口
+camforge-next/
+├── Cargo.toml                    # Workspace 配置
+├── crates/                       # Rust crates
+│   ├── camforge-core/            # 共享核心库
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │       ├── lib.rs            # 库入口
+│   │       ├── motion.rs         # 运动规律计算
+│   │       ├── profile.rs        # 轮廓计算
+│   │       ├── geometry.rs       # 几何分析
+│   │       ├── types.rs          # 类型定义
+│   │       └── error.rs          # 错误类型
+│   └── camforge-server/          # HTTP API 服务器
+│       ├── Cargo.toml
+│       └── src/
+│           ├── main.rs           # 服务器入口
+│           └── routes/           # API 路由
+│               ├── simulate.rs   # 模拟 API
+│               └── export.rs     # 导出 API
+└── src-tauri/                    # Tauri 桌面应用
+    ├── Cargo.toml
+    └── src/
+        ├── lib.rs                # 应用入口
+        ├── main.rs               # 程序入口
+        └── commands/             # Tauri 命令
+            ├── simulation.rs     # 模拟命令
+            └── export.rs         # 导出命令
 ```
 
-### 4.2 Tauri 命令
+### 4.2 camforge-core 核心库
+
+共享核心库提供凸轮计算功能，供 Tauri 应用和 Web 服务器共同使用：
+
+```rust
+// motion.rs - 运动规律计算
+pub fn compute_motion(law: MotionLaw, phi: f64, params: &CamParams) -> MotionResult;
+
+// profile.rs - 轮廓计算
+pub fn compute_profile(params: &CamParams) -> ProfileResult;
+
+// geometry.rs - 几何分析
+pub fn compute_geometry(params: &CamParams, profile: &ProfileResult) -> GeometryResult;
+```
+
+### 4.3 Tauri 命令（桌面应用）
 
 ```rust
 #[tauri::command]
 fn run_simulation(params: CamParams) -> SimulationData {
-    // 调用 Rust 计算模块
+    // 调用 camforge-core
 }
 
 #[tauri::command]
@@ -143,20 +195,64 @@ fn export_dxf(filepath: String, data: SimulationData) -> Result<(), String> {
 }
 ```
 
-### 4.3 计算模块
+### 4.4 HTTP API（Web 服务器）
 
-- **motion.rs**: 实现 6 种运动规律的计算
-- **profile.rs**: 计算凸轮理论轮廓和实际轮廓
-- **geometry.rs**: 计算压力角、曲率半径
+```rust
+// routes/simulate.rs
+async fn simulate_handler(params: Json<CamParams>) -> Json<SimulationData> {
+    // 调用 camforge-core
+}
+
+// routes/export.rs
+async fn export_dxf_handler(data: Json<SimulationData>) -> Response {
+    // 返回 DXF 文件
+}
+```
+
+API 端点：
+- `POST /api/simulate` - 运行模拟
+- `POST /api/export/dxf` - 导出 DXF
+- `POST /api/export/csv` - 导出 CSV
+- `GET /health` - 健康检查
 
 ## 五、关键设计决策
 
-### 5.1 前后端分离
+### 5.1 前后端分离架构
 
-- **前端**: 负责用户界面、状态管理、简单计算（浏览器环境 fallback）
-- **后端**: 负责高性能数值计算、文件系统操作
+项目采用前后端分离架构，支持双模式部署：
 
-### 5.2 双环境支持
+| 组件 | 桌面应用模式 | Web 服务器模式 |
+|------|-------------|---------------|
+| 前端 | SolidJS + Tauri | SolidJS（静态文件） |
+| 后端 | Rust (Tauri) | Rust (Axum) |
+| 通信 | Tauri IPC | HTTP REST API |
+| 核心计算 | camforge-core | camforge-core |
+
+### 5.2 API 适配层
+
+前端通过 API 适配层自动检测运行环境，统一调用接口：
+
+```typescript
+// src/api/adapter.ts
+export const api = {
+  async simulate(params: CamParams): Promise<SimulationData> {
+    if (isTauriEnv()) {
+      // Tauri 环境：使用 IPC
+      return invokeTauri<SimulationData>('run_simulation', { params });
+    } else {
+      // Web 环境：使用 HTTP API
+      const response = await fetch('/api/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      });
+      return response.json();
+    }
+  }
+};
+```
+
+### 5.3 双环境支持
 
 应用同时支持 Tauri 环境和纯浏览器环境：
 
@@ -167,8 +263,8 @@ if (isTauri) {
   // 使用 Rust 后端计算
   const data = await invokeTauri<SimulationData>('run_simulation', { params });
 } else {
-  // 使用前端 TypeScript 计算
-  const data = generateMockData(params);
+  // 使用 HTTP API 计算
+  const data = await api.simulate(params);
 }
 ```
 
@@ -210,8 +306,8 @@ if (isTauri) {
 
 新增运动规律只需：
 
-1. 在 `MotionLaw` 枚举中添加新值
-2. 在 `computeMotion` 函数中添加计算逻辑
+1. 在 `camforge-core/src/types.rs` 的 `MotionLaw` 枚举中添加新值
+2. 在 `camforge-core/src/motion.rs` 的 `compute_motion` 函数中添加计算逻辑
 3. 更新 UI 选项
 
 ### 7.2 从动件类型扩展
@@ -231,34 +327,65 @@ export function generateCSV(data: SimulationData): string { ... }
 export function generateSVG(data: SimulationData): string { ... }
 ```
 
-## 八、安全设计
+## 八、部署架构
 
-### 8.1 输入验证
+### 8.1 桌面应用部署
+
+```bash
+# 构建
+pnpm tauri build
+
+# 输出位置
+src-tauri/target/release/bundle/
+├── msi/           # Windows 安装包
+├── dmg/           # macOS 安装包
+└── deb/           # Linux 安装包
+```
+
+### 8.2 Web 服务器部署
+
+```bash
+# Docker 部署
+docker-compose up -d
+
+# 或手动部署
+pnpm build && cargo run -p camforge-server --release
+```
+
+Docker 配置：
+- 多阶段构建，优化镜像大小
+- 健康检查配置
+- 静态文件服务
+
+## 九、安全设计
+
+### 9.1 输入验证
 
 - 前端: 参数范围校验
 - 后端: 文件路径验证
 
-### 8.2 文件操作安全
+### 9.2 文件操作安全
 
 - 使用 Tauri Dialog API 让用户选择保存位置
 - 验证文件扩展名
 - 防止路径遍历攻击
 
-## 九、测试策略
+## 十、测试策略
 
-### 9.1 前端测试
+### 10.1 前端测试
 
 - Vitest 单元测试
 - 运动规律计算测试
 - 数组工具函数测试
 
-### 9.2 后端测试
+### 10.2 后端测试
 
 - Rust 内置测试框架
+- camforge-core 单元测试（13 个测试）
 - 运动规律计算测试
 - 几何计算测试
 
-### 9.3 CI/CD
+### 10.3 CI/CD
 
 - GitHub Actions 自动化测试
 - 跨平台构建

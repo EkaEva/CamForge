@@ -22,7 +22,7 @@ CamForge-Next 支持两种部署模式：
 - **Node.js** 18.0+
 - **pnpm** 8.0+
 - **Rust** 1.70+
-- **Windows 10/11**（当前仅支持 Windows）
+- **Windows 10/11**、**macOS** 或 **Linux**
 
 ### 2.2 开发模式
 
