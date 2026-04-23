@@ -1,4 +1,5 @@
 import { TitleBar, Sidebar, MainCanvas, StatusBar } from './components/layout';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { initTheme } from './stores/settings';
 import './index.css';
 
@@ -7,14 +8,16 @@ initTheme();
 
 function App() {
   return (
-    <div class="h-screen flex flex-col bg-white dark:bg-gray-900">
-      <TitleBar />
-      <div class="flex-1 flex overflow-hidden">
-        <Sidebar />
-        <MainCanvas />
+    <ErrorBoundary>
+      <div class="h-screen flex flex-col bg-white dark:bg-gray-900">
+        <TitleBar />
+        <div class="flex-1 flex overflow-hidden">
+          <Sidebar />
+          <MainCanvas />
+        </div>
+        <StatusBar />
       </div>
-      <StatusBar />
-    </div>
+    </ErrorBoundary>
   );
 }
 

@@ -1,5 +1,5 @@
 import { createSignal, Show, Switch, Match, For, createEffect, onCleanup } from 'solid-js';
-import { simulationData, isLoading, lastRunTime, paramsChanged, validationErrors, params, generateDXF, generateCSV, generateSVG, generateTIFF, generateGIF, generatePresetJSON, generateExcel, saveFile, getCurrentLang, getExportFilename, exportStatus, setExportStatus, paramsUpdated, setParamsUpdated } from '../../stores/simulation';
+import { simulationData, isLoading, lastRunTime, paramsChanged, validationErrors, params, generateDXF, generateCSV, generateSVG, generateHighResPNG, generateGIF, generatePresetJSON, generateExcel, saveFile, getCurrentLang, getExportFilename, exportStatus, setExportStatus, paramsUpdated, setParamsUpdated } from '../../stores/simulation';
 import { t } from '../../i18n';
 import { CamAnimation } from '../animation';
 import { MotionCurves, GeometryChart, CurvatureChart } from '../charts';
@@ -178,23 +178,23 @@ export function MainCanvas() {
 
       switch (id) {
         case 'motion_tiff': {
-          const blob = await generateTIFF('motion', lang);
-          result = await saveFile(blob, `${filename}.tiff`, 'image/tiff');
+          const blob = await generateHighResPNG('motion', lang);
+          result = await saveFile(blob, `${filename}.png`, 'image/png');
           break;
         }
         case 'curvature_tiff': {
-          const blob = await generateTIFF('curvature', lang);
-          result = await saveFile(blob, `${filename}.tiff`, 'image/tiff');
+          const blob = await generateHighResPNG('curvature', lang);
+          result = await saveFile(blob, `${filename}.png`, 'image/png');
           break;
         }
         case 'pressure_tiff': {
-          const blob = await generateTIFF('pressure', lang);
-          result = await saveFile(blob, `${filename}.tiff`, 'image/tiff');
+          const blob = await generateHighResPNG('pressure', lang);
+          result = await saveFile(blob, `${filename}.png`, 'image/png');
           break;
         }
         case 'profile_tiff': {
-          const blob = await generateTIFF('profile', lang);
-          result = await saveFile(blob, `${filename}.tiff`, 'image/tiff');
+          const blob = await generateHighResPNG('profile', lang);
+          result = await saveFile(blob, `${filename}.png`, 'image/png');
           break;
         }
         case 'animation_gif': {
@@ -307,9 +307,8 @@ export function MainCanvas() {
           const result = await saveFile(content, `${filename}.svg`, 'image/svg+xml', { saveDir: savedPath });
           if (result.path) savedPath = result.path;
         } else {
-          const blob = await generateTIFF(type, currentLang, dpi);
-          const ext = format === 'tiff' ? 'tiff' : 'png';
-          const result = await saveFile(blob, `${filename}.${ext}`, format === 'tiff' ? 'image/tiff' : 'image/png', { saveDir: savedPath });
+          const blob = await generateHighResPNG(type, currentLang, dpi);
+          const result = await saveFile(blob, `${filename}.png`, 'image/png', { saveDir: savedPath });
           if (result.path) savedPath = result.path;
         }
 
@@ -329,7 +328,7 @@ export function MainCanvas() {
           const result = await saveFile(blob, `${filename}.gif`, 'image/gif', { saveDir: savedPath });
           if (result.path) savedPath = result.path;
         } else {
-          const blob = await generateTIFF('profile', currentLang, animDpi);
+          const blob = await generateHighResPNG('profile', currentLang, animDpi);
           const result = await saveFile(blob, `${filename}.png`, 'image/png', { saveDir: savedPath });
           if (result.path) savedPath = result.path;
         }

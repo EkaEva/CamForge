@@ -3,20 +3,14 @@ import type { CamParams, SimulationData, DisplayOptions } from '../types';
 import { defaultParams, defaultDisplayOptions } from '../constants';
 import { drawMotionCurves, drawPressureAngleChart, drawCurvatureChart, drawCamProfileChart, drawAnimationFrame } from '../utils/chartDrawing';
 import type { ChartDrawOptions, AnimationFrameOptions } from '../utils/chartDrawing';
+import { computeMotion } from '../services/motion';
+import { arrayMax, arrayMin, arrayMaxBy, arrayMinBy, filterFinite, findIndex } from '../utils/array';
+import { isTauriEnv, invokeTauri } from '../utils/tauri';
 import * as XLSX from 'xlsx';
 import GIF from 'gif.js';
 
 // 检查是否在 Tauri 环境中
-const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
-
-// 动态导入 invoke
-async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
-  if (isTauri) {
-    const { invoke } = await import('@tauri-apps/api/core');
-    return invoke<T>(cmd, args);
-  }
-  throw new Error('Not in Tauri environment');
-}
+const isTauri = isTauriEnv();
 
 // 参数状态
 export const [params, setParams] = createSignal<CamParams>(defaultParams);
@@ -48,69 +42,6 @@ export const [exportStatus, setExportStatus] = createSignal<{
 
 // 保存上次运行的参数哈希
 let lastRunParamsHash = '';
-
-// 运动规律计算函数
-function computeMotion(law: number, t: number, h: number, omega: number, deltaRad: number): [number, number, number] {
-  // t: 0-1 归一化时间, 返回 [s, v, a]
-  let s: number, v: number, a: number;
-
-  switch (law) {
-    case 1: // 等速运动
-      s = h * t;
-      v = h * omega / deltaRad;
-      a = 0;
-      break;
-
-    case 2: // 等加速等减速
-      if (t < 0.5) {
-        s = 2 * h * t * t;
-        v = 4 * h * omega * t / deltaRad;
-        a = 4 * h * omega * omega / (deltaRad * deltaRad);
-      } else {
-        s = h * (1 - 2 * (1 - t) * (1 - t));
-        v = 4 * h * omega * (1 - t) / deltaRad;
-        a = -4 * h * omega * omega / (deltaRad * deltaRad);
-      }
-      break;
-
-    case 3: // 简谐运动
-      s = h * (1 - Math.cos(Math.PI * t)) / 2;
-      v = h * omega * Math.PI * Math.sin(Math.PI * t) / (2 * deltaRad);
-      a = h * omega * omega * Math.PI * Math.PI * Math.cos(Math.PI * t) / (2 * deltaRad * deltaRad);
-      break;
-
-    case 4: // 摆线运动
-      s = h * (t - Math.sin(2 * Math.PI * t) / (2 * Math.PI));
-      v = h * omega * (1 - Math.cos(2 * Math.PI * t)) / deltaRad;
-      a = h * omega * omega * 2 * Math.PI * Math.sin(2 * Math.PI * t) / (deltaRad * deltaRad);
-      break;
-
-    case 5: // 3-4-5 多项式
-      s = h * (10 * t * t * t - 15 * t * t * t * t + 6 * t * t * t * t * t);
-      v = h * omega * (30 * t * t - 60 * t * t * t + 30 * t * t * t * t) / deltaRad;
-      a = h * omega * omega * (60 * t - 180 * t * t + 120 * t * t * t) / (deltaRad * deltaRad);
-      break;
-
-    case 6: // 4-5-6-7 多项式
-      const t2 = t * t;
-      const t3 = t2 * t;
-      const t4 = t3 * t;
-      const t5 = t4 * t;
-      const t6 = t5 * t;
-      const t7 = t6 * t;
-      s = h * (35 * t4 - 84 * t5 + 70 * t6 - 20 * t7);
-      v = h * omega * (140 * t3 - 420 * t4 + 420 * t5 - 140 * t6) / deltaRad;
-      a = h * omega * omega * (420 * t2 - 1680 * t3 + 2100 * t4 - 840 * t5) / (deltaRad * deltaRad);
-      break;
-
-    default:
-      s = h * (1 - Math.cos(Math.PI * t)) / 2;
-      v = h * omega * Math.PI * Math.sin(Math.PI * t) / (2 * deltaRad);
-      a = h * omega * omega * Math.PI * Math.PI * Math.cos(Math.PI * t) / (2 * deltaRad * deltaRad);
-  }
-
-  return [s, v, a];
-}
 
 // 生成模拟数据
 function generateMockData(p: CamParams): SimulationData {
@@ -240,8 +171,8 @@ function generateMockData(p: CamParams): SimulationData {
     alpha_all.push(Math.abs(alpha));
   }
 
-  const r_max = Math.max(...x.map((xi, i) => Math.sqrt(xi * xi + y[i] * y[i])));
-  const max_alpha = Math.max(...alpha_all);
+  const r_max = arrayMaxBy(x, (xi, i) => Math.sqrt(xi * xi + y[i] * y[i]));
+  const max_alpha = arrayMax(alpha_all);
 
   // 计算曲率半径
   // 使用参数曲线曲率公式: ρ = ((x'^2 + y'^2)^(3/2)) / (x'y'' - y'x'')
@@ -292,22 +223,22 @@ function generateMockData(p: CamParams): SimulationData {
   }
 
   // 计算最小曲率半径（理论轮廓）
-  const rhoFinite = rho.filter(r => isFinite(r));
+  const rhoFinite = filterFinite(rho);
   let min_rho: number | null = null;
   let min_rho_idx = 0;
   if (rhoFinite.length > 0) {
-    min_rho = Math.min(...rhoFinite.map(Math.abs));
-    min_rho_idx = rho.findIndex(r => isFinite(r) && Math.abs(r) === min_rho);
+    min_rho = arrayMinBy(rhoFinite, Math.abs);
+    min_rho_idx = findIndex(rho, r => isFinite(r) && Math.abs(r) === min_rho);
     if (min_rho_idx < 0) min_rho_idx = 0;
   }
 
   // 计算最小曲率半径（实际轮廓）
-  const rhoActualFinite = rho_actual.filter(r => isFinite(r));
+  const rhoActualFinite = filterFinite(rho_actual);
   let min_rho_actual: number | null = null;
   let min_rho_actual_idx = 0;
   if (rhoActualFinite.length > 0) {
-    min_rho_actual = Math.min(...rhoActualFinite.map(Math.abs));
-    min_rho_actual_idx = rho_actual.findIndex(r => isFinite(r) && Math.abs(r) === min_rho_actual);
+    min_rho_actual = arrayMinBy(rhoActualFinite, Math.abs);
+    min_rho_actual_idx = findIndex(rho_actual, r => isFinite(r) && Math.abs(r) === min_rho_actual);
     if (min_rho_actual_idx < 0) min_rho_actual_idx = 0;
   }
 
@@ -669,11 +600,11 @@ export function generateSVG(): string {
 
   // 计算范围
   const sMax = data.h * 1.15;
-  const vMax = Math.max(...data.v.map(Math.abs)) * 1.15 || 1;
-  const aMax = Math.max(...data.a.map(Math.abs)) * 1.15 || 1;
-  const alphaMax = Math.max(...data.alpha_all.map(Math.abs), p.alpha_threshold) * 1.15;
-  const rhoFinite = data.rho.filter(r => isFinite(r));
-  const rhoActualFinite = data.rho_actual ? data.rho_actual.filter(r => isFinite(r)) : [];
+  const vMax = arrayMaxBy(data.v, Math.abs) * 1.15 || 1;
+  const aMax = arrayMaxBy(data.a, Math.abs) * 1.15 || 1;
+  const alphaMax = Math.max(arrayMaxBy(data.alpha_all, Math.abs), p.alpha_threshold) * 1.15;
+  const rhoFinite = filterFinite(data.rho);
+  const rhoActualFinite = data.rho_actual ? filterFinite(data.rho_actual) : [];
   const allRhoFinite = [...rhoFinite, ...rhoActualFinite];
 
   // 使用百分位数来避免极端值影响显示
@@ -693,11 +624,11 @@ export function generateSVG(): string {
       rhoMin = p5 - range * 0.1;
       rhoMax = p95 + range * 0.1;
     } else {
-      rhoMin = Math.min(...allRhoFinite) * 0.9;
-      rhoMax = Math.max(...allRhoFinite) * 1.1;
-      if (rhoMin > 0) rhoMin = Math.min(...allRhoFinite) * 0.9;
-      else rhoMin = Math.min(...allRhoFinite) - 1;
-      if (rhoMax < 0) rhoMax = Math.max(...allRhoFinite) + 1;
+      rhoMin = arrayMin(allRhoFinite) * 0.9;
+      rhoMax = arrayMax(allRhoFinite) * 1.1;
+      if (rhoMin > 0) rhoMin = arrayMin(allRhoFinite) * 0.9;
+      else rhoMin = arrayMin(allRhoFinite) - 1;
+      if (rhoMax < 0) rhoMax = arrayMax(allRhoFinite) + 1;
     }
   } else {
     rhoMin = 0;
@@ -1026,8 +957,9 @@ export function generateSVG(): string {
 </svg>`;
 }
 
-// 生成 TIFF 图像（通过 Canvas）- 使用共享绘制函数
-export function generateTIFF(
+// 生成高分辨率 PNG 图像（通过 Canvas）- 使用共享绘制函数
+// 注意：此函数输出 PNG 格式，文件扩展名应为 .png
+export function generateHighResPNG(
   type: 'motion' | 'curvature' | 'pressure' | 'profile',
   lang: string,
   customDpi?: number
@@ -1040,7 +972,9 @@ export function generateTIFF(
       return;
     }
 
-    const dpi = customDpi || 600;
+    // DPI 上限保护，防止内存溢出
+    const MAX_DPI = 600;
+    const dpi = Math.min(customDpi || 600, MAX_DPI);
     const width = type === 'profile' ? 6 * dpi : 8 * dpi;
     const height = type === 'profile' ? 6 * dpi : 5 * dpi;
 
@@ -1078,6 +1012,9 @@ export function generateTIFF(
   });
 }
 
+// 保持向后兼容的别名
+export const generateTIFF = generateHighResPNG;
+
 // 生成 GIF 动画（真正的 GIF 格式）
 export async function generateGIF(lang: string, onProgress?: (progress: number) => void, customDpi?: number): Promise<Blob> {
   const data = simulationData();
@@ -1100,12 +1037,17 @@ export async function generateGIF(lang: string, onProgress?: (progress: number) 
 
   // 创建 GIF 编码器
   // quality: 10 是较好的平衡点，dither 会增加处理时间
+  // Worker 路径根据环境动态设置
+  const workerScript = import.meta.env.DEV
+    ? '/node_modules/gif.js/dist/gif.worker.js'
+    : '/gif.worker.js';
+
   const gif = new GIF({
     workers: 2,
     quality: 10,
     width,
     height,
-    workerScript: '/gif.worker.js',
+    workerScript,
     repeat: 0  // 无限循环
   });
 
@@ -1154,8 +1096,9 @@ export async function generateGIF(lang: string, onProgress?: (progress: number) 
     gif.on('finished', (blob: Blob) => {
       resolve(blob);
     });
-    gif.on('error', (error: Error) => {
-      reject(error);
+    // gif.js 不支持 error 事件，使用 abort 处理
+    gif.on('abort', () => {
+      reject(new Error('GIF generation was aborted'));
     });
     gif.render();
   });

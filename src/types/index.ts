@@ -1,5 +1,37 @@
 // CamForge-Next TypeScript 类型定义
 
+/**
+ * 运动规律枚举
+ *
+ * 定义凸轮机构常用的 6 种标准运动规律。
+ */
+export enum MotionLaw {
+  /** 等速运动 - 速度恒定，加速度在端点处有突变 */
+  ConstantVelocity = 1,
+  /** 等加速等减速 - 加速度恒定，速度线性变化 */
+  ConstantAccel = 2,
+  /** 简谐运动 - 按余弦规律运动，加速度连续 */
+  SimpleHarmonic = 3,
+  /** 摆线运动 - 按正弦规律运动，加速度平滑 */
+  Cycloidal = 4,
+  /** 3-4-5 多项式 - 位移、速度、加速度均连续 */
+  Polynomial345 = 5,
+  /** 4-5-6-7 多项式 - 位移、速度、加速度、加加速度均连续 */
+  Polynomial4567 = 6,
+}
+
+/**
+ * 运动规律名称映射（支持国际化）
+ */
+export const MotionLawNames: Record<MotionLaw, { zh: string; en: string }> = {
+  [MotionLaw.ConstantVelocity]: { zh: '等速运动', en: 'Constant Velocity' },
+  [MotionLaw.ConstantAccel]: { zh: '等加速等减速', en: 'Constant Acceleration' },
+  [MotionLaw.SimpleHarmonic]: { zh: '简谐运动', en: 'Simple Harmonic' },
+  [MotionLaw.Cycloidal]: { zh: '摆线运动', en: 'Cycloidal' },
+  [MotionLaw.Polynomial345]: { zh: '3-4-5 多项式', en: '3-4-5 Polynomial' },
+  [MotionLaw.Polynomial4567]: { zh: '4-5-6-7 多项式', en: '4-5-6-7 Polynomial' },
+};
+
 /// 凸轮设计参数
 export interface CamParams {
   delta_0: number;        // 推程运动角 (度)
@@ -13,8 +45,8 @@ export interface CamParams {
   r_r: number;            // 滚子半径 (mm)
   n_points: number;       // 离散点数
   alpha_threshold: number;// 压力角阈值 (度)
-  tc_law: number;         // 推程运动规律 (1-6)
-  hc_law: number;         // 回程运动规律 (1-6)
+  tc_law: MotionLaw;      // 推程运动规律
+  hc_law: MotionLaw;      // 回程运动规律
   sn: number;             // 旋向符号 (+1 顺时针, -1 逆时针)
   pz: number;             // 偏距符号 (+1 正偏距, -1 负偏距)
 }

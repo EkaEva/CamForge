@@ -10,13 +10,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CamParams {
     /// 推程运动角 (度)
-    pub delta_0: i32,
+    pub delta_0: f64,
     /// 远休止角 (度)
-    pub delta_01: i32,
+    pub delta_01: f64,
     /// 回程运动角 (度)
-    pub delta_ret: i32,
+    pub delta_ret: f64,
     /// 近休止角 (度)
-    pub delta_02: i32,
+    pub delta_02: f64,
     /// 推杆最大位移 (mm)
     pub h: f64,
     /// 基圆半径 (mm)
@@ -44,10 +44,10 @@ pub struct CamParams {
 impl Default for CamParams {
     fn default() -> Self {
         Self {
-            delta_0: 90,
-            delta_01: 60,
-            delta_ret: 120,
-            delta_02: 90,
+            delta_0: 90.0,
+            delta_01: 60.0,
+            delta_ret: 120.0,
+            delta_02: 90.0,
             h: 10.0,
             r_0: 40.0,
             e: 5.0,
@@ -55,8 +55,8 @@ impl Default for CamParams {
             r_r: 0.0,
             n_points: 360,
             alpha_threshold: 30.0,
-            tc_law: 1,
-            hc_law: 1,
+            tc_law: 5,  // 3-4-5 多项式（与前端一致）
+            hc_law: 6,  // 4-5-6-7 多项式（与前端一致）
             sn: 1,
             pz: 1,
         }

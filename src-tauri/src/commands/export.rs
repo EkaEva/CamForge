@@ -4,9 +4,49 @@
 
 use std::fs::File;
 use std::io::Write;
+use std::path::{Path, PathBuf};
 use tauri::State;
 
 use crate::commands::simulation::SimState;
+
+/// 验证导出文件路径安全性
+///
+/// 检查路径是否包含路径遍历攻击字符，并验证文件扩展名
+fn validate_export_path(filepath: &str) -> Result<PathBuf, String> {
+    let path = Path::new(filepath);
+
+    // 1. 检查路径遍历攻击
+    if filepath.contains("..") {
+        return Err("Path traversal not allowed: path cannot contain '..'".to_string());
+    }
+
+    // 2. 验证文件扩展名
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
+    if !matches!(ext.as_str(), "dxf" | "csv") {
+        return Err(format!(
+            "Invalid file extension: '{}'. Only .dxf and .csv are allowed.",
+            ext
+        ));
+    }
+
+    // 3. 获取文件名（确保存在）
+    let filename = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or("Invalid filename: unable to extract filename from path")?;
+
+    // 4. 检查文件名不为空
+    if filename.is_empty() {
+        return Err("Invalid filename: filename cannot be empty".to_string());
+    }
+
+    Ok(path.to_path_buf())
+}
 
 /// 导出 DXF 格式
 #[tauri::command]
@@ -15,11 +55,15 @@ pub fn export_dxf(
     include_actual: bool,
     state: State<SimState>,
 ) -> Result<(), String> {
+    // 验证文件路径安全性
+    let safe_path = validate_export_path(&filepath)?;
+
     let data_guard = state.data.lock().unwrap();
-    let data = data_guard.as_ref()
+    let data = data_guard
+        .as_ref()
         .ok_or("No simulation data available")?;
 
-    let mut file = File::create(&filepath).map_err(|e| e.to_string())?;
+    let mut file = File::create(&safe_path).map_err(|e| e.to_string())?;
 
     // DXF Header
     writeln!(file, "0").map_err(|e| e.to_string())?;
@@ -124,11 +168,15 @@ pub fn export_csv(
     lang: String,
     state: State<SimState>,
 ) -> Result<(), String> {
+    // 验证文件路径安全性
+    let safe_path = validate_export_path(&filepath)?;
+
     let data_guard = state.data.lock().unwrap();
-    let data = data_guard.as_ref()
+    let data = data_guard
+        .as_ref()
         .ok_or("No simulation data available")?;
 
-    let mut file = File::create(&filepath).map_err(|e| e.to_string())?;
+    let mut file = File::create(&safe_path).map_err(|e| e.to_string())?;
 
     // Write BOM for Excel UTF-8 compatibility
     file.write_all(&[0xEF, 0xBB, 0xBF]).map_err(|e| e.to_string())?;

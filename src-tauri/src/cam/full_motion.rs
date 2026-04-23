@@ -180,24 +180,24 @@ fn compute_motion_point(
 /// 验证运动参数
 fn validate_motion_params(params: &CamParams) -> Result<(), String> {
     // 角度必须为正
-    if params.delta_0 <= 0 {
+    if params.delta_0 <= 0.0 {
         return Err(format!("delta_0 must be > 0, got {}", params.delta_0));
     }
-    if params.delta_01 < 0 {
+    if params.delta_01 < 0.0 {
         return Err(format!("delta_01 must be >= 0, got {}", params.delta_01));
     }
-    if params.delta_ret <= 0 {
+    if params.delta_ret <= 0.0 {
         return Err(format!("delta_ret must be > 0, got {}", params.delta_ret));
     }
-    if params.delta_02 < 0 {
+    if params.delta_02 < 0.0 {
         return Err(format!("delta_02 must be >= 0, got {}", params.delta_02));
     }
 
     // 四角之和必须为 360 度
     let sum = params.delta_0 + params.delta_01 + params.delta_ret + params.delta_02;
-    if (sum - 360).abs() > 0 {
+    if (sum - 360.0).abs() > 0.01 {
         return Err(format!(
-            "Four angles must sum to 360°, got {}",
+            "Four angles must sum to 360°, got {:.2}",
             sum
         ));
     }
@@ -251,10 +251,10 @@ mod tests {
     #[test]
     fn test_full_motion_invalid_angles() {
         let mut params = CamParams::default();
-        params.delta_0 = 100;
-        params.delta_01 = 100;
-        params.delta_ret = 100;
-        params.delta_02 = 100; // Sum = 400, not 360
+        params.delta_0 = 100.0;
+        params.delta_01 = 100.0;
+        params.delta_ret = 100.0;
+        params.delta_02 = 100.0; // Sum = 400, not 360
 
         let result = compute_full_motion(&params);
         assert!(result.is_err());

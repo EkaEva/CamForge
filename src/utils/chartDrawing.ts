@@ -23,6 +23,54 @@ export interface AnimationFrameOptions {
 // 默认 DPI（屏幕显示）
 const DEFAULT_DPI = 100;
 
+// DPI 上限保护
+const MAX_DPI = 600;
+const MAX_DIMENSION = 10000;
+
+/**
+ * 验证图表数据有效性
+ *
+ * @param data - 模拟数据
+ * @returns 数据是否有效
+ */
+export function validateChartData(data: SimulationData | null | undefined): boolean {
+  if (!data) return false;
+  if (!data.s?.length || !data.v?.length || !data.a?.length) return false;
+  if (!data.delta_deg?.length) return false;
+  if (data.s.length !== data.v.length || data.s.length !== data.a.length) return false;
+  return true;
+}
+
+/**
+ * 验证并规范化绘图选项
+ *
+ * @param options - 绘图选项
+ * @returns 规范化后的选项
+ */
+export function normalizeChartOptions(options: ChartDrawOptions): ChartDrawOptions {
+  const dpi = Math.min(options.dpi || DEFAULT_DPI, MAX_DPI);
+  const width = Math.min(Math.max(options.width, 1), MAX_DIMENSION);
+  const height = Math.min(Math.max(options.height, 1), MAX_DIMENSION);
+  return { ...options, dpi, width, height };
+}
+
+/**
+ * 验证动画帧选项
+ *
+ * @param options - 动画帧选项
+ * @param dataLength - 数据数组长度
+ * @returns 选项是否有效
+ */
+export function validateAnimationFrameOptions(
+  options: AnimationFrameOptions,
+  dataLength: number
+): boolean {
+  if (options.width <= 0 || options.height <= 0) return false;
+  if (options.frameIndex < 0 || options.frameIndex >= dataLength) return false;
+  if (options.zoom <= 0) return false;
+  return true;
+}
+
 // 计算 DPI 缩放因子
 function getScaleFactor(dpi: number): number {
   return dpi / DEFAULT_DPI;
@@ -34,7 +82,14 @@ export function drawMotionCurves(
   data: SimulationData,
   options: ChartDrawOptions
 ): void {
-  const { width, height, isDark, lang, dpi = DEFAULT_DPI } = options;
+  // 输入验证
+  if (!validateChartData(data)) {
+    console.warn('Invalid simulation data for motion curves');
+    return;
+  }
+
+  const normalizedOptions = normalizeChartOptions(options);
+  const { width, height, isDark, lang, dpi = DEFAULT_DPI } = normalizedOptions;
   const { delta_deg, s, v, a, phase_bounds, h } = data;
 
   // DPI 缩放因子
@@ -280,7 +335,14 @@ export function drawPressureAngleChart(
   params: CamParams,
   options: ChartDrawOptions
 ): void {
-  const { width, height, isDark, lang, dpi = DEFAULT_DPI } = options;
+  // 输入验证
+  if (!validateChartData(data)) {
+    console.warn('Invalid simulation data for pressure angle chart');
+    return;
+  }
+
+  const normalizedOptions = normalizeChartOptions(options);
+  const { width, height, isDark, lang, dpi = DEFAULT_DPI } = normalizedOptions;
   const { delta_deg, alpha_all, phase_bounds } = data;
 
   // DPI 缩放因子
@@ -456,7 +518,14 @@ export function drawCurvatureChart(
   params: CamParams,
   options: ChartDrawOptions
 ): void {
-  const { width, height, isDark, lang, dpi = DEFAULT_DPI } = options;
+  // 输入验证
+  if (!validateChartData(data)) {
+    console.warn('Invalid simulation data for curvature chart');
+    return;
+  }
+
+  const normalizedOptions = normalizeChartOptions(options);
+  const { width, height, isDark, lang, dpi = DEFAULT_DPI } = normalizedOptions;
   const { delta_deg, rho, rho_actual, phase_bounds, min_rho, min_rho_idx, min_rho_actual, min_rho_actual_idx } = data;
 
   // DPI 缩放因子
@@ -775,7 +844,14 @@ export function drawCamProfileChart(
   params: CamParams,
   options: ChartDrawOptions
 ): void {
-  const { width, height, isDark, lang, dpi = DEFAULT_DPI } = options;
+  // 输入验证
+  if (!validateChartData(data)) {
+    console.warn('Invalid simulation data for cam profile chart');
+    return;
+  }
+
+  const normalizedOptions = normalizeChartOptions(options);
+  const { width, height, isDark, lang, dpi = DEFAULT_DPI } = normalizedOptions;
   const { x, y, x_actual, y_actual, r_max } = data;
 
   // DPI 缩放因子
@@ -889,6 +965,16 @@ export function drawAnimationFrame(
   params: CamParams,
   options: AnimationFrameOptions
 ): void {
+  // 输入验证
+  if (!validateChartData(data)) {
+    console.warn('Invalid simulation data for animation frame');
+    return;
+  }
+  if (!validateAnimationFrameOptions(options, data.s.length)) {
+    console.warn('Invalid animation frame options');
+    return;
+  }
+
   const { width, height, frameIndex, displayOptions, zoom } = options;
   const { s, x, y, x_actual, y_actual, s_0, alpha_all, ds_ddelta, r_max, phase_bounds } = data;
   const n = s.length;

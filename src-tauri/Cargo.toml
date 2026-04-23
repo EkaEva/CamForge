@@ -1,6 +1,6 @@
 [package]
 name = "camforge-next"
-version = "0.1.0"
+version = "0.1.1"
 description = "CamForge-Next - High-performance cam mechanism simulator"
 authors = ["CamForge Team"]
 edition = "2021"
@@ -14,7 +14,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 # Tauri
-tauri = { version = "2", features = ["devtools"] }
+tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
@@ -33,6 +33,10 @@ rayon = "1.8"
 # Error handling
 thiserror = "1.0"
 anyhow = "1.0"
+
+[features]
+default = []
+devtools = ["tauri/devtools"]
 
 [profile.release]
 lto = true
