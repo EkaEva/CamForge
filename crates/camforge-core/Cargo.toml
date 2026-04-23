@@ -1,10 +1,10 @@
 [package]
 name = "camforge-core"
-version = "0.1.2"
+version.workspace = true
 description = "Core calculation library for CamForge-Next cam mechanism simulator"
-authors = ["CamForge Team"]
-edition = "2021"
-license = "MIT"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [dependencies]
 # Serialization
