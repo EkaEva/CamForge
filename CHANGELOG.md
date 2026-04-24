@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-04-24
+
+### Added
+
+- **安全加固**：
+  - SC-001：配置 CSP 内容安全策略
+  - SC-002：CORS 白名单支持，通过环境变量配置
+  - SC-004/005：增强文件路径安全验证
+    - URL 编码路径遍历检测
+    - 绝对路径和路径前缀阻止
+    - 危险字符过滤
+    - 7 个路径验证单元测试
+- **架构重构**：
+  - AR-001：拆分 simulation.ts（1327 → 1159 行）
+  - 新增 `src/exporters/` 导出模块目录
+    - `dxf.ts`：DXF 导出模块
+    - `csv.ts`：CSV 导出模块
+    - `excel.ts`：Excel 导出模块
+  - CQ-001/002：完善 API 适配层，支持 HTTP API + 前端 fallback
+- **测试完善**：
+  - TS-001/002：前端测试从 1 个增加到 4 个文件
+  - TS-003-006：Rust 测试从 13 个增加到 26 个
+  - 总测试数：89 个通过
+
+### Changed
+
+- 改进 `runSimulation()` 支持 Web 环境 HTTP API 调用
+- 更新测试配置，添加 localStorage 和 Canvas mock
+
+### Security
+
+- 添加 CSP 配置防止 XSS 攻击
+- CORS 白名单防止未授权跨域访问
+- 文件路径验证增强防止路径遍历攻击
+
+---
+
 ## [0.2.0] - 2026-04-23
 
 ### Added
@@ -164,6 +201,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[0.2.1]: https://github.com/EkaEva/CamForge-Next/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/EkaEva/CamForge-Next/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/EkaEva/CamForge-Next/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/EkaEva/CamForge-Next/compare/v0.1.0...v0.1.1
