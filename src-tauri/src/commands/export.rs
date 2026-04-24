@@ -4,45 +4,84 @@
 
 use std::fs::File;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::{Path, PathBuf, Component};
 use tauri::State;
 
 use crate::commands::simulation::SimState;
 
+/// 允许的导出文件扩展名
+const ALLOWED_EXTENSIONS: &[&str] = &["dxf", "csv"];
+
 /// 验证导出文件路径安全性
 ///
-/// 检查路径是否包含路径遍历攻击字符，并验证文件扩展名
+/// 执行多层安全检查：
+/// 1. 路径遍历攻击检测（包括编码形式）
+/// 2. 绝对路径检测
+/// 3. 文件扩展名白名单验证
+/// 4. 文件名有效性检查
 fn validate_export_path(filepath: &str) -> Result<PathBuf, String> {
     let path = Path::new(filepath);
+    let filepath_lower = filepath.to_lowercase();
 
-    // 1. 检查路径遍历攻击
+    // 1. 检查路径遍历攻击（包括 URL 编码形式）
     if filepath.contains("..") {
         return Err("Path traversal not allowed: path cannot contain '..'".to_string());
     }
+    // 检查 URL 编码的路径遍历
+    if filepath_lower.contains("%2e%2e") || filepath_lower.contains("%2e.") || filepath_lower.contains(".%2e") {
+        return Err("Path traversal not allowed: encoded path traversal detected".to_string());
+    }
 
-    // 2. 验证文件扩展名
+    // 2. 检查绝对路径（仅允许相对路径或文件名）
+    if path.is_absolute() {
+        return Err("Absolute paths not allowed: please use relative path or filename only".to_string());
+    }
+
+    // 3. 检查路径组件安全性
+    for component in path.components() {
+        match component {
+            Component::ParentDir => {
+                return Err("Path traversal not allowed: parent directory reference detected".to_string());
+            }
+            Component::RootDir => {
+                return Err("Root directory not allowed in path".to_string());
+            }
+            Component::Prefix(_) => {
+                return Err("Path prefix not allowed (e.g., C:)".to_string());
+            }
+            _ => {}
+        }
+    }
+
+    // 4. 验证文件扩展名（大小写不敏感）
     let ext = path
         .extension()
         .and_then(|e| e.to_str())
-        .unwrap_or("")
-        .to_lowercase();
+        .map(|e| e.to_lowercase())
+        .ok_or("Missing file extension: file must have .dxf or .csv extension")?;
 
-    if !matches!(ext.as_str(), "dxf" | "csv") {
+    if !ALLOWED_EXTENSIONS.contains(&ext.as_str()) {
         return Err(format!(
-            "Invalid file extension: '{}'. Only .dxf and .csv are allowed.",
-            ext
+            "Invalid file extension: '{}'. Allowed extensions: {}",
+            ext,
+            ALLOWED_EXTENSIONS.join(", ")
         ));
     }
 
-    // 3. 获取文件名（确保存在）
+    // 5. 获取文件名并验证
     let filename = path
         .file_name()
         .and_then(|n| n.to_str())
         .ok_or("Invalid filename: unable to extract filename from path")?;
 
-    // 4. 检查文件名不为空
     if filename.is_empty() {
         return Err("Invalid filename: filename cannot be empty".to_string());
+    }
+
+    // 6. 检查文件名不包含危险字符
+    let dangerous_chars = ['<', '>', ':', '"', '|', '?', '*', '\0'];
+    if filename.chars().any(|c| dangerous_chars.contains(&c)) {
+        return Err("Invalid filename: contains dangerous characters".to_string());
     }
 
     Ok(path.to_path_buf())
@@ -212,4 +251,55 @@ pub fn export_csv(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_valid_dxf_path() {
+        assert!(validate_export_path("output.dxf").is_ok());
+        assert!(validate_export_path("output.DXF").is_ok());
+        assert!(validate_export_path("output.Dxf").is_ok());
+    }
+
+    #[test]
+    fn test_valid_csv_path() {
+        assert!(validate_export_path("data.csv").is_ok());
+        assert!(validate_export_path("data.CSV").is_ok());
+    }
+
+    #[test]
+    fn test_path_traversal_blocked() {
+        assert!(validate_export_path("../../../etc/passwd").is_err());
+        assert!(validate_export_path("..\\..\\windows\\system32").is_err());
+    }
+
+    #[test]
+    fn test_encoded_path_traversal_blocked() {
+        assert!(validate_export_path("%2e%2e/etc/passwd").is_err());
+        assert!(validate_export_path("%2e./etc/passwd").is_err());
+        assert!(validate_export_path(".%2e/etc/passwd").is_err());
+    }
+
+    #[test]
+    fn test_absolute_path_blocked() {
+        assert!(validate_export_path("/etc/passwd").is_err());
+        assert!(validate_export_path("C:\\Windows\\System32").is_err());
+    }
+
+    #[test]
+    fn test_invalid_extension_blocked() {
+        assert!(validate_export_path("output.exe").is_err());
+        assert!(validate_export_path("output.txt").is_err());
+        assert!(validate_export_path("output").is_err());
+    }
+
+    #[test]
+    fn test_dangerous_chars_blocked() {
+        assert!(validate_export_path("out<put.dxf").is_err());
+        assert!(validate_export_path("out>put.dxf").is_err());
+        assert!(validate_export_path("out:put.dxf").is_err());
+    }
 }

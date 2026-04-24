@@ -8,7 +8,7 @@ import { arrayMax, arrayMin, arrayMaxBy, arrayMinBy, filterFinite, findIndex } f
 import { isTauriEnv, invokeTauri } from '../utils/tauri';
 import { generateGifAsync, terminateGifWorker } from '../services/gifEncoder';
 import { createHistory, type HistoryActions } from './history';
-import * as XLSX from 'xlsx';
+import { generateDXF as generateDXFCore, generateCSV as generateCSVCore, generateExcel as generateExcelCore } from '../exporters';
 
 // 检查是否在 Tauri 环境中
 const isTauri = isTauriEnv();
@@ -392,45 +392,7 @@ export function deletePreset(name: string) {
 export function generateDXF(includeActual: boolean): string {
   const data = simulationData();
   if (!data) return '';
-
-  const lines: string[] = [];
-
-  // DXF Header
-  lines.push('0', 'SECTION', '2', 'HEADER', '9', '$INSUNITS', '70', '4', '0', 'ENDSEC');
-
-  // Tables Section
-  lines.push('0', 'SECTION', '2', 'TABLES', '0', 'TABLE', '2', 'LAYER', '70', '2');
-
-  // Theory layer
-  lines.push('0', 'LAYER', '2', 'CAM_THEORY', '70', '0', '62', '1');
-
-  // Actual layer
-  if (includeActual) {
-    lines.push('0', 'LAYER', '2', 'CAM_ACTUAL', '70', '0', '62', '5');
-  }
-
-  lines.push('0', 'ENDTAB', '0', 'ENDSEC');
-
-  // Entities Section
-  lines.push('0', 'SECTION', '2', 'ENTITIES');
-
-  // Theory profile polyline
-  lines.push('0', 'LWPOLYLINE', '8', 'CAM_THEORY', '90', String(data.x.length), '70', '1');
-  for (let i = 0; i < data.x.length; i++) {
-    lines.push('10', data.x[i].toFixed(6), '20', data.y[i].toFixed(6));
-  }
-
-  // Actual profile polyline
-  if (includeActual && data.x_actual.length > 0) {
-    lines.push('0', 'LWPOLYLINE', '8', 'CAM_ACTUAL', '90', String(data.x_actual.length), '70', '1');
-    for (let i = 0; i < data.x_actual.length; i++) {
-      lines.push('10', data.x_actual[i].toFixed(6), '20', data.y_actual[i].toFixed(6));
-    }
-  }
-
-  lines.push('0', 'ENDSEC', '0', 'EOF');
-
-  return lines.join('\n');
+  return generateDXFCore(data, includeActual);
 }
 
 // 生成 CSV 内容
@@ -438,53 +400,7 @@ export function generateCSV(lang: string): string {
   const data = simulationData();
   const p = params();
   if (!data) return '';
-
-  const lines: string[] = [];
-
-  // Header row - 根据是否有滚子决定列数
-  let headers: string;
-  if (p.r_r > 0) {
-    headers = lang === 'zh'
-      ? '转角 δ (°),向径 R (mm),推杆位移 s (mm),推杆速度 v (mm/s),推杆加速度 a (mm/s²),理论曲率半径 ρ (mm),实际曲率半径 ρₐ (mm),压力角 α (°)'
-      : 'Angle δ (°),Radius R (mm),Displacement s (mm),Velocity v (mm/s),Acceleration a (mm/s²),Theory ρ (mm),Actual ρₐ (mm),Pressure Angle α (°)';
-  } else {
-    headers = lang === 'zh'
-      ? '转角 δ (°),向径 R (mm),推杆位移 s (mm),推杆速度 v (mm/s),推杆加速度 a (mm/s²),曲率半径 ρ (mm),压力角 α (°)'
-      : 'Angle δ (°),Radius R (mm),Displacement s (mm),Velocity v (mm/s),Acceleration a (mm/s²),Curvature ρ (mm),Pressure Angle α (°)';
-  }
-  lines.push(headers);
-
-  // Data rows
-  for (let i = 0; i < data.delta_deg.length; i++) {
-    const r = Math.sqrt(data.x[i] ** 2 + data.y[i] ** 2);
-    const rho = isFinite(data.rho[i]) ? Math.abs(data.rho[i]).toFixed(4) : '';
-    const rhoActual = data.rho_actual && isFinite(data.rho_actual[i]) ? Math.abs(data.rho_actual[i]).toFixed(4) : '';
-
-    if (p.r_r > 0) {
-      lines.push([
-        data.delta_deg[i].toFixed(2),
-        r.toFixed(4),
-        data.s[i].toFixed(4),
-        data.v[i].toFixed(4),
-        data.a[i].toFixed(4),
-        rho,
-        rhoActual,
-        data.alpha_all[i].toFixed(4)
-      ].join(','));
-    } else {
-      lines.push([
-        data.delta_deg[i].toFixed(2),
-        r.toFixed(4),
-        data.s[i].toFixed(4),
-        data.v[i].toFixed(4),
-        data.a[i].toFixed(4),
-        rho,
-        data.alpha_all[i].toFixed(4)
-      ].join(','));
-    }
-  }
-
-  return lines.join('\n');
+  return generateCSVCore(data, p, lang);
 }
 
 // 下载文件（浏览器环境）
@@ -1087,91 +1003,7 @@ export function generateExcel(lang: string): Blob {
   const data = simulationData();
   const p = params();
   if (!data) return new Blob();
-
-  // 创建工作簿
-  const wb = XLSX.utils.book_new();
-
-  // 准备数据
-  const rows: (string | number)[][] = [];
-
-  // 表头 - 根据是否有滚子决定列数
-  if (p.r_r > 0) {
-    if (lang === 'zh') {
-      rows.push(['转角 δ (°)', '向径 R (mm)', '推杆位移 s (mm)', '推杆速度 v (mm/s)', '推杆加速度 a (mm/s²)', '理论曲率半径 ρ (mm)', '实际曲率半径 ρₐ (mm)', '压力角 α (°)']);
-    } else {
-      rows.push(['Angle δ (°)', 'Radius R (mm)', 'Displacement s (mm)', 'Velocity v (mm/s)', 'Acceleration a (mm/s²)', 'Theory ρ (mm)', 'Actual ρₐ (mm)', 'Pressure Angle α (°)']);
-    }
-  } else {
-    if (lang === 'zh') {
-      rows.push(['转角 δ (°)', '向径 R (mm)', '推杆位移 s (mm)', '推杆速度 v (mm/s)', '推杆加速度 a (mm/s²)', '曲率半径 ρ (mm)', '压力角 α (°)']);
-    } else {
-      rows.push(['Angle δ (°)', 'Radius R (mm)', 'Displacement s (mm)', 'Velocity v (mm/s)', 'Acceleration a (mm/s²)', 'Curvature ρ (mm)', 'Pressure Angle α (°)']);
-    }
-  }
-
-  // 数据行
-  for (let i = 0; i < data.delta_deg.length; i++) {
-    const r = Math.sqrt(data.x[i] ** 2 + data.y[i] ** 2);
-    const rho = isFinite(data.rho[i]) ? Math.abs(data.rho[i]) : '';
-    const rhoActual = data.rho_actual && isFinite(data.rho_actual[i]) ? Math.abs(data.rho_actual[i]) : '';
-
-    if (p.r_r > 0) {
-      rows.push([
-        Number(data.delta_deg[i].toFixed(4)),
-        Number(r.toFixed(4)),
-        Number(data.s[i].toFixed(4)),
-        Number(data.v[i].toFixed(4)),
-        Number(data.a[i].toFixed(4)),
-        rho === '' ? '' : Number((rho as number).toFixed(4)),
-        rhoActual === '' ? '' : Number((rhoActual as number).toFixed(4)),
-        Number(data.alpha_all[i].toFixed(4))
-      ]);
-    } else {
-      rows.push([
-        Number(data.delta_deg[i].toFixed(4)),
-        Number(r.toFixed(4)),
-        Number(data.s[i].toFixed(4)),
-        Number(data.v[i].toFixed(4)),
-        Number(data.a[i].toFixed(4)),
-        rho === '' ? '' : Number((rho as number).toFixed(4)),
-        Number(data.alpha_all[i].toFixed(4))
-      ]);
-    }
-  }
-
-  // 创建工作表
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-
-  // 设置列宽
-  if (p.r_r > 0) {
-    ws['!cols'] = [
-      { wch: 12 }, // 转角
-      { wch: 12 }, // 向径
-      { wch: 16 }, // 位移
-      { wch: 16 }, // 速度
-      { wch: 18 }, // 加速度
-      { wch: 16 }, // 理论曲率半径
-      { wch: 16 }, // 实际曲率半径
-      { wch: 14 }, // 压力角
-    ];
-  } else {
-    ws['!cols'] = [
-      { wch: 12 }, // 转角
-      { wch: 12 }, // 向径
-      { wch: 16 }, // 位移
-      { wch: 16 }, // 速度
-      { wch: 18 }, // 加速度
-      { wch: 14 }, // 曲率半径
-      { wch: 14 }, // 压力角
-    ];
-  }
-
-  // 添加工作表到工作簿
-  XLSX.utils.book_append_sheet(wb, ws, lang === 'zh' ? '凸轮数据' : 'Cam Data');
-
-  // 生成 xlsx 文件的二进制数据
-  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-  return new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  return generateExcelCore(data, p, lang);
 }
 
 // 导出当前配置为 JSON
