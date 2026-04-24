@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-04-24
+
+### Added
+
+- **iOS/Android 移动端应用支持**：
+  - 添加 iOS 项目配置（需要 macOS + Xcode 进行构建）
+  - 初始化 Android 项目，生成完整的 Gradle 构建配置
+  - 生成 iOS 图标集（17 个尺寸）
+  - 生成 Android 图标集（mipmap 各密度）
+  - 配置 Android 权限（网络、文件存储）
+  - 安装 Android NDK 27.0.12077973
+  - 安装 Rust Android 编译目标（aarch64, armv7, i686, x86_64）
+
+### Changed
+
+- 更新 `tauri.conf.json` 添加 iOS/Android 配置块
+- 添加移动端文件导出适配计划（使用分享功能）
+
+### Documentation
+
+- 新增详细的 iOS/Android 开发计划文档（`TODO.md`）
+- 包含分阶段实施步骤和验证方法
+
+---
+
 ## [0.3.1] - 2026-04-24
 
 ### Fixed
@@ -276,6 +301,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[0.3.2]: https://github.com/EkaEva/CamForge-Next/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/EkaEva/CamForge-Next/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/EkaEva/CamForge-Next/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/EkaEva/CamForge-Next/compare/v0.2.1...v0.2.2
