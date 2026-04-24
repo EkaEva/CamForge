@@ -187,19 +187,13 @@ jobs:
         run: pnpm tauri ios init
 
       - name: Build iOS (simulator)
-        run: pnpm tauri ios build --target aarch64-apple-ios-sim
-
-      - name: Upload iOS App
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-app
-          path: src-tauri/target/aarch64-apple-ios-sim/release/bundle/ios/*.app
+        run: pnpm tauri ios build --target aarch64-sim
 
       - name: Create IPA from App
         run: |
-          cd src-tauri/target/aarch64-apple-ios-sim/release/bundle/ios
+          cd src-tauri/gen/apple
           mkdir -p Payload
-          mv *.app Payload/
+          mv build/Release-iphonesimulator/*.app Payload/ || mv build/*.app Payload/
           zip -r CamForge-Next.ipa Payload
 
       - name: Upload IPA to Release
@@ -208,5 +202,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref_name }}
-          files: src-tauri/target/aarch64-apple-ios-sim/release/bundle/ios/CamForge-Next.ipa
+          files: src-tauri/gen/apple/CamForge-Next.ipa
           draft: true
