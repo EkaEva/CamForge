@@ -1,0 +1,8 @@
+export const DATA_RANGE_MARGIN = 1.15;
+export const PERCENTILE_CLIP_LOW = 0.05;
+export const PERCENTILE_CLIP_HIGH = 0.95;
+export const PERCENTILE_CLIP_MID_LOW = 0.1;
+export const PERCENTILE_CLIP_MID_HIGH = 0.9;
+export const EPSILON = 1e-10;
+export const TARGET_FPS = 60;
+export const MAX_UNDO_STEPS = 50;

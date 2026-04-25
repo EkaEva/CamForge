@@ -11,6 +11,13 @@ export function Toggle(props: ToggleProps) {
     props.onChange(!getChecked());
   };
 
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      props.onChange(!getChecked());
+    }
+  };
+
   return (
     <div class="flex items-center justify-between py-1.5 cursor-pointer min-h-[44px]" onClick={handleClick}>
       <span class="text-xs text-gray-600 dark:text-gray-300">
@@ -20,6 +27,8 @@ export function Toggle(props: ToggleProps) {
         type="button"
         role="switch"
         aria-checked={getChecked()}
+        tabindex="0"
+        onKeyDown={handleKeyDown}
         classList={{
           'relative w-12 h-7 rounded-full transition-colors cursor-pointer border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation': true,
           'bg-blue-500': getChecked(),

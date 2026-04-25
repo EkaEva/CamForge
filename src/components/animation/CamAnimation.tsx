@@ -1,6 +1,7 @@
 import { createSignal, createMemo, onCleanup, onMount, Show, createEffect } from 'solid-js';
 import { simulationData, params, displayOptions } from '../../stores/simulation';
 import { t } from '../../i18n';
+import { TARGET_FPS, EPSILON } from '../../constants/numeric';
 
 interface CamAnimationProps {
   isActive?: boolean;
@@ -14,11 +15,14 @@ export function CamAnimation(props: CamAnimationProps) {
 
   let animationId: number | undefined;
   let lastTime = 0;
+  const FRAME_INTERVAL = 1000 / TARGET_FPS;
+  let lastFrameTime = 0;
 
   // 触摸手势状态
   let touchStartDistance = 0;
   let touchStartZoom = 1;
   let touchStartX = 0;
+  // touchStartY reserved for future vertical swipe support
   let touchStartY = 0;
 
   // 计算最大帧数
@@ -32,6 +36,14 @@ export function CamAnimation(props: CamAnimationProps) {
     const max = maxFrame();
     if (frame() > max) {
       setFrame(0);
+    }
+  });
+
+  // 当切换回 cam profile 标签页时，立即重绘当前帧
+  createEffect(() => {
+    if (props.isActive) {
+      // Trigger immediate redraw by re-setting the current frame
+      setFrame(frame());
     }
   });
 
@@ -131,7 +143,7 @@ export function CamAnimation(props: CamAnimationProps) {
     let tx = dx * cosT - dy * sinT;
     let ty = dx * sinT + dy * cosT;
     const lenT = Math.hypot(tx, ty);
-    if (lenT > 1e-10) {
+    if (lenT > EPSILON) {
       tx /= lenT;
       ty /= lenT;
     } else {
@@ -215,27 +227,39 @@ export function CamAnimation(props: CamAnimationProps) {
   });
 
   // 动画循环
-  const animate = (time: number) => {
+  const animate = (timestamp: number) => {
+    // Frame rate limiting
+    const elapsed = timestamp - lastFrameTime;
+    if (elapsed < FRAME_INTERVAL) {
+      animationId = requestAnimationFrame(animate);
+      return;
+    }
+    lastFrameTime = timestamp - (elapsed % FRAME_INTERVAL);
+
     const data = simulationData();
     const isPlaying = playing();
     const currentSpeed = speed();
     const currentFrame = frame();
     const max = maxFrame();
 
-    // 如果组件不可用或没有数据，暂停动画循环
-    if (!data || !props.isActive) {
+    // 如果组件不可用，暂停动画循环；如果不在 cam profile 标签页，跳过绘制但保持循环运行
+    if (!data) {
+      animationId = requestAnimationFrame(animate);
+      return;
+    }
+    if (!props.isActive) {
       animationId = requestAnimationFrame(animate);
       return;
     }
 
-    const elapsed = time - lastTime;
+    const frameElapsed = timestamp - lastTime;
     const delay = 200 / currentSpeed ** 1.5;
 
-    if (isPlaying && elapsed > delay) {
+    if (isPlaying && frameElapsed > delay) {
       const safeFrame = Math.min(currentFrame, max);
       const newFrame = safeFrame >= max ? 0 : safeFrame + 1;
       setFrame(newFrame);
-      lastTime = time;
+      lastTime = timestamp;
     }
 
     animationId = requestAnimationFrame(animate);
@@ -271,6 +295,7 @@ export function CamAnimation(props: CamAnimationProps) {
 
   onMount(() => {
     lastTime = performance.now();
+    lastFrameTime = performance.now();
     animationId = requestAnimationFrame(animate);
     window.addEventListener('keydown', handleKeyDown);
   });
@@ -350,7 +375,7 @@ export function CamAnimation(props: CamAnimationProps) {
     <div
       class="relative w-full h-full bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden touch-manipulation"
       role="img"
-      aria-label={t().mainCanvas.camProfile}
+      aria-label={t().tabs.camProfile}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
     >
@@ -503,7 +528,7 @@ export function CamAnimation(props: CamAnimationProps) {
         {/* 节点 */}
         <Show when={displayOptions().showNodes && frameData()}>
           <>
-            {simulationData()!.phase_bounds.slice(1).map((bound, idx) => {
+            {simulationData()!.phase_bounds.slice(1).map((bound) => {
               const boundIdx = Math.floor(bound * simulationData()!.s.length / 360);
               if (boundIdx >= simulationData()!.s.length) return null;
               const xNode = frameData()!.xRot[boundIdx] * zoom();
@@ -523,7 +548,7 @@ export function CamAnimation(props: CamAnimationProps) {
         {/* 角度分界线 */}
         <Show when={displayOptions().showBoundaries && frameData()}>
           <>
-            {simulationData()!.phase_bounds.slice(1).map((bound, idx) => {
+            {simulationData()!.phase_bounds.slice(1).map((bound) => {
               const boundIdx = Math.floor(bound * simulationData()!.s.length / 360);
               if (boundIdx >= simulationData()!.s.length) return null;
               const xEnd = frameData()!.xRot[boundIdx] * zoom();

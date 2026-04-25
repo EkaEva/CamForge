@@ -4,7 +4,7 @@
  * 用于移动端显示临时通知消息
  */
 
-import { createSignal, onMount, onCleanup, Show, For } from 'solid-js';
+import { createSignal, For } from 'solid-js';
 
 interface ToastMessage {
   id: number;
@@ -42,11 +42,11 @@ export function showToast(message: string, type: 'success' | 'error' | 'info' = 
  */
 export function ToastContainer() {
   return (
-    <div class="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none">
+    <div role="status" aria-live="polite" aria-atomic="true" class="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none">
       <For each={toasts()}>
         {(toast) => (
           <div
-            class="px-4 py-3 rounded-lg shadow-lg text-white text-sm font-medium max-w-xs text-center animate-fade-in pointer-events-auto"
+            class="px-4 py-3 rounded-lg shadow-lg text-white text-sm font-medium max-w-md text-center animate-fade-in pointer-events-auto break-all"
             classList={{
               'bg-green-600': toast.type === 'success',
               'bg-red-600': toast.type === 'error',

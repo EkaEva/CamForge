@@ -1,8 +1,8 @@
 import { createSignal } from 'solid-js';
 import type { CamParams, SimulationData, DisplayOptions } from '../types';
 import { defaultParams, defaultDisplayOptions } from '../constants';
-import { drawMotionCurves, drawPressureAngleChart, drawCurvatureChart, drawCamProfileChart, drawAnimationFrame } from '../utils/chartDrawing';
-import type { ChartDrawOptions, AnimationFrameOptions } from '../utils/chartDrawing';
+import { drawMotionCurves, drawPressureAngleChart, drawCurvatureChart, drawCamProfileChart } from '../utils/chartDrawing';
+import type { ChartDrawOptions } from '../utils/chartDrawing';
 import { computeMotion } from '../services/motion';
 import { arrayMax, arrayMin, arrayMaxBy, arrayMinBy, filterFinite, findIndex } from '../utils/array';
 import { isTauriEnv, invokeTauri } from '../utils/tauri';
@@ -10,6 +10,7 @@ import { generateGifAsync, terminateGifWorker } from '../services/gifEncoder';
 import { createHistory, type HistoryActions } from './history';
 import { generateDXF as generateDXFCore, generateCSV as generateCSVCore, generateExcel as generateExcelCore, generateTIFFBlob } from '../exporters';
 import { getApi } from '../api';
+import { getDownloadDir, getDefaultDpi } from './settings';
 
 // 检查是否在 Tauri 环境中
 const isTauri = isTauriEnv();
@@ -273,6 +274,11 @@ function generateMockData(p: CamParams): SimulationData {
     if (min_rho_actual_idx < 0) min_rho_actual_idx = 0;
   }
 
+  // NaN 检测
+  if (s.some(val => !Number.isFinite(val)) || x.some(val => !Number.isFinite(val)) || y.some(val => !Number.isFinite(val))) {
+    console.warn('Simulation produced non-finite values');
+  }
+
   return {
     delta_deg,
     s, v, a, ds_ddelta,
@@ -438,7 +444,7 @@ export async function saveFile(
   }
 ): Promise<{ success: boolean; path?: string; error?: string }> {
   const showDialog = options?.showDialog ?? false;
-  const saveDir = options?.saveDir;
+  const finalSaveDir = options?.saveDir || getDownloadDir();
 
   if (isTauri) {
     try {
@@ -447,8 +453,8 @@ export async function saveFile(
 
       // 确定保存路径
       let filePath: string;
-      if (saveDir) {
-        filePath = await join(saveDir, filename);
+      if (finalSaveDir) {
+        filePath = await join(finalSaveDir, filename);
       } else if (showDialog) {
         const { save } = await import('@tauri-apps/plugin-dialog');
         const ext = filename.split('.').pop() || '*';
@@ -933,7 +939,7 @@ export function generateHighResPNG(
 
     // DPI 上限保护，防止内存溢出
     const MAX_DPI = 600;
-    const dpi = Math.min(customDpi || 600, MAX_DPI);
+    const dpi = Math.min(customDpi || getDefaultDpi(), MAX_DPI);
     const width = type === 'profile' ? 6 * dpi : 8 * dpi;
     const height = type === 'profile' ? 6 * dpi : 5 * dpi;
 
@@ -988,7 +994,7 @@ export async function generateRealTIFF(
 
   // DPI 上限保护
   const MAX_DPI = 600;
-  const dpi = Math.min(customDpi || 600, MAX_DPI);
+  const dpi = Math.min(customDpi || getDefaultDpi(), MAX_DPI);
   const width = type === 'profile' ? 6 * dpi : 8 * dpi;
   const height = type === 'profile' ? 6 * dpi : 5 * dpi;
 
@@ -1026,7 +1032,7 @@ export async function generateRealTIFF(
 
 // 生成 GIF 动画（异步，使用 Web Worker 避免阻塞主线程）
 export async function generateGIF(
-  lang: string,
+  _lang: string,
   onProgress?: (progress: number) => void,
   customDpi?: number
 ): Promise<Blob> {

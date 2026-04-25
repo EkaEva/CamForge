@@ -65,7 +65,7 @@ export function StatusBar() {
               </svg>
             </Show>
           </button>
-          <span class="text-xs text-gray-400 dark:text-gray-500">v0.3.4</span>
+          <span class="text-xs text-gray-400 dark:text-gray-500">v0.3.5</span>
         </div>
       </footer>
       <SettingsPanel isOpen={showSettings()} onClose={() => setShowSettings(false)} />

@@ -1,6 +1,6 @@
-import { Show, createSignal, onMount, createEffect } from 'solid-js';
+import { Show, createSignal, onMount } from 'solid-js';
 import { NumberInput, Select, Toggle } from '../controls';
-import { params, displayOptions, isLoading, simulationData, updateParam, updateDisplayOption, runSimulation, savePreset, loadPreset, getSavedPresets, deletePreset, validateParams, setSimulationData, setLastRunTime, setParamsChanged, randomizeParams, loadPresetFromJSON, setDisplayOptions, setParamsUpdated } from '../../stores/simulation';
+import { params, displayOptions, isLoading, updateParam, updateDisplayOption, runSimulation, savePreset, loadPreset, getSavedPresets, deletePreset, validateParams, setSimulationData, setLastRunTime, setParamsChanged, randomizeParams, loadPresetFromJSON, setDisplayOptions, setParamsUpdated } from '../../stores/simulation';
 import { t } from '../../i18n';
 import { motionLawOptions, defaultParams, defaultDisplayOptions } from '../../constants';
 
@@ -17,14 +17,12 @@ interface SidebarProps {
 }
 
 export function Sidebar(props: SidebarProps) {
-  const [isTauriEnv, setIsTauriEnv] = createSignal(false);
   const [presets, setPresets] = createSignal<string[]>([]);
   const [presetName, setPresetName] = createSignal('');
   const [loadError, setLoadError] = createSignal<string | null>(null);
   let fileInputRef: HTMLInputElement | undefined;
 
   onMount(() => {
-    setIsTauriEnv(!!(window as any).__TAURI__);
     setPresets(getSavedPresets());
   });
 
@@ -425,7 +423,7 @@ export function Sidebar(props: SidebarProps) {
       </div>
 
       {/* 固定底部操作栏 */}
-      <div class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-5 py-4 flex-shrink-0">
+      <div class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-5 py-4 flex-shrink-0" style={{ 'padding-bottom': 'calc(1rem + env(safe-area-inset-bottom))' }}>
         <div class="flex gap-3">
           {/* 运行按钮 */}
           <button

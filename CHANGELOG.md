@@ -5,6 +5,64 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.5] - 2026-04-25
+
+### Security
+
+- **SEV-001**：Tauri fs 权限添加 scope 限制
+  - `src-tauri/capabilities/default.json` 添加 fs scope 白名单
+  - 允许 `$DOWNLOAD/**`、`$APPDATA/**`、`$HOME/**`
+  - 拒绝 `.env`、`.keystore`、`.jks` 等敏感文件
+- **H-001**：关闭 `withGlobalTauri`，改用 ES Module 导入
+  - `tauri.conf.json` 设置 `withGlobalTauri: false`
+  - 修复所有 `window.__TAURI__` 引用改用工具函数
+
+### Fixed
+
+- **SEV-003**：设置面板下载目录现在影响快速导出
+  - `saveFile` 函数自动读取设置面板的下载目录
+  - 新增 `getDefaultDpi()`、`getDefaultFormat()` 非响应式 getter
+- **H-005**：添加 NaN 值防护，避免图表崩溃
+  - `chartDrawing.ts` 添加 `sanitizeNumber` 辅助函数
+  - 曲线绘制和凸轮廓形绘制过滤 NaN/Infinity 数据点
+  - 模拟计算添加 NaN 检测警告
+- **H-009**：移动端导出后 Toast 显示文件名
+- **H-014**：Rust `partial_cmp().unwrap()` 安全化
+  - 替换为 `partial_cmp().unwrap_or(Ordering::Equal)`
+  - 防止 NaN 值导致 panic
+- **H-017**：移动端支持自定义导出功能
+  - 移除"仅支持桌面端"限制
+  - 移动端直接保存到下载目录，无需目录选择器
+- **H-022**：Rust `Mutex::lock().unwrap()` 安全化
+  - 替换为 `lock().unwrap_or_else(|e| e.into_inner())`
+  - 防止 poison panic 导致崩溃
+- **M-006**：添加底部安全区域适配
+- **M-014**：快速导出读取设置面板的默认 DPI 和格式
+
+### Changed
+
+- 非活动 Tab 暂停动画，降低 CPU 占用
+- 动画帧率限制为 60fps
+- Canvas 绘制适配高 DPI 屏幕
+- Tab 栏添加 WAI-ARIA 语义
+
+### Added
+
+- **H-004**：新增 5 个前端测试文件
+  - `src/stores/__tests__/simulation.test.ts`
+  - `src/stores/__tests__/settings.test.ts`
+  - `src/utils/__tests__/chartDrawing.test.ts`
+  - `src/utils/__tests__/platform.test.ts`
+  - `src/constants/__tests__/numeric.test.ts`
+- **H-010**：设置面板添加焦点陷阱和 Escape 关闭
+- **H-011**：Toast 添加 `role="status"` 和 `aria-live="polite"` 属性
+- **H-012**：Toggle 添加键盘支持（Space/Enter）和 `role="switch"`
+- **H-013**：Tab 栏添加 WAI-ARIA Tabs 语义标记
+- **M-001**：新增 `src/constants/numeric.ts` 常量定义
+  - 提取魔法数字为命名常量
+
+---
+
 ## [0.3.4] - 2026-04-25
 
 ### Fixed
@@ -400,6 +458,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[0.3.5]: https://github.com/EkaEva/CamForge-Next/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/EkaEva/CamForge-Next/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/EkaEva/CamForge-Next/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/EkaEva/CamForge-Next/compare/v0.3.1...v0.3.2

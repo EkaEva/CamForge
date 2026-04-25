@@ -119,10 +119,7 @@ export async function generateGifAsync(
 
   // 使用 gif.js 内置 Worker 池编码
   return new Promise((resolve, reject) => {
-    // Worker 路径根据环境动态设置
-    const workerScript = import.meta.env.DEV
-      ? '/node_modules/gif.js/dist/gif.worker.js'
-      : '/gif.worker.js';
+    const workerScript = new URL('gif.js/dist/gif.worker.js', import.meta.url).href;
 
     const gif = new GIF({
       workers: 4, // 使用 4 个 Worker 并行编码

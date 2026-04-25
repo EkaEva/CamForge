@@ -3,6 +3,7 @@
 
 import type { SimulationData } from '../types';
 import type { CamParams, DisplayOptions } from '../types';
+import { DATA_RANGE_MARGIN, PERCENTILE_CLIP_LOW, PERCENTILE_CLIP_HIGH, PERCENTILE_CLIP_MID_LOW, PERCENTILE_CLIP_MID_HIGH, EPSILON } from '../constants/numeric';
 
 export interface ChartDrawOptions {
   width: number;
@@ -26,6 +27,10 @@ const DEFAULT_DPI = 100;
 // DPI 上限保护
 const MAX_DPI = 600;
 const MAX_DIMENSION = 10000;
+
+export function sanitizeNumber(value: number, fallback = 0): number {
+  return Number.isFinite(value) ? value : fallback;
+}
 
 /**
  * 验证图表数据有效性
@@ -153,9 +158,9 @@ export function drawMotionCurves(
   ctx.setLineDash([]);
 
   // 计算各轴范围
-  const sMax = h * 1.15;
-  const vMax = Math.max(...v.map(Math.abs)) * 1.15 || 1;
-  const aMax = Math.max(...a.map(Math.abs)) * 1.15 || 1;
+  const sMax = h * DATA_RANGE_MARGIN;
+  const vMax = Math.max(...v.map(Math.abs)) * DATA_RANGE_MARGIN || 1;
+  const aMax = Math.max(...a.map(Math.abs)) * DATA_RANGE_MARGIN || 1;
 
   // 绘制曲线的通用函数
   const drawCurve = (
@@ -178,8 +183,10 @@ export function drawMotionCurves(
 
     ctx.beginPath();
     for (let i = 0; i < yData.length; i++) {
+      const yVal = yData[i];
+      if (!Number.isFinite(yVal)) continue;
       const px = padding.left + (delta_deg[i] / 360) * chartWidth;
-      const py = padding.top + (1 - (yData[i] - yMin) / (yMax - yMin)) * chartHeight;
+      const py = padding.top + (1 - (yVal - yMin) / (yMax - yMin)) * chartHeight;
 
       if (i === 0) ctx.moveTo(px, py);
       else ctx.lineTo(px, py);
@@ -407,7 +414,7 @@ export function drawPressureAngleChart(
 
   // 压力角范围
   const threshold = params.alpha_threshold;
-  const alphaMax = Math.max(...alpha_all.map(Math.abs), threshold) * 1.15;
+  const alphaMax = Math.max(...alpha_all.map(Math.abs), threshold) * DATA_RANGE_MARGIN;
 
   // 压力角阈值线（橙色虚线）
   ctx.strokeStyle = '#F59E0B';
@@ -603,16 +610,16 @@ export function drawCurvatureChart(
 
   // 使用百分位数来避免极端值影响显示
   const rhoSorted = [...allRhoFinite].sort((a, b) => a - b);
-  const p5Idx = Math.floor(rhoSorted.length * 0.05);
-  const p95Idx = Math.floor(rhoSorted.length * 0.95);
+  const p5Idx = Math.floor(rhoSorted.length * PERCENTILE_CLIP_LOW);
+  const p95Idx = Math.floor(rhoSorted.length * PERCENTILE_CLIP_HIGH);
   const p5 = rhoSorted[p5Idx];
   const p95 = rhoSorted[p95Idx];
 
   let rhoMin: number, rhoMax: number;
   const range = p95 - p5;
 
-  const p10 = rhoSorted[Math.floor(rhoSorted.length * 0.1)];
-  const p90 = rhoSorted[Math.floor(rhoSorted.length * 0.9)];
+  const p10 = rhoSorted[Math.floor(rhoSorted.length * PERCENTILE_CLIP_MID_LOW)];
+  const p90 = rhoSorted[Math.floor(rhoSorted.length * PERCENTILE_CLIP_MID_HIGH)];
   if (range > 10 * (p90 - p10 + 1)) {
     rhoMin = p5 - range * 0.1;
     rhoMax = p95 + range * 0.1;
@@ -889,10 +896,12 @@ export function drawCamProfileChart(
   ctx.strokeStyle = '#DC2626';
   ctx.lineWidth = Math.round(2 * dpiScale);
   ctx.beginPath();
+  let profileStarted = false;
   for (let i = 0; i < x.length; i++) {
+    if (!Number.isFinite(x[i]) || !Number.isFinite(y[i])) continue;
     const px = centerX + x[i] * drawScale;
     const py = centerY - y[i] * drawScale;
-    if (i === 0) ctx.moveTo(px, py);
+    if (!profileStarted) { ctx.moveTo(px, py); profileStarted = true; }
     else ctx.lineTo(px, py);
   }
   ctx.closePath();
@@ -903,10 +912,12 @@ export function drawCamProfileChart(
     ctx.strokeStyle = '#2563EB';
     ctx.lineWidth = Math.round(2 * dpiScale);
     ctx.beginPath();
+    profileStarted = false;
     for (let i = 0; i < x_actual.length; i++) {
+      if (!Number.isFinite(x_actual[i]) || !Number.isFinite(y_actual[i])) continue;
       const px = centerX + x_actual[i] * drawScale;
       const py = centerY - y_actual[i] * drawScale;
-      if (i === 0) ctx.moveTo(px, py);
+      if (!profileStarted) { ctx.moveTo(px, py); profileStarted = true; }
       else ctx.lineTo(px, py);
     }
     ctx.closePath();
@@ -1105,7 +1116,7 @@ export function drawAnimationFrame(
   let tx = dx * cosT - dy * sinT;
   let ty = dx * sinT + dy * cosT;
   const lenT = Math.hypot(tx, ty);
-  if (lenT > 1e-10) {
+  if (lenT > EPSILON) {
     tx /= lenT;
     ty /= lenT;
   } else {

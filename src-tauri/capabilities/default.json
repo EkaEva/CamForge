@@ -18,6 +18,19 @@
     "fs:allow-write-file",
     "fs:allow-mkdir",
     "fs:allow-download-write",
-    "fs:allow-download-write-recursive"
+    "fs:allow-download-write-recursive",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$APPDATA/**" },
+        { "path": "$HOME/**" }
+      ],
+      "deny": [
+        { "path": "**/.env" },
+        { "path": "**/*.keystore" },
+        { "path": "**/*.jks" }
+      ]
+    }
   ]
 }

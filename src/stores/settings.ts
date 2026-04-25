@@ -103,9 +103,19 @@ export function updateExportSettings(settings: Partial<ExportSettings>) {
   });
 }
 
-// 获取下载目录
+// 获取下载目录（非响应式，可在组件外调用）
 export function getDownloadDir(): string {
   return exportSettings().downloadDir;
+}
+
+// 获取默认导出 DPI（非响应式，可在组件外调用）
+export function getDefaultDpi(): number {
+  return exportSettings().defaultDpi;
+}
+
+// 获取默认导出格式（非响应式，可在组件外调用）
+export function getDefaultFormat(): 'png' | 'tiff' | 'svg' {
+  return exportSettings().defaultFormat;
 }
 
 // 设置下载目录

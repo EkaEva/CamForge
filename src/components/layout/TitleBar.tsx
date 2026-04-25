@@ -1,11 +1,11 @@
 import { createSignal, onMount, onCleanup, Show } from 'solid-js';
-import { isMobilePlatform } from '../../utils/platform';
+import { isTauriEnv as checkIsTauriEnv, isMobilePlatform } from '../../utils/platform';
 
 export function TitleBar() {
   const [maximized, setMaximized] = createSignal(false);
 
-  // 直接检测 Tauri 环境（同步）
-  const isTauriEnv = typeof window !== 'undefined' && '__TAURI__' in window;
+  // 使用工具函数检测 Tauri 环境（兼容 withGlobalTauri: false）
+  const isTauriEnv = checkIsTauriEnv();
 
   // 检测是否为移动端平台（Android/iOS）
   const isMobile = isMobilePlatform();

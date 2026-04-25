@@ -5,21 +5,12 @@
  */
 
 /**
- * 扩展的 Window 接口，包含 Tauri 特有属性
- */
-interface TauriWindow extends Window {
-  __TAURI__?: {
-    invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
-  };
-}
-
-/**
  * 检查是否在 Tauri 环境中运行
  *
  * @returns 如果在 Tauri WebView 中运行则返回 true
  */
 export function isTauriEnv(): boolean {
-  return typeof window !== 'undefined' && '__TAURI__' in window;
+  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
 
 /**
@@ -39,13 +30,12 @@ export async function invokeTauri<T>(
   cmd: string,
   args?: Record<string, unknown>
 ): Promise<T> {
-  const tauriWindow = window as TauriWindow;
-
-  if (!tauriWindow.__TAURI__) {
-    throw new Error('Not in Tauri environment: __TAURI__ is not available');
+  if (!isTauriEnv()) {
+    throw new Error('Not in Tauri environment');
   }
 
-  return tauriWindow.__TAURI__.invoke(cmd, args) as Promise<T>;
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke(cmd, args) as Promise<T>;
 }
 
 /**

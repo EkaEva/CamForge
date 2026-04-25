@@ -1,10 +1,10 @@
-import { createSignal, Show, Switch, Match, For, createEffect, onCleanup } from 'solid-js';
-import { simulationData, isLoading, lastRunTime, paramsChanged, validationErrors, params, generateDXF, generateCSV, generateSVG, generateHighResPNG, generateRealTIFF, generateGIF, generatePresetJSON, generateExcel, saveFile, getCurrentLang, getExportFilename, exportStatus, setExportStatus, paramsUpdated, setParamsUpdated } from '../../stores/simulation';
+import { createSignal, Show, Switch, Match, createEffect, onCleanup, JSX } from 'solid-js';
+import { simulationData, isLoading, lastRunTime, validationErrors, params, generateDXF, generateCSV, generateSVG, generateHighResPNG, generateRealTIFF, generateGIF, generatePresetJSON, generateExcel, saveFile, getCurrentLang, getExportFilename, exportStatus, setExportStatus, paramsUpdated, setParamsUpdated } from '../../stores/simulation';
 import { t } from '../../i18n';
 import { CamAnimation } from '../animation';
 import { MotionCurves, GeometryChart, CurvatureChart } from '../charts';
 import { showToast } from '../ui/Toast';
-import { isMobilePlatform } from '../../utils/platform';
+import { isMobilePlatform, isTauriEnv as checkIsTauriEnv } from '../../utils/platform';
 
 type Tab = 'animation' | 'motion' | 'geometry' | 'curvature' | 'export' | 'help';
 
@@ -266,9 +266,10 @@ export function MainCanvas() {
         // 移动端显示 Toast 通知
         if (isMobilePlatform()) {
           const currentLang = getCurrentLang();
+          const exportPath = result.path || filename;
           const toastMsg = currentLang === 'zh'
-            ? `已保存到下载目录: ${filename}`
-            : `Saved to Downloads: ${filename}`;
+            ? `已导出: ${exportPath}`
+            : `Exported: ${exportPath}`;
           showToast(toastMsg, 'success', 5000);
         }
       } else if (result.error !== 'Cancelled') {
@@ -296,17 +297,6 @@ export function MainCanvas() {
     const data = simulationData();
     if (!data) return;
 
-    // 移动端不支持自定义导出（Tauri 文件对话框不可用）
-    if (isMobilePlatform()) {
-      const currentLang = getCurrentLang();
-      showToast(
-        currentLang === 'zh' ? '自定义导出仅支持桌面端' : 'Custom export is only available on desktop',
-        'info',
-        4000
-      );
-      return;
-    }
-
     setExporting('custom');
     setExportProgress(0);
     const currentLang = getCurrentLang();
@@ -314,6 +304,7 @@ export function MainCanvas() {
     const startTime = Date.now();
     const minDuration = 300;
     const exportedFiles: string[] = [];
+    const failedFiles: string[] = [];
     let saveDir = ''; // 保存目录路径
 
     try {
@@ -324,8 +315,9 @@ export function MainCanvas() {
       const animFormat = customExportAnimFormat();
       const animDpi = customExportAnimDPI();
 
-      const isTauriEnv = !!(window as any).__TAURI__;
-      if (isTauriEnv) {
+      const isTauriEnv = checkIsTauriEnv();
+      // 桌面端 Tauri 环境选择目录；移动端直接保存到下载目录
+      if (isTauriEnv && !isMobilePlatform()) {
         const { open } = await import('@tauri-apps/plugin-dialog');
         const selectedDir = await open({
           directory: true,
@@ -470,10 +462,12 @@ export function MainCanvas() {
       {/* Tab Bar - 移动端垂直布局，桌面端水平布局 */}
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
         {/* Tab 栏 - 移动端独占一行，支持横向滚动 */}
-        <div class="flex items-center gap-1 overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 pb-2 sm:pb-0">
+        <div role="tablist" class="flex items-center gap-1 overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 pb-2 sm:pb-0">
           {tabs.map((tab) => (
             <button
               type="button"
+              role="tab"
+              aria-selected={activeTab() === tab.id}
               onClick={() => setActiveTab(tab.id)}
               classList={{
                 'px-3 py-2 text-sm rounded-md transition-colors min-h-[44px] min-w-[44px] whitespace-nowrap flex-shrink-0': true,
@@ -517,7 +511,7 @@ export function MainCanvas() {
           </Show>
           <Show when={exportStatus().type !== 'idle'}>
             <span
-              class="truncate max-w-[250px]"
+              class="truncate max-w-[500px]"
               title={exportStatus().message}
               classList={{
                 'text-green-500': exportStatus().type === 'success',
@@ -535,7 +529,7 @@ export function MainCanvas() {
       </div>
 
       {/* 移动端状态提示 */}
-      <div class="sm:hidden px-4 py-1.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 text-xs">
+      <div class="sm:hidden px-4 py-1.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 text-xs" style={{ 'padding-bottom': 'calc(0.375rem + env(safe-area-inset-bottom))' }}>
         <div class="flex items-center gap-2 overflow-x-auto scrollbar-hide">
           {/* 校验错误 */}
           <Show when={validationErrors().length > 0}>
@@ -588,7 +582,7 @@ export function MainCanvas() {
       <div class="flex-1 overflow-hidden">
         {/* 帮助页面始终显示 */}
         <Show when={activeTab() === 'help'}>
-          <div class="w-full h-full overflow-auto bg-gray-50 dark:bg-gray-900 p-6">
+          <div role="tabpanel" class="w-full h-full overflow-auto bg-gray-50 dark:bg-gray-900 p-6">
             <div class="max-w-3xl mx-auto space-y-6">
               {/* 快捷键 */}
               <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
@@ -679,21 +673,23 @@ export function MainCanvas() {
             </Show>
           }
         >
-          <Switch>
-            <Match when={activeTab() === 'animation'}>
-              <CamAnimation isActive={true} />
-            </Match>
+          {/* CamAnimation always mounted - paused when not on animation tab */}
+          <div classList={{ 'w-full h-full': activeTab() === 'animation', 'hidden': activeTab() !== 'animation' }}>
+            <CamAnimation isActive={activeTab() === 'animation'} />
+          </div>
+          <Show when={activeTab() !== 'animation'}>
+            <Switch>
             <Match when={activeTab() === 'motion'}>
-              <MotionCurves />
+              <div role="tabpanel"><MotionCurves /></div>
             </Match>
             <Match when={activeTab() === 'curvature'}>
-              <CurvatureChart />
+              <div role="tabpanel"><CurvatureChart /></div>
             </Match>
             <Match when={activeTab() === 'geometry'}>
-              <GeometryChart />
+              <div role="tabpanel"><GeometryChart /></div>
             </Match>
             <Match when={activeTab() === 'export'}>
-              <div class="w-full h-full overflow-auto bg-gray-50 dark:bg-gray-900 p-6">
+              <div role="tabpanel" class="w-full h-full overflow-auto bg-gray-50 dark:bg-gray-900 p-6">
                 <div class="max-w-4xl mx-auto space-y-6">
                   {/* 快速导出 */}
                   <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
@@ -890,6 +886,7 @@ export function MainCanvas() {
               </div>
             </Match>
           </Switch>
+          </Show>
         </Show>
       </div>
     </main>

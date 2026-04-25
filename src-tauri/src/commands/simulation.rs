@@ -77,14 +77,14 @@ pub fn run_simulation(params: CamParams, state: State<SimState>) -> Result<Simul
     // 找最小曲率半径（理论轮廓）
     let (min_rho, min_rho_idx) = rho.iter().enumerate()
         .filter(|(_, &r)| r.is_finite())
-        .min_by(|a, b| a.1.abs().partial_cmp(&b.1.abs()).unwrap())
+        .min_by(|a, b| a.1.abs().partial_cmp(&b.1.abs()).unwrap_or(std::cmp::Ordering::Equal))
         .map(|(i, &r)| (Some(r.abs()), i))
         .unwrap_or((None, 0));
 
     // 找最小曲率半径（实际轮廓）
     let (min_rho_actual, min_rho_actual_idx) = rho_actual.iter().enumerate()
         .filter(|(_, &r)| r.is_finite())
-        .min_by(|a, b| a.1.abs().partial_cmp(&b.1.abs()).unwrap())
+        .min_by(|a, b| a.1.abs().partial_cmp(&b.1.abs()).unwrap_or(std::cmp::Ordering::Equal))
         .map(|(i, &r)| (Some(r.abs()), i))
         .unwrap_or((None, 0));
 
@@ -114,8 +114,8 @@ pub fn run_simulation(params: CamParams, state: State<SimState>) -> Result<Simul
     };
 
     // 存储状态
-    *state.data.lock().unwrap() = Some(sim_data.clone());
-    *state.params.lock().unwrap() = Some(params);
+    *state.data.lock().unwrap_or_else(|e| e.into_inner()) = Some(sim_data.clone());
+    *state.params.lock().unwrap_or_else(|e| e.into_inner()) = Some(params);
 
     Ok(sim_data)
 }
@@ -125,8 +125,8 @@ pub fn run_simulation(params: CamParams, state: State<SimState>) -> Result<Simul
 /// 计算单帧动画所需的全部数据
 #[tauri::command]
 pub fn get_frame_data(frame_idx: usize, state: State<SimState>) -> Result<FrameData, String> {
-    let data_guard = state.data.lock().unwrap();
-    let params_guard = state.params.lock().unwrap();
+    let data_guard = state.data.lock().unwrap_or_else(|e| e.into_inner());
+    let params_guard = state.params.lock().unwrap_or_else(|e| e.into_inner());
 
     let data = data_guard.as_ref()
         .ok_or("No simulation data available. Run simulation first.")?;

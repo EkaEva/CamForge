@@ -4,7 +4,7 @@
  * 提供应用设置配置界面
  */
 
-import { createSignal, Show } from 'solid-js';
+import { createSignal, Show, createEffect } from 'solid-js';
 import { useTheme, useExportSettings } from '../../stores/settings';
 import { isMobilePlatform, isTauriEnv } from '../../utils/platform';
 import { t, language, setLang } from '../../i18n';
@@ -22,6 +22,56 @@ export function SettingsPanel(props: SettingsPanelProps) {
   const currentT = t();
   const isMobile = isMobilePlatform();
   const isTauri = isTauriEnv();
+
+  let panelRef: HTMLDivElement | undefined;
+
+  const getFocusableElements = (): HTMLElement[] => {
+    if (!panelRef) return [];
+    return Array.from(panelRef.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )).filter(el => !el.hasAttribute('disabled') && el.tabIndex >= 0);
+  };
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      props.onClose();
+      return;
+    }
+
+    if (e.key === 'Tab') {
+      const focusable = getFocusableElements();
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    }
+  };
+
+  // Auto-focus first focusable element when panel opens
+  createEffect(() => {
+    if (props.isOpen && panelRef) {
+      // Use queueMicrotask to ensure DOM is rendered
+      queueMicrotask(() => {
+        const focusable = getFocusableElements();
+        if (focusable.length > 0) {
+          focusable[0].focus();
+        }
+      });
+    }
+  });
 
   // 选择下载目录
   const handleSelectDir = async () => {
@@ -60,7 +110,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
       />
 
       {/* 设置面板 */}
-      <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[80vh] overflow-y-auto">
+      <div ref={panelRef} onKeyDown={handleKeyDown} class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[80vh] overflow-y-auto">
         {/* 标题栏 */}
         <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
