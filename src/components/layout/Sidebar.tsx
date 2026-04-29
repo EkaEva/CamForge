@@ -117,7 +117,7 @@ export function Sidebar(props: SidebarProps) {
 
   const sidebarClass = () => {
     if (props.isMobile) {
-      return `w-72 h-full bg-surface-container-low border-r border-outline-variant flex flex-col shadow-xl
+      return `w-72 h-full bg-surface-container border-r border-outline-variant flex flex-col shadow-xl
         fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out
         ${props.isOpen ? 'translate-x-0' : '-translate-x-full'}`;
     }
@@ -129,7 +129,7 @@ export function Sidebar(props: SidebarProps) {
       {/* Logo */}
       <div class="px-5 py-4 border-b border-chrome-border flex-shrink-0 flex items-center gap-3">
         <a
-          href="https://github.com/EkaEva/CamForge-Next"
+          href="https://github.com/EkaEva/CamForge"
           target="_blank"
           rel="noopener noreferrer"
           class="block cursor-pointer"
@@ -145,7 +145,7 @@ export function Sidebar(props: SidebarProps) {
         </a>
         <div>
           <h1 class="text-lg font-bold text-chrome-text-active tracking-wide font-display">
-            CamForge-Next <span class="text-[10px] font-normal text-chrome-text ml-0.5">v{version}</span>
+            CamForge <span class="text-[10px] font-normal text-chrome-text ml-0.5">v{version}</span>
           </h1>
           <p class="text-xs text-chrome-text">
             {t().app.tagline}

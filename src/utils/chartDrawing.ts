@@ -19,6 +19,7 @@ export interface AnimationFrameOptions {
   frameIndex: number;
   displayOptions: DisplayOptions;
   zoom: number;
+  lang?: string;
 }
 
 // 默认 DPI（屏幕显示）
@@ -1007,78 +1008,6 @@ export function drawAnimationFrame(
   const centerY = height / 2;
   const scale = Math.min(width, height) / size * zoom;
 
-  // 绘制网格背景（与演示界面 .drafting-grid 一致）
-  const gridMinor = 10 * scale;
-  const gridMajor = 50 * scale;
-
-  // 合并所有网格线为单次 stroke
-  ctx.beginPath();
-  // 小网格线
-  ctx.strokeStyle = '#CAC4C5';
-  ctx.lineWidth = 0.5;
-  for (let gx = centerX % gridMinor; gx < width; gx += gridMinor) {
-    ctx.moveTo(gx, 0);
-    ctx.lineTo(gx, height);
-  }
-  for (let gy = centerY % gridMinor; gy < height; gy += gridMinor) {
-    ctx.moveTo(0, gy);
-    ctx.lineTo(width, gy);
-  }
-  ctx.stroke();
-
-  // 大网格线
-  ctx.strokeStyle = '#7B7576';
-  ctx.lineWidth = 0.5;
-  ctx.beginPath();
-  for (let gx = centerX % gridMajor; gx < width; gx += gridMajor) {
-    ctx.moveTo(gx, 0);
-    ctx.lineTo(gx, height);
-  }
-  for (let gy = centerY % gridMajor; gy < height; gy += gridMajor) {
-    ctx.moveTo(0, gy);
-    ctx.lineTo(width, gy);
-  }
-  ctx.stroke();
-
-  // 坐标轴和刻度（与演示界面 showCenterLine 一致）
-  if (displayOptions.showCenterLine) {
-    const tickSpacing = 10 * scale;
-    const nTicks = Math.floor(r_max * zoom / 10);
-
-    // X/Y 坐标轴
-    ctx.strokeStyle = '#7B7576';
-    ctx.lineWidth = 0.6 * scale;
-    ctx.beginPath();
-    ctx.moveTo(0, centerY);
-    ctx.lineTo(width, centerY);
-    ctx.moveTo(centerX, 0);
-    ctx.lineTo(centerX, height);
-    ctx.stroke();
-
-    // 原点标记
-    ctx.fillStyle = '#7B7576';
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, 1.5 * scale, 0, 2 * Math.PI);
-    ctx.fill();
-
-    // 刻度线 — 合并为单次 stroke
-    ctx.strokeStyle = '#CAC4C5';
-    ctx.lineWidth = 0.4 * scale;
-    ctx.beginPath();
-    for (let i = 1; i <= nTicks; i++) {
-      const pos = i * tickSpacing;
-      ctx.moveTo(centerX + pos, centerY - 1.5 * scale);
-      ctx.lineTo(centerX + pos, centerY + 1.5 * scale);
-      ctx.moveTo(centerX - pos, centerY - 1.5 * scale);
-      ctx.lineTo(centerX - pos, centerY + 1.5 * scale);
-      ctx.moveTo(centerX - 1.5 * scale, centerY - pos);
-      ctx.lineTo(centerX + 1.5 * scale, centerY - pos);
-      ctx.moveTo(centerX - 1.5 * scale, centerY + pos);
-      ctx.lineTo(centerX + 1.5 * scale, centerY + pos);
-    }
-    ctx.stroke();
-  }
-
   // 当前帧角度
   const angleDeg = (frameIndex * 360) / n;
   const angleRad = -sn * (angleDeg * Math.PI / 180);
@@ -1150,7 +1079,7 @@ export function drawAnimationFrame(
     // 尖底从动件
     const tipWidth = r_0 * 0.075 * scale;
     const tipHeight = r_0 * 0.1 * scale;
-    const outlineOffset = 0.4 * scale; // 凸轮轮廓线宽的一半
+    const outlineOffset = 0.4 * scale;
 
     ctx.fillStyle = '#4B5563';
     ctx.strokeStyle = '#4B5563';
@@ -1237,7 +1166,6 @@ export function drawAnimationFrame(
       const alphaRad = (alphaI * Math.PI) / 180;
       const arcR = r_0 * 0.3 * scale;
 
-      // 中心线（向下）
       ctx.strokeStyle = '#4B5563';
       ctx.lineWidth = 0.3 * scale;
       ctx.beginPath();
@@ -1245,8 +1173,7 @@ export function drawAnimationFrame(
       ctx.lineTo(followerX, contactY + r_0 * 0.5 * scale);
       ctx.stroke();
 
-      // 压力角弧线
-      const thetaStart = Math.PI / 2; // 向下
+      const thetaStart = Math.PI / 2;
       let thetaN = Math.atan2(-ny, nx);
       let diff = ((thetaN - thetaStart + Math.PI) % (2 * Math.PI)) - Math.PI;
 
@@ -1260,9 +1187,9 @@ export function drawAnimationFrame(
       ctx.beginPath();
       for (let i = 0; i <= 30; i++) {
         const t = i / 30;
-        const theta = thetaStart + diff * t;
-        const arcX = followerX + arcR * Math.cos(theta);
-        const arcY = contactY + arcR * Math.sin(theta);
+        const th = thetaStart + diff * t;
+        const arcX = followerX + arcR * Math.cos(th);
+        const arcY = contactY + arcR * Math.sin(th);
         if (i === 0) ctx.moveTo(arcX, arcY);
         else ctx.lineTo(arcX, arcY);
       }
@@ -1272,7 +1199,6 @@ export function drawAnimationFrame(
 
   // 绘制行程极限
   if (displayOptions.showLowerLimit) {
-    // 下限（基圆位置）
     ctx.strokeStyle = '#06B6D4';
     ctx.lineWidth = 0.3 * scale;
     ctx.setLineDash([4 * scale, 2 * scale]);
@@ -1284,7 +1210,6 @@ export function drawAnimationFrame(
   }
 
   if (displayOptions.showUpperLimit) {
-    // 上限（最大位移）
     ctx.strokeStyle = '#D946EF';
     ctx.lineWidth = 0.3 * scale;
     ctx.setLineDash([2 * scale, 2 * scale]);
@@ -1325,12 +1250,10 @@ export function drawAnimationFrame(
   ctx.fillStyle = '#4B5563';
   ctx.lineWidth = 0.7 * scale;
 
-  // 铰链小圆圈
   ctx.beginPath();
   ctx.arc(centerX, centerY, circleR, 0, 2 * Math.PI);
   ctx.stroke();
 
-  // 三角形支座
   ctx.beginPath();
   ctx.moveTo(centerX, centerY + triTopY);
   ctx.lineTo(centerX - sz, centerY + triBotY);
@@ -1338,14 +1261,12 @@ export function drawAnimationFrame(
   ctx.closePath();
   ctx.fill();
 
-  // 底座横线
   ctx.lineWidth = 1 * scale;
   ctx.beginPath();
   ctx.moveTo(centerX - hw, centerY + baseY);
   ctx.lineTo(centerX + hw, centerY + baseY);
   ctx.stroke();
 
-  // 斜线阴影
   ctx.lineWidth = 0.5 * scale;
   for (let j = 0; j < nHatch; j++) {
     const x0 = centerX - hw + (2 * hw) * (j + 0.5) / nHatch;
@@ -1355,31 +1276,31 @@ export function drawAnimationFrame(
     ctx.stroke();
   }
 
-  // 信息面板（左上角，与演示界面 .data-overlay 一致）
-  const panelX = 10;
+  // 信息面板
+  const panelX = width - 100;
   const panelY = 10;
-  const panelW = 140;
+  const panelW = 90;
   const panelH = 50;
 
-  ctx.fillStyle = 'rgba(213, 211, 212, 0.8)';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
   ctx.fillRect(panelX, panelY, panelW, panelH);
 
-  ctx.strokeStyle = '#CAC4C5';
+  ctx.strokeStyle = '#E5E7EB';
   ctx.lineWidth = 1;
   ctx.strokeRect(panelX, panelY, panelW, panelH);
 
-  ctx.fillStyle = '#494546';
-  ctx.font = '11px -apple-system, sans-serif';
+  ctx.fillStyle = '#6B7280';
+  ctx.font = '10px -apple-system, sans-serif';
   ctx.textAlign = 'left';
 
-  ctx.fillText('角度:', panelX + 8, panelY + 14);
-  ctx.fillText('位移:', panelX + 8, panelY + 28);
-  ctx.fillText('压力角:', panelX + 8, panelY + 42);
+  const animLang = options.lang || 'zh';
+  ctx.fillText(animLang === 'zh' ? '角度:' : 'Angle:', panelX + 5, panelY + 12);
+  ctx.fillText(animLang === 'zh' ? '位移:' : 'Disp:', panelX + 5, panelY + 24);
+  ctx.fillText(animLang === 'zh' ? '压力角:' : 'α:', panelX + 5, panelY + 36);
 
-  ctx.fillStyle = '#1C1B1B';
+  ctx.fillStyle = '#111827';
   ctx.textAlign = 'right';
-  ctx.font = '11px -apple-system, sans-serif';
-  ctx.fillText(`${angleDeg.toFixed(1)}°`, panelX + panelW - 8, panelY + 14);
-  ctx.fillText(`${s[frameIndex].toFixed(3)} mm`, panelX + panelW - 8, panelY + 28);
-  ctx.fillText(`${alpha_all[frameIndex].toFixed(2)}°`, panelX + panelW - 8, panelY + 42);
+  ctx.fillText(`${angleDeg.toFixed(1)}°`, panelX + panelW - 5, panelY + 12);
+  ctx.fillText(`${s[frameIndex].toFixed(3)} mm`, panelX + panelW - 5, panelY + 24);
+  ctx.fillText(`${alpha_all[frameIndex].toFixed(2)}°`, panelX + panelW - 5, panelY + 36);
 }

@@ -31,7 +31,7 @@ export function Select(props: SelectProps) {
 
   return (
     <div class="flex flex-col space-y-1">
-      <label class="font-display text-xs uppercase tracking-wider text-on-surface-variant" id={`${props.label}-label`}>
+      <label class="font-display text-xs uppercase tracking-wider text-on-surface-variant whitespace-nowrap overflow-hidden text-ellipsis" id={`${props.label}-label`}>
         {props.label}
       </label>
       <select

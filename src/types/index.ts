@@ -1,4 +1,4 @@
-// CamForge-Next TypeScript 类型定义
+// CamForge TypeScript 类型定义
 
 /**
  * 运动规律枚举

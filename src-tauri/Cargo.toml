@@ -1,13 +1,13 @@
 [package]
-name = "camforge-next"
+name = "camforge"
 version.workspace = true
-description = "CamForge-Next - High-performance cam mechanism simulator (Tauri desktop app)"
+description = "CamForge - High-performance cam mechanism simulator (Tauri desktop app)"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [lib]
-name = "camforge_next_lib"
+name = "camforge_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

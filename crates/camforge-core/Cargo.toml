@@ -1,7 +1,7 @@
 [package]
 name = "camforge-core"
 version.workspace = true
-description = "Core calculation library for CamForge-Next cam mechanism simulator"
+description = "CamForge - Core computation engine for cam mechanism kinematics"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -1,17 +1,17 @@
 <div align="center">
 
-# CamForge-Next
+# CamForge
 
 **凸轮机构运动学模拟器 | Cam Mechanism Kinematics Simulator**
 
-[![Version](https://img.shields.io/badge/version-0.4.1-blue.svg)](https://github.com/EkaEva/CamForge-Next/releases/tag/v0.4.1)
+[![Version](https://img.shields.io/badge/version-0.4.2-blue.svg)](https://github.com/EkaEva/CamForge/releases/tag/v0.4.2)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Tauri](https://img.shields.io/badge/Tauri-v2-24c8db.svg)](https://tauri.app)
 [![SolidJS](https://img.shields.io/badge/SolidJS-1.9-4f88c6.svg)](https://solidjs.com)
 
 [English](#english) | [中文](#中文)
 
-<img src="public/logo.png" alt="CamForge-Next Logo" width="128" height="128">
+<img src="public/logo.png" alt="CamForge Logo" width="128" height="128">
 
 </div>
 
@@ -23,13 +23,13 @@
 
 ### 简介
 
-**CamForge-Next** 是一款现代化的凸轮机构运动学模拟器，支持桌面应用和 Web 服务器双模式部署。它能够帮助工程师、学生和研究人员快速设计、分析和优化凸轮机构，支持多种运动规律和实时可视化。
+**CamForge** 是一款现代化的凸轮机构运动学模拟器，支持桌面应用和 Web 服务器双模式部署。它能够帮助工程师、学生和研究人员快速设计、分析和优化凸轮机构，支持多种运动规律和实时可视化。
 
 ### 结果展示
 
 #### 应用界面
 
-<img src="public/showcase/ui-screenshot.png" alt="CamForge-Next UI" width="100%">
+<img src="public/showcase/ui-screenshot.png" alt="CamForge UI" width="100%">
 
 #### 凸轮动画演示
 
@@ -120,8 +120,8 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/EkaEva/CamForge-Next.git
-cd camforge-next
+git clone https://github.com/EkaEva/CamForge.git
+cd camforge
 
 # 安装前端依赖
 pnpm install
@@ -181,7 +181,7 @@ docker-compose up -d
 ### 项目结构
 
 ```
-camforge-next/
+camforge/
 ├── crates/                    # Rust crates
 │   ├── camforge-core/         # 共享核心库
 │   │   └── src/
@@ -239,6 +239,13 @@ camforge-next/
 - [x] 移动端图表卡片响应式高度
 - [x] 图表图例去重（Canvas 图例移除，仅保留 HTML 图例）
 - [x] 启动动画加速（2.93s → 1.8s）
+- [x] 移动端侧边栏背景修复与间隙遮罩
+- [x] 移动端状态栏导出路径换行显示
+- [x] 移动端运动曲线图3Y轴适配
+- [x] 移动端设置面板下载目录提示
+- [x] 英文模式侧边栏标签溢出修复
+- [x] 英文模式导出动画信息面板国际化
+- [x] GIF导出闪烁修复（全局调色板+FloydSteinberg抖动）
 - [ ] 凸轮机构优化算法
 - [ ] 更多从动件类型（平底、摆动）
 
@@ -254,13 +261,13 @@ camforge-next/
 
 ### Overview
 
-**CamForge-Next** is a modern cam mechanism kinematics simulator that supports both desktop application and web server deployment. It helps engineers, students, and researchers quickly design, analyze, and optimize cam mechanisms with support for various motion laws and real-time visualization.
+**CamForge** is a modern cam mechanism kinematics simulator that supports both desktop application and web server deployment. It helps engineers, students, and researchers quickly design, analyze, and optimize cam mechanisms with support for various motion laws and real-time visualization.
 
 ### Showcase
 
 #### Application Interface
 
-<img src="public/showcase-en/ui-screenshot.png" alt="CamForge-Next UI" width="100%">
+<img src="public/showcase-en/ui-screenshot.png" alt="CamForge UI" width="100%">
 
 #### Cam Animation Demo
 
@@ -351,8 +358,8 @@ camforge-next/
 
 ```bash
 # Clone the repository
-git clone https://github.com/EkaEva/CamForge-Next.git
-cd camforge-next
+git clone https://github.com/EkaEva/CamForge.git
+cd camforge
 
 # Install frontend dependencies
 pnpm install
@@ -412,7 +419,7 @@ Build artifacts are located in `src-tauri/target/release/bundle/`.
 ### Project Structure
 
 ```
-camforge-next/
+camforge/
 ├── crates/                    # Rust crates
 │   ├── camforge-core/         # Shared core library
 │   │   └── src/
@@ -466,6 +473,13 @@ camforge-next/
 - [x] Material Design 3 design system overhaul
 - [x] Professional color palette & interactive chart legends
 - [x] Startup splash animation (Remotion design + JS-driven)
+- [x] Mobile sidebar background fix & gap overlay
+- [x] Mobile status bar export path line-wrap display
+- [x] Mobile motion curves 3Y-axis adaptation
+- [x] Mobile settings download directory hint
+- [x] English mode sidebar label overflow fix
+- [x] English mode export animation info panel i18n
+- [x] GIF export flickering fix (global palette + FloydSteinberg dithering)
 - [ ] Cam mechanism optimization algorithm
 - [ ] More follower types (flat-faced, oscillating)
 

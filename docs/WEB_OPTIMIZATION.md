@@ -1,4 +1,4 @@
-# CamForge-Next Web 部署优化说明
+# CamForge Web 部署优化说明
 
 ## Logo 压缩
 
@@ -20,7 +20,7 @@
    ```html
    <picture>
      <source srcset="/logo.webp" type="image/webp">
-     <img src="/logo.png" alt="CamForge-Next Logo">
+     <img src="/logo.png" alt="CamForge Logo">
    </picture>
    ```
 

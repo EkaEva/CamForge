@@ -1,8 +1,8 @@
 # 贡献指南 | Contributing Guide
 
-感谢您有兴趣为 CamForge-Next 做出贡献！
+感谢您有兴趣为 CamForge 做出贡献！
 
-Thank you for your interest in contributing to CamForge-Next!
+Thank you for your interest in contributing to CamForge!
 
 ## 目录 | Table of Contents
 
@@ -26,7 +26,7 @@ Thank you for your interest in contributing to CamForge-Next!
 
 ### 报告 Bug | Reporting Bugs
 
-如果您发现了 Bug，请通过 [GitHub Issues](https://github.com/EkaEva/CamForge-Next/issues) 提交报告。
+如果您发现了 Bug，请通过 [GitHub Issues](https://github.com/EkaEva/CamForge/issues) 提交报告。
 
 提交 Bug 报告时，请包含：
 
@@ -68,8 +68,8 @@ Thank you for your interest in contributing to CamForge-Next!
 
 ```bash
 # 克隆仓库
-git clone https://github.com/EkaEva/CamForge-Next.git
-cd CamForge-Next
+git clone https://github.com/EkaEva/CamForge.git
+cd CamForge
 
 # 安装前端依赖
 pnpm install
@@ -91,7 +91,7 @@ pnpm tauri build
 ## 项目结构 | Project Structure
 
 ```
-camforge-next/
+camforge/
 ├── crates/                    # Rust crates
 │   ├── camforge-core/         # 共享核心库
 │   │   └── src/

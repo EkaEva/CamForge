@@ -1,4 +1,4 @@
-//! CamForge-Next HTTP API 服务器
+//! CamForge HTTP API 服务器
 //!
 //! 提供 REST API 供 Web 前端调用
 
@@ -65,7 +65,7 @@ async fn main() {
     let addr = format!("0.0.0.0:{}", port);
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
 
-    println!("CamForge-Next server running at http://{}", addr);
+    println!("CamForge server running at http://{}", addr);
     println!("CORS allowed origins: {}", env::var("CORS_ORIGINS").unwrap_or_else(|_| "default (localhost only)".to_string()));
     println!("API endpoints:");
     println!("  POST /api/simulate    - Run cam simulation");

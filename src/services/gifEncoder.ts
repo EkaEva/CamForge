@@ -26,6 +26,8 @@ export interface GifEncodeOptions {
   quality: number;
   /** 最大帧数限制 */
   maxFrames: number;
+  /** 语言 ('zh' | 'en') */
+  lang: string;
 }
 
 /** 默认 GIF 编码选项 */
@@ -36,6 +38,7 @@ const DEFAULT_GIF_OPTIONS: GifEncodeOptions = {
   delay: 33, // ~30fps
   quality: 10,
   maxFrames: 360,
+  lang: 'zh',
 };
 
 /**
@@ -50,17 +53,6 @@ const DEFAULT_GIF_OPTIONS: GifEncodeOptions = {
  * @param options - GIF 编码选项（部分可选）
  * @param onProgress - 进度回调 (0-1)
  * @returns GIF Blob
- *
- * @example
- * ```ts
- * const blob = await generateGifAsync(
- *   simulationData,
- *   params,
- *   displayOptions,
- *   { width: 500, height: 500 },
- *   (progress) => console.log(`Progress: ${progress * 100}%`)
- * );
- * ```
  */
 export async function generateGifAsync(
   data: SimulationData,
@@ -91,6 +83,7 @@ export async function generateGifAsync(
     frameIndex: 0,
     displayOptions,
     zoom: 0.8,
+    lang: opts.lang,
   };
 
   for (let i = 0; i < totalFrames; i++) {
@@ -122,12 +115,12 @@ export async function generateGifAsync(
     const workerScript = new URL('gif.js/dist/gif.worker.js', import.meta.url).href;
 
     const gif = new GIF({
-      workers: 4, // 使用 4 个 Worker 并行编码
+      workers: 4,
       quality: opts.quality,
       width: opts.width,
       height: opts.height,
       workerScript,
-      repeat: 0, // 无限循环
+      repeat: 0,
     });
 
     // 添加所有帧

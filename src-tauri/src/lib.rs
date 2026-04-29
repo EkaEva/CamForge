@@ -1,4 +1,4 @@
-//! CamForge-Next Tauri 桌面应用入口
+//! CamForge Tauri 桌面应用入口
 //!
 //! 凸轮机构运动学计算应用
 

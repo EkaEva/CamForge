@@ -29,10 +29,11 @@ export function MotionCurves() {
     const height = rect.height;
 
     // 响应式边距计算
+    const isMobile = window.innerWidth < 768;
     const getResponsivePadding = () => {
       const w = window.innerWidth;
       if (w < 640) {
-        return { top: 40, right: 20, bottom: 45, left: 45 };
+        return { top: 40, right: 50, bottom: 45, left: 45 };
       } else if (w < 768) {
         return { top: 50, right: 80, bottom: 50, left: 55 };
       }
@@ -150,15 +151,35 @@ export function MotionCurves() {
     ctx.lineTo(vAxisX, height - padding.bottom);
     ctx.stroke();
 
-    // 右侧Y轴2 - 加速度a（绿色，向外偏移）
-    const aAxisOffset = window.innerWidth < 640 ? 40 : (window.innerWidth < 768 ? 50 : 60);
-    const aAxisX = width - padding.right + aAxisOffset;
-    ctx.strokeStyle = '#5B8C5A';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(aAxisX, padding.top);
-    ctx.lineTo(aAxisX, height - padding.bottom);
-    ctx.stroke();
+    // 右侧Y轴2 - 加速度a（绿色，向外偏移）— 移动端隐藏
+    if (!isMobile) {
+      const aAxisOffset = window.innerWidth < 768 ? 50 : 60;
+      const aAxisX = width - padding.right + aAxisOffset;
+      ctx.strokeStyle = '#5B8C5A';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(aAxisX, padding.top);
+      ctx.lineTo(aAxisX, height - padding.bottom);
+      ctx.stroke();
+
+      ctx.fillStyle = '#5B8C5A';
+      ctx.textAlign = 'center';
+      ctx.font = '10px -apple-system, sans-serif';
+      ctx.save();
+      ctx.translate(aAxisX + 22, padding.top + chartHeight / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText(currentT.chart.accelerationY, 0, 0);
+      ctx.restore();
+
+      ctx.textAlign = 'left';
+      ctx.font = '9px -apple-system, sans-serif';
+      // a轴刻度（5个）
+      for (let i = 0; i <= 4; i++) {
+        const val = (aMax * (2 - i) / 2);
+        const py = padding.top + (i / 4) * chartHeight;
+        ctx.fillText(val.toFixed(1), aAxisX + 4, py + 3);
+      }
+    }
 
     // X轴标签和刻度
     ctx.fillStyle = isDark ? '#CCC' : '#333';
@@ -207,25 +228,6 @@ export function MotionCurves() {
       const val = (vMax * (2 - i) / 2);
       const py = padding.top + (i / 4) * chartHeight;
       ctx.fillText(val.toFixed(1), vAxisX + 4, py + 3);
-    }
-
-    // 右侧Y轴2 - 加速度a（绿色）
-    ctx.fillStyle = '#5B8C5A';
-    ctx.textAlign = 'center';
-    ctx.font = '10px -apple-system, sans-serif';
-    ctx.save();
-    ctx.translate(aAxisX + 22, padding.top + chartHeight / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.fillText(currentT.chart.accelerationY, 0, 0);
-    ctx.restore();
-
-    ctx.textAlign = 'left';
-    ctx.font = '9px -apple-system, sans-serif';
-    // a轴刻度（5个）
-    for (let i = 0; i <= 4; i++) {
-      const val = (aMax * (2 - i) / 2);
-      const py = padding.top + (i / 4) * chartHeight;
-      ctx.fillText(val.toFixed(1), aAxisX + 4, py + 3);
     }
 
     // ===== 游标线 =====
@@ -334,7 +336,7 @@ export function MotionCurves() {
     const rect = canvasRef.getBoundingClientRect();
     const x = clientX - rect.left;
     const w = window.innerWidth;
-    const padding = w < 640 ? { left: 45, right: 20 } : w < 768 ? { left: 55, right: 80 } : { left: 70, right: 130 };
+    const padding = w < 640 ? { left: 45, right: 50 } : w < 768 ? { left: 55, right: 80 } : { left: 70, right: 130 };
     const chartWidth = rect.width - padding.left - padding.right;
 
     if (chartWidth <= 0) return 0;
@@ -367,7 +369,7 @@ export function MotionCurves() {
     const rect = canvasRef.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const w = window.innerWidth;
-    const padding = w < 640 ? { left: 45, right: 20 } : w < 768 ? { left: 55, right: 50 } : { left: 70, right: 70 };
+    const padding = w < 640 ? { left: 45, right: 50 } : w < 768 ? { left: 55, right: 80 } : { left: 70, right: 130 };
     const chartWidth = rect.width - padding.left - padding.right;
     if (chartWidth <= 0 || x < padding.left || x > rect.width - padding.right) {
       hoverFrame = -1;

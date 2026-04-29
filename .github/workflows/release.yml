@@ -81,7 +81,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'CamForge-Next ${{ github.ref_name }}'
+          releaseName: 'CamForge ${{ github.ref_name }}'
           releaseBody: 'See CHANGELOG.md for details.'
           releaseDraft: true
           prerelease: false
@@ -148,7 +148,7 @@ jobs:
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
-          echo $ANDROID_KEYSTORE_BASE64 | base64 -d > camforge-next.keystore
+          echo $ANDROID_KEYSTORE_BASE64 | base64 -d > camforge.keystore
 
       - name: Build Android APK
         run: pnpm tauri android build
@@ -167,11 +167,11 @@ jobs:
           # 签名 APK
           cd src-tauri/gen/android/app/build/outputs/apk/universal/release
           $ANDROID_HOME/build-tools/36.1.0/apksigner sign \
-            --ks ../../../../../../../../../camforge-next.keystore \
+            --ks ../../../../../../../../../camforge.keystore \
             --ks-pass pass:$ANDROID_KEYSTORE_PASSWORD \
             --ks-key-alias $ANDROID_KEY_ALIAS \
             --key-pass pass:$ANDROID_KEY_PASSWORD \
-            --out CamForge-Next_signed.apk \
+            --out CamForge_signed.apk \
             app-universal-release-unsigned.apk
 
       - name: Rename and upload APK
@@ -185,13 +185,13 @@ jobs:
           cd src-tauri/gen/android/app/build/outputs/apk/universal/release
 
           # 判断是否已签名
-          if [ -f CamForge-Next_signed.apk ]; then
-            mv CamForge-Next_signed.apk CamForge-Next_${VERSION}_android-universal.apk
-            echo "APK_PATH=$(pwd)/CamForge-Next_${VERSION}_android-universal.apk" >> $GITHUB_ENV
+          if [ -f CamForge_signed.apk ]; then
+            mv CamForge_signed.apk CamForge_${VERSION}_android-universal.apk
+            echo "APK_PATH=$(pwd)/CamForge_${VERSION}_android-universal.apk" >> $GITHUB_ENV
             echo "APK_STATUS=signed" >> $GITHUB_ENV
           else
-            mv app-universal-release-unsigned.apk CamForge-Next_${VERSION}_android-universal-unsigned.apk
-            echo "APK_PATH=$(pwd)/CamForge-Next_${VERSION}_android-universal-unsigned.apk" >> $GITHUB_ENV
+            mv app-universal-release-unsigned.apk CamForge_${VERSION}_android-universal-unsigned.apk
+            echo "APK_PATH=$(pwd)/CamForge_${VERSION}_android-universal-unsigned.apk" >> $GITHUB_ENV
             echo "APK_STATUS=unsigned" >> $GITHUB_ENV
           fi
 
@@ -247,7 +247,7 @@ jobs:
       - name: Copy iOS icons to project
         run: |
           # 复制生成的 iOS 图标到项目
-          cp src-tauri/icons/ios/*.png src-tauri/gen/apple/CamForge-Next/Images.xcassets/AppIcon.appiconset/ 2>/dev/null || true
+          cp src-tauri/icons/ios/*.png src-tauri/gen/apple/CamForge/Images.xcassets/AppIcon.appiconset/ 2>/dev/null || true
 
       - name: Build iOS (simulator)
         run: pnpm tauri ios build --target aarch64-sim
@@ -261,11 +261,11 @@ jobs:
           # 创建 IPA
           cd src-tauri/gen/apple/build/arm64-sim
           mkdir -p Payload
-          mv CamForge-Next.app Payload/
-          zip -r CamForge-Next_${VERSION}_ios-arm64-sim.ipa Payload
+          mv CamForge.app Payload/
+          zip -r CamForge_${VERSION}_ios-arm64-sim.ipa Payload
 
           # 输出文件路径
-          echo "IPA_PATH=$(pwd)/CamForge-Next_${VERSION}_ios-arm64-sim.ipa" >> $GITHUB_ENV
+          echo "IPA_PATH=$(pwd)/CamForge_${VERSION}_ios-arm64-sim.ipa" >> $GITHUB_ENV
 
       - name: Upload IPA to Release
         uses: softprops/action-gh-release@v2

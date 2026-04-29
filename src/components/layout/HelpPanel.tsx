@@ -149,10 +149,10 @@ export function HelpPanel(props: HelpPanelProps) {
                 <img src="/logo.png" alt="CamForge" width="32" height="32" class="h-8 w-auto" />
                 <button
                   type="button"
-                  onClick={() => openExternal('https://github.com/EkaEva/CamForge-Next')}
+                  onClick={() => openExternal('https://github.com/EkaEva/CamForge')}
                   class="text-sm font-semibold text-on-surface font-display hover:text-primary hover:tracking-wider underline underline-offset-4 decoration-primary/0 hover:decoration-primary transition-all duration-300"
                 >
-                  CamForge-Next
+                  CamForge
                 </button>
               </div>
               <p class="text-sm text-on-surface-variant font-display leading-relaxed">{t().help.aboutDesc}</p>

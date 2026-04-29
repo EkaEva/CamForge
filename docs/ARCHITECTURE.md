@@ -1,10 +1,10 @@
-# CamForge-Next 架构设计文档
+# CamForge 架构设计文档
 
-> 本文档描述 CamForge-Next 的系统架构、技术选型和模块设计。
+> 本文档描述 CamForge 的系统架构、技术选型和模块设计。
 
 ## 一、系统概述
 
-CamForge-Next 是一款现代化的凸轮机构运动学模拟器，支持桌面应用和 Web 服务器双模式部署。采用 Tauri v2 + SolidJS 架构实现桌面应用，Axum + SolidJS 架构实现 Web 服务器。
+CamForge 是一款现代化的凸轮机构运动学模拟器，支持桌面应用和 Web 服务器双模式部署。采用 Tauri v2 + SolidJS 架构实现桌面应用，Axum + SolidJS 架构实现 Web 服务器。
 
 ### 部署模式
 
@@ -42,7 +42,7 @@ CamForge-Next 是一款现代化的凸轮机构运动学模拟器，支持桌面
 │  Desktop (Tauri IPC) │       Web (HTTP/REST API)            │
 │                      │                                       │
 │  ┌────────────────┐  │  ┌────────────────────────────────┐  │
-│  │ camforge-next  │  │  │      camforge-server           │  │
+│  │ camforge  │  │  │      camforge-server           │  │
 │  │  (Tauri App)   │  │  │       (Axum Server)            │  │
 │  └────────────────┘  │  └────────────────────────────────┘  │
 │          │           │              │                        │
@@ -137,7 +137,7 @@ export const [displayOptions, setDisplayOptions] = createSignal<DisplayOptions>(
 项目采用 Cargo Workspace 管理多个 crate：
 
 ```
-camforge-next/
+camforge/
 ├── Cargo.toml                    # Workspace 配置
 ├── crates/                       # Rust crates
 │   ├── camforge-core/            # 共享核心库

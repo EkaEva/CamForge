@@ -1,7 +1,7 @@
 export const zh = {
   _lang: 'zh',
   app: {
-    title: 'CamForge-Next',
+    title: 'CamForge',
     subtitle: '凸轮机构运动学模拟器',
     tagline: '凸轮机构运动学仿真',
   },
@@ -107,9 +107,10 @@ export const zh = {
     exported: '已导出',
     exportFailed: '导出失败',
     exportingFile: '正在导出',
-    downloadTip: 'TIFF 600 DPI，GIF 150 DPI · 文件将自动下载到默认下载目录',
+    downloadTip: 'TIFF 600 DPI，GIF 100 DPI · 文件将自动下载到默认下载目录',
     imageFormat: '图片格式',
     animationFormat: '动画格式',
+    animationFrames: '帧数',
     items: {
       motion: '运动线图',
       curvature: '曲率半径',
@@ -151,6 +152,7 @@ export const zh = {
     downloadDir: '下载目录',
     downloadDirPlaceholder: '使用系统默认下载目录',
     downloadDirHint: '留空则使用系统默认下载目录',
+    downloadDirMobileHint: '移动端默认保存至系统下载目录',
     selectDownloadDir: '选择下载目录',
     select: '选择',
     clear: '清除',
@@ -186,7 +188,7 @@ export const zh = {
 export const en = {
   _lang: 'en',
   app: {
-    title: 'CamForge-Next',
+    title: 'CamForge',
     subtitle: 'Cam Mechanism Kinematics Simulator',
     tagline: 'Cam Mechanism Kinematics Simulation',
   },
@@ -292,9 +294,10 @@ export const en = {
     exported: 'Exported',
     exportFailed: 'Export failed',
     exportingFile: 'Exporting',
-    downloadTip: 'TIFF 600 DPI, GIF 150 DPI · Files will be downloaded to default folder',
+    downloadTip: 'TIFF 600 DPI, GIF 100 DPI · Files will be downloaded to default folder',
     imageFormat: 'Image Format',
     animationFormat: 'Animation Format',
+    animationFrames: 'Frames',
     items: {
       motion: 'Motion',
       curvature: 'Curvature',
@@ -336,6 +339,7 @@ export const en = {
     downloadDir: 'Download Directory',
     downloadDirPlaceholder: 'Use system default download directory',
     downloadDirHint: 'Leave empty to use system default download directory',
+    downloadDirMobileHint: 'Mobile saves to system download directory by default',
     selectDownloadDir: 'Select Download Directory',
     select: 'Select',
     clear: 'Clear',

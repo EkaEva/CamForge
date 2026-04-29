@@ -1,12 +1,12 @@
-# CamForge-Next 部署指南
+# CamForge 部署指南
 
-> 本文档说明如何部署 CamForge-Next 的两种模式：桌面应用和 Web 服务器
+> 本文档说明如何部署 CamForge 的两种模式：桌面应用和 Web 服务器
 
 ---
 
 ## 一、部署模式
 
-CamForge-Next 支持两种部署模式：
+CamForge 支持两种部署模式：
 
 | 模式 | 适用场景 | 技术栈 |
 |------|----------|--------|
@@ -78,13 +78,13 @@ docker-compose down
 
 ```bash
 # 构建镜像
-docker build -t camforge-next .
+docker build -t camforge .
 
 # 运行容器
-docker run -d -p 3000:3000 --name camforge-next camforge-next
+docker run -d -p 3000:3000 --name camforge camforge
 
 # 查看日志
-docker logs -f camforge-next
+docker logs -f camforge
 ```
 
 ### 3.3 环境变量
@@ -191,4 +191,4 @@ curl -X POST http://localhost:3000/api/simulate \
 
 1. 确保 Docker 有足够内存（至少 4GB）
 2. 清理 Docker 缓存：`docker system prune -a`
-3. 使用 `--no-cache` 重新构建：`docker build --no-cache -t camforge-next .`
+3. 使用 `--no-cache` 重新构建：`docker build --no-cache -t camforge .`

@@ -1051,9 +1051,10 @@ export async function generateRealTIFF(
 
 // 生成 GIF 动画（异步，使用 Web Worker 避免阻塞主线程）
 export async function generateGIF(
-  _lang: string,
+  lang: string,
   onProgress?: (progress: number) => void,
-  customDpi?: number
+  customDpi?: number,
+  maxFrames?: number
 ): Promise<Blob> {
   const data = simulationData();
   const p = params();
@@ -1072,6 +1073,8 @@ export async function generateGIF(
         dpi,
         width: 5 * dpi,
         height: 5 * dpi,
+        lang,
+        maxFrames: maxFrames || 360,
       },
       onProgress
     );

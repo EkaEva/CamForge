@@ -32,6 +32,7 @@ export function MainCanvas(props: MainCanvasProps) {
   });
   const [customExportAnimFormat, setCustomExportAnimFormat] = createSignal<'gif' | 'png'>('gif');
   const [customExportAnimDPI, setCustomExportAnimDPI] = createSignal(150);
+  const [customExportAnimFrames, setCustomExportAnimFrames] = createSignal(120);
   const [customExportAnimation, setCustomExportAnimation] = createSignal(false);
   const [customExportData, setCustomExportData] = createSignal({
     csv: false,
@@ -185,7 +186,7 @@ export function MainCanvas(props: MainCanvasProps) {
         case 'animation_gif': {
           const blob = await generateGIF(lang, (progress) => {
             setExportProgress(Math.round(progress * 100));
-          });
+          }, 100);
           result = await saveFile(blob, `${filename}.gif`, 'image/gif');
           break;
         }
@@ -322,7 +323,7 @@ export function MainCanvas(props: MainCanvasProps) {
         if (animFormat === 'gif') {
           const blob = await generateGIF(currentLang, (progress) => {
             setExportProgress(Math.round(((currentItem + progress) / totalItems) * 100));
-          }, animDpi);
+          }, animDpi, customExportAnimFrames());
           await saveFile(blob, `${filename}.gif`, 'image/gif', { saveDir });
         } else {
           const blob = await generateHighResPNG('profile', currentLang, animDpi);
@@ -574,7 +575,7 @@ export function MainCanvas(props: MainCanvasProps) {
 
       {/* 移动端状态提示 */}
       <div class="sm:hidden px-4 py-1.5 bg-surface-container-low border-b border-outline-variant text-xs" style={{ 'padding-bottom': 'calc(0.375rem + env(safe-area-inset-bottom))' }}>
-        <div class="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+        <div class="flex items-start gap-2 overflow-x-auto scrollbar-hide">
           <Show when={isLoading()}>
             <div classList={{ 'w-3 h-3 border-2 border-t-transparent rounded-full animate-spin': true, [getStatusColor()]: true }} style={{ 'border-color': 'currentColor', 'border-top-color': 'transparent' }} />
           </Show>
@@ -593,7 +594,7 @@ export function MainCanvas(props: MainCanvasProps) {
           </Show>
           <Show when={exportStatus().type !== 'idle'}>
             <span
-              class="truncate max-w-[60vw] whitespace-nowrap"
+              class="max-w-full break-all"
               classList={{
                 'text-success': exportStatus().type === 'success',
                 'text-error': exportStatus().type === 'error',
@@ -823,7 +824,7 @@ export function MainCanvas(props: MainCanvasProps) {
                     <h3 class="text-sm font-medium text-on-surface font-display mb-3">
                       {t().export.animationExport}
                     </h3>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                       <div>
                         <label class="text-xs text-on-surface-variant font-display mb-1.5 block">
                           {t().export.animationFormat}
@@ -849,6 +850,21 @@ export function MainCanvas(props: MainCanvasProps) {
                           <option value="100">100 DPI</option>
                           <option value="150">150 DPI</option>
                           <option value="200">200 DPI</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label class="text-xs text-on-surface-variant font-display mb-1.5 block">
+                          {t().export.animationFrames}
+                        </label>
+                        <select
+                          value={customExportAnimFrames()}
+                          onChange={(e) => setCustomExportAnimFrames(parseInt(e.currentTarget.value))}
+                          class="w-full px-3 py-1.5 text-sm bg-surface-container border border-outline-variant rounded-md focus:outline-none focus:ring-2 focus:ring-outline text-on-surface font-display"
+                        >
+                          <option value="60">60</option>
+                          <option value="120">120</option>
+                          <option value="180">180</option>
+                          <option value="360">360</option>
                         </select>
                       </div>
                     </div>

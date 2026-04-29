@@ -1,4 +1,4 @@
-# CamForge-Next 前后端分离改造方案
+# CamForge 前后端分离改造方案
 
 > 创建日期：2026-04-23
 > 目标：支持桌面应用 + Web 服务器双模式部署
@@ -66,7 +66,7 @@
 ### 2.1 新目录结构
 
 ```
-camforge-next/
+camforge/
 ├── crates/                      # Rust crates (新增)
 │   ├── camforge-core/           # 核心计算库 (新增)
 │   │   ├── Cargo.toml
@@ -338,8 +338,8 @@ CMD ["./server"]
 
 **验证命令**：
 ```bash
-docker build -t camforge-next .
-docker run -p 3000:3000 camforge-next
+docker build -t camforge .
+docker run -p 3000:3000 camforge
 curl http://localhost:3000/health
 ```
 

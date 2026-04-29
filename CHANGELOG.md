@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-04-29
+
+### Fixed
+
+- **英文模式侧边栏标签溢出**：Return Motion Law 标签过长导致换行
+  - 缩短翻译：Rise Motion Law → Rise Law，Return Motion Law → Return Law
+  - Select 组件标签添加 `whitespace-nowrap overflow-hidden text-ellipsis`
+
+- **英文模式导出动画信息面板**：GIF 导出帧的信息面板仍显示中文
+  - `AnimationFrameOptions` 接口新增 `lang` 字段
+  - `chartDrawing.ts` 中信息面板文本根据 `lang` 条件渲染
+  - `gifEncoder.ts` 和 `simulation.ts` 传递语言参数
+
+- **GIF 导出闪烁变色**：GIF 动画帧间闪烁和颜色跳变
+  - 使用 `globalPalette: true` 让所有帧共用统一 256 色调色板，消除帧间调色板切换
+  - 信息面板背景改为不透明白色，消除半透明混合导致的帧间像素差异
+  - 动画帧渲染回退至 v0.3.7 简洁模式（移除网格、坐标轴、刻度线），降低颜色复杂度
+  - 修复 `drawAnimationFrame` 中 `frameOptions.lang` 变量名错误导致的 GIF 导出 0 字节问题
+
+- **移动端侧边栏背景透明**：侧边栏背景色过浅，与主内容区分不明显
+  - 侧边栏背景从 `bg-surface-container-low` 改为 `bg-surface-container`
+  - 间隙遮罩添加 `bg-black/30` 半透明背景
+
+- **移动端状态栏导出路径**：导出成功后路径被截断不显示
+  - 状态栏容器从 `items-center` 改为 `items-start` 支持多行
+  - 路径文本从 `truncate max-w-[60vw] whitespace-nowrap` 改为 `max-w-full break-all`
+
+- **移动端运动曲线图3Y轴显示不全**：加速度Y轴在移动端超出屏幕右侧
+  - 移动端 `padding.right` 从 20px 增加到 50px
+  - 移动端隐藏加速度Y轴（第三轴），仅显示位移和速度轴
+  - 同步更新 `getFrameFromX` 和 hover handler 的 padding 值
+
+- **移动端设置面板下载目录**：移动端设置缺少下载路径配置
+  - 下载目录设置从 `isTauri && !isMobile` 改为 `isTauri`
+  - 移动端显示只读提示文本，桌面端保持原有选择/清除功能
+  - 新增 `downloadDirMobileHint` 中英文翻译
+
+### Changed
+
+- **项目重命名**：CamForge-Next → CamForge
+  - 所有配置文件、源码、文档、CI/CD、Docker 中的名称统一更新
+  - GitHub 仓库同步重命名
+  - Tauri identifier 更新为 `com.camforge.app`
+
+- **GIF 导出选项优化**
+  - 快速导出动画默认 DPI 从 150 改为 100
+  - 自定义导出新增帧数选项（60 / 120 / 180 / 360）
+  - 自定义导出动画 DPI 选项恢复 200 DPI
+  - 自定义导出动画布局改为三列（格式 + DPI + 帧数）
+  - 快速导出提示文本更新为 "GIF 100 DPI"
+
 ## [0.4.1] - 2026-04-28
 
 ### Fixed
@@ -170,7 +221,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - SEO 增强（robots, canonical）
   - JSON-LD 结构化数据（WebApplication）
 
-[0.3.6]: https://github.com/EkaEva/CamForge-Next/compare/v0.3.5...v0.3.6
+[0.3.6]: https://github.com/EkaEva/CamForge/compare/v0.3.5...v0.3.6
 
 ## [0.3.5] - 2026-04-25
 
@@ -424,7 +475,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Deployment
 
-- 支持通过 `ghcr.io/ekaeva/camforge-next:latest` 拉取镜像
+- 支持通过 `ghcr.io/ekaeva/camforge:latest` 拉取镜像
 - 服务器部署简化为：拉取镜像 → 运行容器
 
 ---
@@ -497,7 +548,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 重构项目结构，拆分为三个 crate：
   - `camforge-core`：核心计算库
   - `camforge-server`：HTTP API 服务器
-  - `camforge-next`：Tauri 桌面应用
+  - `camforge`：Tauri 桌面应用
 - 迁移 `src-tauri/src/cam/` 和 `src-tauri/src/types/` 到 `camforge-core`
 - 更新 `src-tauri/src/commands/simulation.rs` 使用 `camforge-core`
 
@@ -525,7 +576,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 点击跳转至 GitHub 仓库
 - **帮助页面改进**：
   - 添加撤销/重做快捷键说明
-  - CamForge-Next 标题添加 GitHub 链接
+  - CamForge 标题添加 GitHub 链接
   - 移除版本号显示
 - **文档完善**：
   - 新增 `docs/ARCHITECTURE.md` 架构设计文档
@@ -582,7 +633,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release of CamForge-Next
+- Initial release of CamForge
 - Support for 6 motion laws:
   - Uniform Motion
   - Constant Acceleration
@@ -625,18 +676,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[0.4.1]: https://github.com/EkaEva/CamForge-Next/compare/v0.4.0...v0.4.1
-[0.4.0]: https://github.com/EkaEva/CamForge-Next/compare/v0.3.7...v0.4.0
-[0.3.7]: https://github.com/EkaEva/CamForge-Next/compare/v0.3.6...v0.3.7
-[0.3.5]: https://github.com/EkaEva/CamForge-Next/compare/v0.3.4...v0.3.5
-[0.3.4]: https://github.com/EkaEva/CamForge-Next/compare/v0.3.3...v0.3.4
-[0.3.3]: https://github.com/EkaEva/CamForge-Next/compare/v0.3.2...v0.3.3
-[0.3.2]: https://github.com/EkaEva/CamForge-Next/compare/v0.3.1...v0.3.2
-[0.3.1]: https://github.com/EkaEva/CamForge-Next/compare/v0.3.0...v0.3.1
-[0.3.0]: https://github.com/EkaEva/CamForge-Next/compare/v0.2.2...v0.3.0
-[0.2.2]: https://github.com/EkaEva/CamForge-Next/compare/v0.2.1...v0.2.2
-[0.2.1]: https://github.com/EkaEva/CamForge-Next/compare/v0.2.0...v0.2.1
-[0.2.0]: https://github.com/EkaEva/CamForge-Next/compare/v0.1.2...v0.2.0
-[0.1.2]: https://github.com/EkaEva/CamForge-Next/compare/v0.1.1...v0.1.2
-[0.1.1]: https://github.com/EkaEva/CamForge-Next/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/EkaEva/CamForge-Next/releases/tag/v0.1.0
+[0.4.2]: https://github.com/EkaEva/CamForge/compare/v0.4.1...v0.4.2
+[0.4.1]: https://github.com/EkaEva/CamForge/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/EkaEva/CamForge/compare/v0.3.7...v0.4.0
+[0.3.7]: https://github.com/EkaEva/CamForge/compare/v0.3.6...v0.3.7
+[0.3.5]: https://github.com/EkaEva/CamForge/compare/v0.3.4...v0.3.5
+[0.3.4]: https://github.com/EkaEva/CamForge/compare/v0.3.3...v0.3.4
+[0.3.3]: https://github.com/EkaEva/CamForge/compare/v0.3.2...v0.3.3
+[0.3.2]: https://github.com/EkaEva/CamForge/compare/v0.3.1...v0.3.2
+[0.3.1]: https://github.com/EkaEva/CamForge/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/EkaEva/CamForge/compare/v0.2.2...v0.3.0
+[0.2.2]: https://github.com/EkaEva/CamForge/compare/v0.2.1...v0.2.2
+[0.2.1]: https://github.com/EkaEva/CamForge/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/EkaEva/CamForge/compare/v0.1.2...v0.2.0
+[0.1.2]: https://github.com/EkaEva/CamForge/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/EkaEva/CamForge/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/EkaEva/CamForge/releases/tag/v0.1.0

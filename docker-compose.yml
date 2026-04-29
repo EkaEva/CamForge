@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  camforge-next:
+  camforge:
     build:
       context: .
       dockerfile: Dockerfile
@@ -19,8 +19,8 @@ services:
 
 # 可选：使用预构建镜像
 # services:
-#   camforge-next:
-#     image: ghcr.io/ekaeva/camforge-next:latest
+#   camforge:
+#     image: ghcr.io/ekaeva/camforge:latest
 #     ports:
 #       - "3000:3000"
 #     restart: unless-stopped

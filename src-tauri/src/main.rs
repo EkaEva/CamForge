@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    camforge_next_lib::run()
+    camforge_lib::run()
 }

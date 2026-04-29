@@ -424,21 +424,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "camforge-core"
-version = "0.4.0"
-dependencies = [
- "approx",
- "ndarray",
- "num-traits",
- "rayon",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "camforge-next"
-version = "0.4.0"
+name = "camforge"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "camforge-core",
@@ -456,8 +443,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "camforge-core"
+version = "0.4.2"
+dependencies = [
+ "approx",
+ "ndarray",
+ "num-traits",
+ "rayon",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "camforge-server"
-version = "0.4.0"
+version = "0.4.2"
 dependencies = [
  "anyhow",
  "axum",
