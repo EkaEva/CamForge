@@ -9,8 +9,8 @@ import { isTauriEnv } from '../../utils/tauri';
 async function revealFileInManager(filePath: string) {
   if (!isTauriEnv()) return;
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('reveal_item_in_dir', { path: filePath });
+    const { revealItemInDir } = await import('@tauri-apps/plugin-opener');
+    await revealItemInDir(filePath);
   } catch (e) {
     console.error('Failed to reveal file:', e);
   }
@@ -238,7 +238,7 @@ export function MainCanvas(props: MainCanvasProps) {
       if (result.success) {
         const path = result.path || filename;
         const shortName = path.split(/[/\\]/).pop() || filename;
-        const pathInfo = result.path ? ` → ${result.path}` : '';
+        const pathInfo = !isMobilePlatform() && result.path ? ` → ${result.path}` : '';
         setExportStatus({ type: 'success', message: `${t().export.exported}: ${filename}${pathInfo}`, files: [filename] });
         if (isMobilePlatform()) {
           const currentLang = getCurrentLang();
@@ -399,7 +399,7 @@ export function MainCanvas(props: MainCanvasProps) {
       }
 
       setExportProgress(100);
-      const pathInfo = saveDir ? ` → ${saveDir}` : '';
+      const pathInfo = !isMobilePlatform() && saveDir ? ` → ${saveDir}` : '';
       setExportStatus({
         type: 'success',
         message: currentLang === 'zh' ? `已导出 ${exportedFiles.length} 个文件${pathInfo}` : `Exported ${exportedFiles.length} files${pathInfo}`,
@@ -628,7 +628,7 @@ export function MainCanvas(props: MainCanvasProps) {
           </Show>
           <Show when={exportStatus().type !== 'idle'}>
             <span
-              class="max-w-full break-all"
+              class="truncate max-w-[60%]"
               classList={{
                 'text-success': exportStatus().type === 'success',
                 'text-error': exportStatus().type === 'error',

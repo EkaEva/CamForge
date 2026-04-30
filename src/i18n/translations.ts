@@ -157,6 +157,9 @@ export const zh = {
     selectDownloadDir: '选择下载目录',
     select: '选择',
     clear: '清除',
+    dirDownload: '下载',
+    dirDocument: '文档',
+    dirPicture: '图片',
   },
   info: {
     angle: '角度',
@@ -354,6 +357,9 @@ export const en = {
     selectDownloadDir: 'Select Download Directory',
     select: 'Select',
     clear: 'Clear',
+    dirDownload: 'Download',
+    dirDocument: 'Documents',
+    dirPicture: 'Pictures',
   },
   info: {
     angle: 'Angle',

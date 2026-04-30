@@ -68,6 +68,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
   });
 
   const handleSelectDownloadDir = async () => {
+    if (isMobile) return;
     try {
       const { open } = await import('@tauri-apps/plugin-dialog');
       const selected = await open({
@@ -80,6 +81,21 @@ export function SettingsPanel(props: SettingsPanelProps) {
       }
     } catch (e) {
       console.error('Failed to select directory:', e);
+    }
+  };
+
+  const handleQuickDir = async (type: 'download' | 'document' | 'picture') => {
+    try {
+      const path = await import('@tauri-apps/api/path');
+      let dir: string | null = null;
+      if (type === 'download') dir = await path.downloadDir();
+      else if (type === 'document') dir = await path.documentDir();
+      else dir = await path.pictureDir();
+      if (dir) {
+        updateSettings({ downloadDir: dir });
+      }
+    } catch (e) {
+      console.error('Failed to get system directory:', e);
     }
   };
 
@@ -215,15 +231,17 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   value={settings().downloadDir}
                   readOnly
                   placeholder={t().settings.downloadDirPlaceholder}
-                  class="flex-1 px-3 py-2 text-sm bg-surface-container border border-outline-variant rounded-lg text-on-surface font-display"
+                  class="flex-1 px-3 py-2 text-sm bg-surface-container border border-outline-variant rounded-lg text-on-surface font-display truncate min-w-0"
                 />
-                <button
-                  type="button"
-                  onClick={handleSelectDownloadDir}
-                  class="px-3 py-2 text-sm bg-chrome-run-bg hover:opacity-90 active:opacity-80 active:scale-95 text-chrome-run-text rounded-lg transition-all duration-150 font-display"
-                >
-                  {t().settings.select}
-                </button>
+                <Show when={!isMobile}>
+                  <button
+                    type="button"
+                    onClick={handleSelectDownloadDir}
+                    class="px-3 py-2 text-sm bg-chrome-run-bg hover:opacity-90 active:opacity-80 active:scale-95 text-chrome-run-text rounded-lg transition-all duration-150 font-display"
+                  >
+                    {t().settings.select}
+                  </button>
+                </Show>
                 <Show when={settings().downloadDir}>
                   <button
                     type="button"
@@ -234,8 +252,33 @@ export function SettingsPanel(props: SettingsPanelProps) {
                   </button>
                 </Show>
               </div>
+              <Show when={isMobile}>
+                <div class="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleQuickDir('download')}
+                    class="flex-1 px-3 py-2 text-sm bg-chrome-run-bg hover:opacity-90 active:opacity-80 active:scale-95 text-chrome-run-text rounded-lg transition-all duration-150 font-display"
+                  >
+                    {t().settings.dirDownload}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickDir('document')}
+                    class="flex-1 px-3 py-2 text-sm bg-chrome-run-bg hover:opacity-90 active:opacity-80 active:scale-95 text-chrome-run-text rounded-lg transition-all duration-150 font-display"
+                  >
+                    {t().settings.dirDocument}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickDir('picture')}
+                    class="flex-1 px-3 py-2 text-sm bg-chrome-run-bg hover:opacity-90 active:opacity-80 active:scale-95 text-chrome-run-text rounded-lg transition-all duration-150 font-display"
+                  >
+                    {t().settings.dirPicture}
+                  </button>
+                </div>
+              </Show>
               <p class="text-xs text-on-surface-variant font-display">
-                {t().settings.downloadDirHint}
+                {isMobile ? t().settings.downloadDirMobileHint : t().settings.downloadDirHint}
               </p>
             </div>
           </Show>

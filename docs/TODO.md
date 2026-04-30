@@ -1,426 +1,218 @@
-# CamForge v0.4.5 系统优化计划
+# CamForge v0.4.6 系统优化计划
 
-> **制定日期**：2026-04-29
-> **目标版本**：v0.4.5
-> **依据**：`docs/Review.md` 系统性审查报告（120 项问题）+ 用户反馈的 4 项 UI 问题
-> **原则**：每阶段可独立验证，阶段内按优先级排序，先安全后体验
+> **制定日期**：2026-04-30
+> **目标版本**：v0.4.6
+> **依据**：用户反馈的 3 项移动端问题
+> **原则**：每阶段可独立验证，阶段内按优先级排序，先修复后优化
 
 ---
 
-## Phase 0：版本号更新与基线准备
+## 问题分析
 
-**目标**：将版本号从 v0.4.4 更新至 v0.4.5，建立优化基线
+### 问题 1：移动端状态栏重复显示导出路径
+
+**现象**：移动端导出成功后，Toast 小卡片已显示完整保存路径，状态栏又重复显示路径，且路径过长挤压其他提示信息。
+
+**根因**：
+- `MainCanvas.tsx` 中 `handleExport`（约 L242）和 `handleCustomExport`（约 L403）调用 `setExportStatus()` 时，`message` 无条件包含 `→ ${path}` 路径信息
+- 移动端状态栏（约 L629-640）渲染 `exportStatus().message` 时使用 `break-all`，长路径换行占据大量空间
+- Toast 已在移动端独立显示路径（约 L243-257、L408-421），状态栏的路径信息冗余
+
+**影响**：状态栏空间被路径占据，"已计算 N 个点"等正常提示被挤压或不可见
+
+### 问题 2：移动端界面可左右滑动
+
+**现象**：移动端整个界面可以水平滑动，出现空白区域。
+
+**根因**：
+- `App.tsx` 移动端 header（约 L64-126）右侧有 6 个按钮（撤销、重做、语言、主题、设置、帮助），每个 `w-10`（40px）
+- 按钮间 `gap-0.5`（2px），6 个按钮总宽 = 6×40 + 5×2 = 250px
+- 加上左侧菜单按钮（44px）、标题、padding（32px），总宽 ≈ 326px + 标题宽度
+- 在 320px 窄屏手机上超出视口宽度，导致水平溢出
+- header 和 body 均无 `overflow-x: hidden`，溢出表现为可左右滑动
+
+**影响**：用户可意外触发水平滚动，体验不佳
+
+### 问题 3：Tauri 移动端对话框/文件选择器不工作
+
+**现象**：
+1. 导出成功后 Toast 的"打开位置"按钮点击无反应
+2. 自定义导出无法选择下载路径，直接导出且失败
+3. 设置面板"选择"下载目录按钮点击无反应
+
+**根因**：
+- **"打开位置"按钮**：`MainCanvas.tsx` 中 `revealFileInManager()` 使用 `invoke('reveal_item_in_dir', { path })` 调用 `tauri-plugin-opener`，但该插件可能未在 `src-tauri/Cargo.toml` 中注册，或 `capabilities/default.json` 缺少 `opener` 权限
+- **"选择"下载目录按钮**：`SettingsPanel.tsx` 中 `handleSelectDownloadDir()` 使用 `@tauri-apps/plugin-dialog` 的 `open({ directory: true })`，但 Tauri dialog 插件在移动端（Android/iOS）**不支持目录选择**，仅支持 `save()` 保存文件对话框
+- **自定义导出路径选择**：`MainCanvas.tsx` 中 `handleCustomExport` 已用 `!isMobilePlatform()` 保护目录选择器，移动端跳过选择直接使用默认目录，但如果默认目录为空且无法选择，导出可能失败
+
+**影响**：Tauri 移动端导出功能不可用，设置面板下载目录无法配置
+
+---
+
+## Phase 0：版本号更新
+
+**目标**：将版本号从 v0.4.5 更新至 v0.4.6，建立优化基线
 
 ### 步骤
 
 | # | 任务 | 文件 | 验证方法 |
 |---|------|------|----------|
-| 0.1 | 更新前端版本号 | `package.json` | `"version": "0.4.5"` |
-| 0.2 | 更新 Rust 工作区版本号 | `Cargo.toml` | `version = "0.4.5"` |
-| 0.3 | 更新 Tauri 配置版本号 | `src-tauri/tauri.conf.json` | `"version": "0.4.5"` |
-| 0.4 | 更新 README 版本徽章 | `README.md` | 所有 `0.4.4` 引用改为 `0.4.5` |
-| 0.5 | 更新 CHANGELOG | `CHANGELOG.md` | 添加 `## [0.4.5]` 条目 |
-| 0.6 | 开发服务器验证 | — | `pnpm dev` 启动正常，页面显示 v0.4.5 |
+| 0.1 | 更新前端版本号 | `package.json` L3 | `"version": "0.4.6"` |
+| 0.2 | 更新 Rust 工作区版本号 | `Cargo.toml` L10 | `version = "0.4.6"` |
+| 0.3 | 更新 Tauri 配置版本号 | `src-tauri/tauri.conf.json` L4 | `"version": "0.4.6"` |
+| 0.4 | 更新启动动画版本号 | `index.html` L84 | `v0.4.6 · SolidJS + Tauri` |
+| 0.5 | 更新 README 版本徽章 | `README.md` L7 | `version-0.4.6`，链接指向 `v0.4.6` |
+| 0.6 | 更新 CHANGELOG | `CHANGELOG.md` | 在文件顶部添加 `## [0.4.6] - 2026-04-30` 条目 |
+| 0.7 | 更新 CHANGELOG 比较链接 | `CHANGELOG.md` | 添加 `[0.4.5]: https://github.com/EkaEva/CamForge/compare/v0.4.4...v0.4.5` 和 `[0.4.6]` 链接 |
 
 ### 验证标准
 
-- [ ] `grep -r "0.4.4" package.json Cargo.toml src-tauri/tauri.conf.json README.md` 返回空
-- [ ] 开发服务器启动无错误
-- [ ] 页面标题/关于信息显示 v0.4.5
+- [ ] `grep -r "0\.4\.5" package.json Cargo.toml src-tauri/tauri.conf.json index.html README.md` 返回空
+- [ ] 开发服务器 `pnpm dev` 启动正常，页面显示 v0.4.6
 
 ---
 
-## Phase 1：安全漏洞修复（严重级）
+## Phase 1：移动端状态栏导出路径冗余修复
 
-**目标**：消除审查报告中所有严重安全问题
+**目标**：移动端状态栏不再显示导出路径，仅由 Toast 承担路径展示职责
 
-### 1A. 文件系统安全
-
-| # | 任务 | 文件 | 验证方法 |
-|---|------|------|----------|
-| 1.1 | 缩小 FS scope 到最小权限 | `src-tauri/capabilities/default.json` | `$HOME/**` → `$DOWNLOAD/**` + `$DOCUMENT/**` + `$DESKTOP/**` |
-| 1.2 | 移除 CSP 中的 localhost 地址 | `src-tauri/tauri.conf.json` | `connect-src` 中删除 `ws://localhost:1420/`、`http://localhost:1420/`、`http://localhost:3000/`、`http://localhost:5173/` |
-| 1.3 | 导出路径验证支持绝对路径 | `src-tauri/src/commands/export.rs` | 接受绝对路径但验证是否在允许目录列表内 |
-
-### 1B. 服务器安全
+### 步骤
 
 | # | 任务 | 文件 | 验证方法 |
 |---|------|------|----------|
-| 1.4 | 添加请求体大小限制 | `crates/camforge-server/src/main.rs` | 添加 `RequestBodyLimitLayer::new(1024 * 1024)` |
-| 1.5 | `CamParams::validate()` 在命令中调用 | `src-tauri/src/commands/simulation.rs` | 在 `run_simulation` 入口调用 `params.validate()?` |
-| 1.6 | 添加 NaN/Infinity 验证 | `crates/camforge-core/src/types.rs` | `validate()` 中对所有 `f64` 字段添加 `is_finite()` 检查 |
-| 1.7 | 替换服务器中的 `unwrap()` | `crates/camforge-server/src/main.rs` | `TcpListener::bind` 和 `axum::serve` 使用 `?` 传播错误 |
-| 1.8 | CSV 导出转义 | `crates/camforge-server/src/routes/export.rs` | 值包含逗号/引号时加引号转义 |
-
-### 1C. 密钥与生成文件清理
-
-| # | 任务 | 文件 | 验证方法 |
-|---|------|------|----------|
-| 1.9 | 从磁盘删除密钥文件 | `camforge-next.keystore` | 文件不存在 |
-| 1.10 | `.gitignore` 添加 `src-tauri/gen/` | `.gitignore` | 新增 `src-tauri/gen/` 行 |
-| 1.11 | 从 Git 取消跟踪生成文件 | `src-tauri/gen/` | `git rm -r --cached src-tauri/gen/` |
-| 1.12 | 添加 `LICENSE` 文件 | `LICENSE` | 标准 MIT 许可证文本 |
+| 1.1 | 单次导出：移动端 `setExportStatus` 不含路径 | `src/components/layout/MainCanvas.tsx` 约 L241-242 | 当 `isMobilePlatform()` 为 true 时，`pathInfo` 设为空字符串 `''`，状态栏仅显示 `"已导出: filename"` |
+| 1.2 | 自定义导出：移动端 `setExportStatus` 不含路径 | `src/components/layout/MainCanvas.tsx` 约 L402-407 | 同上，移动端 `pathInfo` 设为空字符串 |
+| 1.3 | 移动端状态栏导出信息添加 `truncate` | `src/components/layout/MainCanvas.tsx` 约 L629-640 | 移动端状态栏导出消息从 `max-w-full break-all` 改为 `truncate max-w-[60%]`，确保不挤压其他元素 |
 
 ### 验证标准
 
-- [ ] `cargo clippy --workspace` 无安全相关警告
-- [ ] 向 `/api/simulate` 发送 2MB 请求体被拒绝（413）
-- [ ] `CamParams` 中 `h = NaN` 时返回验证错误
-- [ ] `camforge-next.keystore` 不存在于磁盘
-- [ ] `git status` 中 `src-tauri/gen/` 不再出现
-- [ ] CSP 中无 localhost 地址
+- [ ] 移动端快速导出成功后，状态栏仅显示 `"已导出: filename"`，不含路径
+- [ ] 移动端自定义导出成功后，状态栏仅显示 `"已导出: N files"`，不含路径
+- [ ] Toast 仍正常显示完整路径 + "打开位置"按钮（Tauri 端）
+- [ ] 桌面端状态栏仍显示完整路径（不受影响）
+- [ ] 状态栏其他提示（"已计算 N 个点"）不被挤压
 
 ---
 
-## Phase 2：移动端 UI 修复（用户反馈）
+## Phase 2：移动端水平滑动修复
 
-**目标**：解决用户反馈的 4 项移动端 UI 问题
+**目标**：移动端界面不可水平滑动，所有内容限制在视口宽度内
 
-### 2A. 移动端顶部双行按钮问题
-
-**问题描述**：移动端浏览器访问时，顶部出现两行都有主题/设置/帮助按钮。第一行（TitleBar 的 Web 模式）在移动端不需要，第二行（mobile header）缺少语言切换按钮。
+### 步骤
 
 | # | 任务 | 文件 | 验证方法 |
 |---|------|------|----------|
-| 2.1 | TitleBar Web 模式下隐藏移动端 | `src/components/layout/TitleBar.tsx` | Web 模式的 `return` 添加 `isMobile` 判断，移动端返回 `null` |
-| 2.2 | mobile header 添加语言切换按钮 | `src/App.tsx` | 在 mobile header 右侧按钮组中添加语言切换按钮（`中文`/`EN`） |
-| 2.3 | ARIA 标签国际化 | `src/App.tsx` | 硬编码中文 ARIA 标签改为 `t()` 翻译函数 |
+| 2.1 | header 添加 `overflow-x-hidden` | `src/App.tsx` 约 L64 | 移动端 header 的 class 添加 `overflow-x-hidden`，防止内容溢出 |
+| 2.2 | 减小移动端按钮尺寸 | `src/App.tsx` 约 L79-124 | 6 个操作按钮从 `w-10 h-10`（40px）改为 `w-9 h-9`（36px），节省 6×4 = 24px |
+| 2.3 | 减小按钮间距 | `src/App.tsx` 约 L74 | 按钮组从 `gap-0.5`（2px）改为 `gap-px`（1px），节省 5×1 = 5px |
+| 2.4 | 标题添加 `truncate min-w-0` | `src/App.tsx` 约 L73 | 标题 span 添加 `truncate min-w-0`，允许标题在空间不足时截断而非撑开 |
+| 2.5 | 全局添加水平溢出保护 | `src/App.tsx` 或 `index.html` | 在 body 或最外层 div 添加 `overflow-x-hidden` class，作为最终防线 |
 
-**验证方法**：
-- 移动端浏览器访问，顶部仅显示一行按钮栏
-- 该行包含：汉堡菜单、CamForge 标题、撤销、重做、语言切换、主题切换、设置、帮助
-- 语言切换按钮点击后切换中英文
+### 计算验证
 
-### 2B. 移动端图表英文文本溢出
+修改后移动端 header 最小宽度：
+- 左 padding: 16px
+- 菜单按钮: 44px
+- 标题 margin: 12px
+- 标题: 弹性宽度（truncate 保护）
+- 6 个按钮: 6×36 = 216px
+- 5 个间距: 5×1 = 5px
+- 右 padding: 16px
+- **固定部分总计**: 16 + 44 + 12 + 216 + 5 + 16 = **309px**
 
-**问题描述**：移动端英文模式下，运动曲线/压力角/曲率半径卡片的按钮英文过长、图例过长。
-
-| # | 任务 | 文件 | 验证方法 |
-|---|------|------|----------|
-| 2.4 | 缩短英文图表按钮文本 | `src/i18n/translations.ts` | `kinematicsLabel`: `"Kinematics Analysis"` → `"Kinematics"`；`curvatureRadius`/`pressureAngle` 保持不变（已较短） |
-| 2.5 | 图例仅保留物理符号 | `src/i18n/translations.ts` | 英文图例：`"Displacement s"` → `"s"`，`"Velocity v"` → `"v"`，`"Acceleration a"` → `"a"`，`"Pressure Angle α"` → `"α"`，`"Theory ρ"` → `"ρ"`，`"Actual ρₐ"` → `"ρₐ"`，`"Threshold"` → `"Limit"` |
-| 2.6 | 图例容器添加截断保护 | `src/components/layout/MainCanvas.tsx` | 图例 `div` 添加 `overflow-hidden` 和 `max-w` 约束 |
-
-**验证方法**：
-- 移动端英文模式下，图表切换按钮文本不溢出
-- 图例仅显示物理符号（s, v, a, α, ρ, ρₐ），不显示英文单词
-- 中文模式图例保持不变（中文标签较短）
-
-### 2C. 机构模型卡片信息栏空间优化
-
-**问题描述**：手机端仿真界面机构模型处，位移和压力角数值预留空间过多，导致"机构模型"字样显示不全。
-
-| # | 任务 | 文件 | 验证方法 |
-|---|------|------|----------|
-| 2.7 | 移动端数值字段宽度缩减 | `src/components/layout/MainCanvas.tsx:655-658` | 位移数值 `w-[3.5rem]` → `w-[2.8rem]`，压力角 `w-[2.5rem]` → `w-[2rem]`，缩放 `w-[1.5rem]` → `w-[1.2rem]` |
-| 2.8 | 移动端数值字号缩减 | 同上 | 移动端使用 `text-[10px]` 替代 `text-xs` |
-| 2.9 | 移动端隐藏缩放百分比 | 同上 | `<Show when={!isMobile()}>` 包裹缩放信息 |
-| 2.10 | 信息栏添加 `min-w-0` + `truncate` | 同上 | 标题 `span` 添加 `min-w-0 truncate` |
-
-**验证方法**：
-- 移动端 375px 宽度下，"机构模型"文字完整显示
-- 位移、压力角数值正常显示不截断
-- 缩放百分比在移动端隐藏
-
-### 2D. 图表画布右侧空白优化
-
-**问题描述**：运动曲线画布右侧空白空间可缩减。
-
-| # | 任务 | 文件 | 验证方法 |
-|---|------|------|----------|
-| 2.11 | 移动端运动曲线 right padding 缩减 | `src/components/charts/MotionCurves.tsx:36` | `< 640` 时 `right: 105` → `right: 80` |
-| 2.12 | 移动端曲率半径 right padding 缩减 | `src/components/charts/CurvatureChart.tsx` | 同上调整 |
-| 2.13 | 移动端压力角 right padding 缩减 | `src/components/charts/GeometryChart.tsx` | 同上调整 |
-| 2.14 | chartDrawing.ts 移动端 padding 同步 | `src/utils/chartDrawing.ts` | 移动端 right padding 同步缩减 |
-
-**验证方法**：
-- 移动端图表画布右侧空白明显减少
-- Y 轴标签和图例不被裁切
-- 桌面端布局不受影响
-
----
-
-## Phase 3：前端代码质量修复
-
-**目标**：消除审查报告中的前端严重/高优先级代码问题
-
-### 3A. 重复定义合并
-
-| # | 任务 | 文件 | 验证方法 |
-|---|------|------|----------|
-| 3.1 | 合并 MotionLaw 枚举 | `src/services/motion.ts` | 从 `types/index.ts` 导入，删除本地重复定义 |
-| 3.2 | 合并 isTauriEnv | `src/utils/tauri.ts`、`src/utils/platform.ts` | 统一到 `platform.ts`（含 try/catch），`tauri.ts` 改为从 `platform.ts` 重导出 |
-| 3.3 | 合并 MAX_UNDO_STEPS | `src/stores/history.ts`、`src/constants/numeric.ts` | `history.ts` 从 `constants/numeric.ts` 导入 |
-
-### 3B. 验证逻辑修复
-
-| # | 任务 | 文件 | 验证方法 |
-|---|------|------|----------|
-| 3.4 | NumberInput 验证优先 | `src/components/controls/NumberInput.tsx` | `onValidate` 在 `onChange` 之前调用 |
-| 3.5 | loadPresetFromJSON 类型验证 | `src/stores/simulation.ts` | 解析后验证每个字段类型和范围 |
-| 3.6 | CSV 导出转义 | `src/exporters/csv.ts` | 值包含逗号/引号时加引号 |
-
-### 3C. 架构改进
-
-| # | 任务 | 文件 | 验证方法 |
-|---|------|------|----------|
-| 3.7 | 使用 SolidJS ErrorBoundary | `src/components/ErrorBoundary.tsx` | 使用 `solid-js` 内置 `<ErrorBoundary>` 组件 |
-| 3.8 | canvas getContext 空值检查 | `src/exporters/tiff.ts`、`src/stores/simulation.ts` | 移除 `!` 断言，添加 null 检查和错误处理 |
-| 3.9 | useI18n 返回响应式值 | `src/i18n/index.ts` | 返回 `t: t` 和 `language: language`（信号本身） |
-| 3.10 | debounceAsync Promise 泄漏修复 | `src/utils/debounce.ts` | 新调用到达时 reject 前一个 pending Promise |
-| 3.11 | getCurrentLang 使用响应式信号 | `src/stores/simulation.ts` | 导入 `language` 信号替代直接读 localStorage |
-| 3.12 | savePreset 使用 storage 抽象 | `src/stores/simulation.ts` | 预设操作使用 `io/storage.ts` |
-
-### 3D. 性能优化
-
-| # | 任务 | 文件 | 验证方法 |
-|---|------|------|----------|
-| 3.13 | 图表使用 arrayMax 替代展开运算符 | 图表组件 | `Math.max(...arr)` → `arrayMax(arr)` |
-| 3.14 | 图表响应式使用 useWindowSize | 图表组件 | `window.innerWidth` → `useWindowSize()` hook |
-| 3.15 | 提取共享 responsive padding | 新建 `src/utils/responsive.ts` | 三个图表组件共享 `getResponsivePadding()` |
-| 3.16 | 提取共享鼠标交互 hook | 新建 `src/hooks/useChartInteraction.ts` | 三个图表组件共享交互逻辑 |
-| 3.17 | 提取共享颜色常量 | `src/constants/colors.ts` | 统一调色板，消除硬编码颜色 |
-| 3.18 | 移动端触摸 preventDefault | `src/components/animation/CamAnimation.tsx` | 单指滑动时调用 `e.preventDefault()` |
-| 3.19 | 合并同组件多次 onMount | 多个组件文件 | 每个组件仅保留一个 `onMount` |
-
-### 3E. 死代码清理
-
-| # | 任务 | 文件 | 验证方法 |
-|---|------|------|----------|
-| 3.20 | 删除 tiffWorker.ts | `src/workers/tiffWorker.ts` | 文件不存在 |
-| 3.21 | 删除 StatusBar.tsx | `src/components/layout/StatusBar.tsx` | 文件不存在 |
-| 3.22 | Sidebar 版本号改用构建常量 | `src/components/layout/Sidebar.tsx`、`vite.config.ts` | 使用 Vite `define` 注入版本号 |
-| 3.23 | initTheme 移入 onMount | `src/App.tsx` | 模块级 `initTheme()` 移入组件 `onMount` |
+在 320px 窄屏下，标题可用宽度 = 320 - 309 = 11px，标题会被 truncate 截断但不会溢出。在 375px（iPhone SE）下，标题可用 66px，足够显示 "CamForge"。
 
 ### 验证标准
 
-- [ ] `grep -r "from.*motion.*MotionLaw" src/` 仅从 `types/index.ts` 导入
-- [ ] `grep -r "isTauriEnv" src/` 所有导入指向 `platform.ts`
-- [ ] `pnpm test:run` 全部通过
-- [ ] TypeScript 编译无错误：`npx tsc --noEmit`
-- [ ] 移动端浏览器访问无白屏、无控制台错误
+- [ ] 320px 宽度下界面不可水平滑动
+- [ ] 375px 宽度下所有按钮可见且可点击
+- [ ] 标题在窄屏下截断而非撑开布局
+- [ ] 桌面端布局不受影响（按钮仍为 `w-10 h-10`）
+- [ ] 所有按钮触摸区域 ≥ 36×36px（满足可访问性最低要求）
 
 ---
 
-## Phase 4：后端代码质量修复
+## Phase 3：Tauri 移动端对话框/文件选择器修复
 
-**目标**：消除审查报告中的后端严重/高优先级问题
+**目标**：Tauri 移动端导出功能完全可用，"打开位置"按钮正常工作，下载目录可配置
 
-### 4A. 错误处理改进
+### 3A. "打开位置"按钮修复
 
-| # | 任务 | 文件 | 验证方法 |
-|---|------|------|----------|
-| 4.1 | 互斥锁中毒恢复改为错误传播 | `src-tauri/src/commands/simulation.rs`、`export.rs` | `unwrap_or_else` → `map_err` 传播 |
-| 4.2 | Tauri 命令使用结构化错误类型 | `src-tauri/src/commands/` | 定义 `AppError` 枚举实现 `Serialize`，替代 `String` |
-| 4.3 | Response builder 移除 unwrap | `crates/camforge-server/src/routes/export.rs` | 使用 `?` 传播错误 |
-| 4.4 | 统一错误消息语言 | `crates/camforge-core/src/types.rs` | 中文错误消息改为英文（与 `full_motion.rs` 一致） |
-
-### 4B. 计算管道去重
+**分析**：`revealFileInManager()` 使用 `invoke('reveal_item_in_dir', { path })`，这需要 `tauri-plugin-opener` 已注册且有权限。
 
 | # | 任务 | 文件 | 验证方法 |
 |---|------|------|----------|
-| 4.5 | 合并运动规律计算实现 | `crates/camforge-core/src/motion.rs`、`full_motion.rs` | `full_motion.rs` 的 `compute_motion_point` 改为调用 `motion.rs` 的统一实现 |
-| 4.6 | 提取共享计算管道 | `crates/camforge-server/src/routes/` | 提取 `run_computation_pipeline()` 函数，模拟和导出共用 |
-| 4.7 | 移除 CSV 导出未使用的计算 | `crates/camforge-server/src/routes/export.rs:57` | 删除 `_x_actual, _y_actual` 的无用计算 |
+| 3.1 | 检查 `tauri-plugin-opener` 是否在 Cargo.toml | `src-tauri/Cargo.toml` | 若缺失则添加 `tauri-plugin-opener = "2"` |
+| 3.2 | 在 `lib.rs` 中注册 opener 插件 | `src-tauri/src/lib.rs` | `.plugin(tauri_plugin_opener::init())` |
+| 3.3 | 添加 opener 权限到 capabilities | `src-tauri/capabilities/default.json` | 添加 `"opener:default"` 权限 |
+| 3.4 | 改用 `@tauri-apps/plugin-opener` JS API | `src/components/layout/MainCanvas.tsx` | `revealFileInManager()` 改为 `const { revealItemInDir } = await import('@tauri-apps/plugin-opener'); await revealItemInDir(filePath);`，移除 `invoke('reveal_item_in_dir')` 调用 |
 
-### 4C. 数学精度修复
+### 3B. 设置面板下载目录选择修复
 
-| # | 任务 | 文件 | 验证方法 |
-|---|------|------|----------|
-| 4.8 | 压力角 atan → atan2 | `crates/camforge-core/src/geometry.rs:44` | `numerator.atan2(denominator)` 替代 `(numerator / denominator).atan()` |
-| 4.9 | 添加零分母防护 | 同上 | 分母为零时返回 `f64::INFINITY` 而非 NaN |
-| 4.10 | 浮点比较改用 EPSILON | `crates/camforge-core/src/profile.rs:98` | `r_r == 0.0` → `r_r.abs() < f64::EPSILON` |
-| 4.11 | powf(1.5) 优化 | `crates/camforge-core/src/geometry.rs:86` | `powf(1.5)` → `speed_sq * speed_sq.sqrt()` |
-| 4.12 | 五次/七次多项式预计算优化 | `crates/camforge-core/src/motion.rs:77-99` | 使用预计算的 `t5 = t4 * t`、`t7 = t6 * t` |
-
-### 4D. 服务器改进
+**分析**：`@tauri-apps/plugin-dialog` 的 `open({ directory: true })` 在移动端不支持。移动端应使用 `@tauri-apps/plugin-fs` 的系统目录 API 获取可用目录，或提供替代方案。
 
 | # | 任务 | 文件 | 验证方法 |
 |---|------|------|----------|
-| 4.13 | 同步命令改异步 | `src-tauri/src/commands/` | 重计算命令使用 `spawn_blocking` |
-| 4.14 | SimulationData 使用 Arc 共享 | `src-tauri/src/commands/simulation.rs` | `Arc<SimulationData>` 替代 `.clone()` |
-| 4.15 | 旋转轮廓缓存 | `src-tauri/src/commands/simulation.rs` | 缓存旋转后的轮廓，仅角度变化时重新计算 |
-| 4.16 | 服务器结构化日志 | `crates/camforge-server/src/main.rs` | `println!` → `tracing::info!` |
-| 4.17 | CORS 环境变量添加警告 | `crates/camforge-server/src/main.rs` | `CORS_ORIGINS=*` 时输出警告日志 |
+| 3.5 | 移动端设置面板：隐藏"选择"按钮 | `src/components/layout/SettingsPanel.tsx` 约 L70-84 | 当 `isMobilePlatform()` 时，不渲染"选择"按钮，仅显示当前路径（只读）+ "清除"按钮 |
+| 3.6 | 移动端设置面板：添加快捷目录选项 | `src/components/layout/SettingsPanel.tsx` | 移动端新增快捷目录按钮组：`下载目录`、`文档目录`、`图片目录`，使用 `@tauri-apps/api/path` 的 `downloadDir()`/`documentDir()`/`pictureDir()` 获取系统目录路径 |
+| 3.7 | 添加 i18n 翻译 | `src/i18n/translations.ts` | 新增 `settings.downloadDirQuick`：zh `"快捷目录"` / en `"Quick Directories"`；`settings.dirDownload`：zh `"下载"` / en `"Download"`；`settings.dirDocument`：zh `"文档"` / en `"Documents"`；`settings.dirPicture`：zh `"图片"` / en `"Pictures"` |
+
+### 3C. 自定义导出路径选择修复
+
+**分析**：移动端已跳过目录选择器（`!isMobilePlatform()` 保护），但若 `saveDir` 为空，`saveFile` 会使用系统下载目录。需确保此路径始终有效。
+
+| # | 任务 | 文件 | 验证方法 |
+|---|------|------|----------|
+| 3.8 | 确认 `saveFile` 移动端回退路径有效 | `src/stores/simulation.ts` 约 L481-483 | 验证 `downloadDir()` 在 Tauri 移动端返回有效路径；添加 try-catch 和错误提示 |
+| 3.9 | 自定义导出移动端：无 saveDir 时使用系统下载目录 | `src/components/layout/MainCanvas.tsx` 约 L301-313 | 移动端不弹出目录选择器，直接使用 `downloadDir()` 作为 saveDir，与 `saveFile` 行为一致 |
 
 ### 验证标准
 
-- [ ] `cargo test --workspace` 全部通过
-- [ ] `cargo clippy --workspace -- -D warnings` 无警告
-- [ ] 压力角计算在退化输入下不返回 NaN
-- [ ] 服务器启动失败时显示有用错误信息而非 panic
-- [ ] 服务器请求体超过 1MB 时返回 413
+- [ ] Tauri Android 端导出成功后，Toast "打开位置"按钮点击后打开文件管理器并定位到文件
+- [ ] Tauri Android 端设置面板显示快捷目录按钮（下载/文档/图片），点击后路径更新
+- [ ] Tauri Android 端设置面板不显示"选择"按钮（因目录选择器不可用）
+- [ ] Tauri Android 端自定义导出正常工作，文件保存到下载目录
+- [ ] 桌面端设置面板仍显示"选择"按钮，目录选择器正常工作
+- [ ] 桌面端"打开位置"按钮正常工作
 
 ---
 
-## Phase 5：测试覆盖提升
+## Phase 4：综合验证与回归测试
 
-**目标**：补齐关键模块的测试覆盖
+**目标**：确认所有修复无副作用，桌面端和移动端功能正常
 
-| # | 任务 | 文件 | 验证方法 |
-|---|------|------|----------|
-| 5.1 | camforge-server 集成测试 | `crates/camforge-server/tests/` | 健康检查、模拟、导出端点测试 |
-| 5.2 | camforge-core 边界测试 | `crates/camforge-core/src/types.rs` | n_points 边界(36/720)、NaN/Infinity、e=r_0 |
-| 5.3 | camforge-core 运动规律测试 | `crates/camforge-core/src/full_motion.rs` | 各运动规律单独测试、相位边界连续性 |
-| 5.4 | API 适配器测试 | `src/api/__tests__/` | Tauri/HTTP 双模式切换测试 |
-| 5.5 | history store 测试 | `src/stores/__tests__/history.test.ts` | 撤销/重做、最大步数、边界情况 |
-| 5.6 | 组件核心测试 | `src/components/__tests__/` | NumberInput 验证、ErrorBoundary 捕获 |
-| 5.7 | 设置覆盖率阈值 | `vitest.config.ts` | `coverage.thresholds: { lines: 40, branches: 30 }` |
-| 5.8 | CI 测试命令修正 | `.github/workflows/test.yml` | `pnpm test:run`、`cargo test --workspace` |
+### 步骤
 
-### 验证标准
-
-- [ ] `pnpm test:run` 全部通过
-- [ ] `cargo test --workspace` 全部通过
-- [ ] 前端行覆盖率 ≥ 40%
-- [ ] CI 流水线绿色通过
-
----
-
-## Phase 6：依赖管理与配置清理
-
-**目标**：清理冗余依赖、修复配置问题
-
-### 6A. 依赖清理
-
-| # | 任务 | 文件 | 验证方法 |
-|---|------|------|----------|
-| 6.1 | 移除 camforge-core 未使用的 serde_json | `crates/camforge-core/Cargo.toml` | 编译通过 |
-| 6.2 | 移除 src-tauri 未使用的依赖 | `src-tauri/Cargo.toml` | 移除 `anyhow`、确认 `serde_json`/`num-traits` 是否为传递依赖 |
-| 6.3 | 移除冗余 autoprefixer | `postcss.config.js`、`package.json` | 构建正常 |
-| 6.4 | Tailwind v4 配置验证 | `tailwind.config.js` | 确认 `@config` 指令存在或迁移到 CSS 配置 |
-| 6.5 | 更新 TypeScript 版本 | `package.json` | `~5.6.2` → `^5.8.0` |
-| 6.6 | 更新 thiserror 版本 | `Cargo.toml` | `"1.0"` → `"2"` |
-| 6.7 | 删除重复 Cargo.lock | `src-tauri/Cargo.lock` | 文件不存在 |
-| 6.8 | Docker Compose 移除 version | `docker-compose.yml` | 删除 `version: '3.8'` |
-
-### 6B. 开发工具配置
-
-| # | 任务 | 文件 | 验证方法 |
-|---|------|------|----------|
-| 6.9 | 添加 ESLint 配置 | `eslint.config.js` | `@typescript-eslint` + `eslint-plugin-solid` |
-| 6.10 | 添加 Prettier 配置 | `.prettierrc` | 2 空格缩放、分号、单引号 |
-| 6.11 | 添加 .editorconfig | `.editorconfig` | 与 CONTRIBUTING.md 规范一致 |
-| 6.12 | 添加 pre-commit hooks | `.husky/`、`package.json` | `husky` + `lint-staged` |
-| 6.13 | 添加 pnpm 版本约束 | `package.json` | `"packageManager": "pnpm@9.x.x"` |
-| 6.14 | Dockerfile 使用 corepack | `Dockerfile` | `corepack enable && corepack prepare pnpm@9 --activate` |
+| # | 任务 | 验证方法 |
+|---|------|----------|
+| 4.1 | 前端测试通过 | `pnpm test:run` 全部通过 |
+| 4.2 | Rust 测试通过 | `cargo test --workspace` 全部通过 |
+| 4.3 | 生产构建成功 | `pnpm build` 无错误 |
+| 4.4 | 桌面端功能回归 | 开发服务器验证：导出、设置、状态栏、header 布局均正常 |
+| 4.5 | 移动端浏览器验证 | 375px 宽度下：无水平滑动、状态栏无路径、导出 Toast 正常 |
+| 4.6 | Tauri 移动端验证 | APK 安装后：导出成功 + "打开位置"可用、设置面板快捷目录可用、自定义导出可用 |
 
 ### 验证标准
 
-- [ ] `pnpm install` 无冗余依赖警告
-- [ ] `cargo build --workspace` 编译通过
-- [ ] `pnpm build` 构建成功
-- [ ] ESLint + Prettier 运行无错误
-- [ ] `docker compose build` 无弃用警告
-
----
-
-## Phase 7：文档与仓库清理
-
-**目标**：完善文档、清理仓库
-
-### 7A. 文档完善
-
-| # | 任务 | 文件 | 验证方法 |
-|---|------|------|----------|
-| 7.1 | 添加 SECURITY.md | `SECURITY.md` | 包含漏洞报告流程 |
-| 7.2 | 修复 CHANGELOG 比较链接 | `CHANGELOG.md` | 添加 v0.4.3、v0.4.4、v0.4.5 比较链接 |
-| 7.3 | 修复 CHANGELOG Tauri identifier 记录 | `CHANGELOG.md` | v0.4.2 条目中 `com.camforge.app` → `top.camforge.app` |
-| 7.4 | 修复 robots.txt sitemap | `public/robots.txt` | 移除不存在的 Sitemap 引用或添加 sitemap.xml |
-| 7.5 | PWA manifest 补充 192x192 图标 | `public/manifest.json` | 添加 192x192 图标条目 |
-
-### 7B. 不必要文件清理（项目内）
-
-以下文件/目录在项目内不再需要，应删除：
-
-| # | 文件/目录 | 大小 | 原因 | 验证方法 |
-|---|-----------|------|------|----------|
-| 7.6 | `camforge-next.keystore` | 4KB | 签名密钥不应存于项目目录 | 文件不存在 |
-| 7.7 | `package-lock.json` | 238KB | 使用 pnpm，npm lock 文件冗余 | 文件不存在 |
-| 7.8 | `src-tauri/Cargo.lock` | 137KB | 工作区级 Cargo.lock 已存在 | 文件不存在 |
-| 7.9 | `crates/camforge-core/target/` | — | 独立 target 目录冗余（工作区共享 target） | 目录不存在 |
-| 7.10 | `src/components/layout/StatusBar.tsx` | — | 死文件，仅含注释 | 文件不存在 |
-| 7.11 | `src/workers/tiffWorker.ts` | — | 死代码，从未使用 | 文件不存在 |
-| 7.12 | `remotion.config.ts` | — | 仅用于 splash 动画预览，非核心功能 | 评估是否保留 |
-
-### 7C. 不应同步到 GitHub 的文件/目录
-
-以下文件/目录应从 Git 跟踪中移除并加入 `.gitignore`：
-
-| # | 文件/目录 | 大小 | 原因 |
-|---|-----------|------|------|
-| 7.13 | `src-tauri/gen/` | 1.3MB | Tauri 自动生成，`tauri init` 时重新生成 |
-| 7.14 | `camforge-next.keystore` | 4KB | 签名密钥，安全敏感 |
-| 7.15 | `package-lock.json` | 238KB | 使用 pnpm 管理依赖，npm lock 冗余 |
-| 7.16 | `pnpm-lock.yaml` | 153KB | 应保留在 Git 中（**不删除**，仅列示说明） |
-| 7.17 | `public/showcase/` | 7.9MB | 大型 GIF/PNG，应使用 Git LFS 或外部托管 |
-| 7.18 | `public/showcase-en/` | 8.0MB | 同上 |
-
-**`.gitignore` 需新增的条目**：
-
-```gitignore
-# Tauri 自动生成
-src-tauri/gen/
-
-# 签名密钥（显式文件名）
-camforge-next.keystore
-
-# npm lock（使用 pnpm）
-package-lock.json
-```
-
-### 验证标准
-
-- [ ] `git ls-files src-tauri/gen/` 返回空
-- [ ] `git ls-files camforge-next.keystore` 返回空
-- [ ] `git ls-files package-lock.json` 返回空
-- [ ] LICENSE、SECURITY.md 文件存在
-- [ ] CHANGELOG 比较链接完整
-
----
-
-## Phase 8：兼容性与可访问性改进
-
-**目标**：改善移动端体验和无障碍访问
-
-| # | 任务 | 文件 | 验证方法 |
-|---|------|------|----------|
-| 8.1 | HTML lang 属性动态化 | `index.html`、`src/i18n/index.ts` | 语言切换时更新 `document.documentElement.lang` |
-| 8.2 | 移动端条件性禁用缩放 | `index.html` | 仅移动端设置 `user-scalable=no` |
-| 8.3 | Toggle 组件接口统一 | `src/components/controls/Toggle.tsx` | 接受 `checked: boolean` 而非 `() => boolean` |
-| 8.4 | 面板拖拽支持触摸 | `src/components/layout/HelpPanel.tsx`、`SettingsPanel.tsx` | 使用 pointer events 替代 mouse events |
-| 8.5 | generateSVG XML 转义 | `src/stores/simulation.ts` | 插入值进行 XML 特殊字符转义 |
-| 8.6 | DXF 导出辅助宏 | `src-tauri/src/commands/export.rs` | 提取 `dxf_line!` 宏减少重复 |
-
-### 验证标准
-
-- [ ] 英文模式下 `<html lang="en">`，中文模式下 `<html lang="zh-CN">`
-- [ ] 移动端双指缩放功能正常
-- [ ] Toggle 组件 props 使用 `checked={boolean}`
-- [ ] 移动端面板可触摸拖拽
+- [ ] 所有自动化测试通过
+- [ ] 桌面端无功能回归
+- [ ] 移动端 3 个问题全部解决
+- [ ] 无新增控制台错误
 
 ---
 
 ## 执行顺序与依赖关系
 
 ```
-Phase 0 (版本号)
+Phase 0 (版本号更新)
     ↓
-Phase 1 (安全) ← 最高优先级，无依赖
+Phase 1 (状态栏路径冗余) ← 独立修复，无外部依赖
     ↓
-Phase 2 (移动端 UI) ← 依赖 Phase 0
+Phase 2 (水平滑动修复) ← 独立修复，无外部依赖
     ↓
-Phase 3 (前端代码) ← 依赖 Phase 1
+Phase 3 (Tauri 移动端对话框) ← 依赖 Phase 1（Toast 承担路径展示）
     ↓
-Phase 4 (后端代码) ← 依赖 Phase 1
-    ↓
-Phase 5 (测试) ← 依赖 Phase 3 + 4
-    ↓
-Phase 6 (依赖配置) ← 可与 Phase 5 并行
-    ↓
-Phase 7 (文档清理) ← 可与 Phase 5/6 并行
-    ↓
-Phase 8 (兼容性) ← 最后执行
+Phase 4 (综合验证) ← 依赖 Phase 1-3 全部完成
 ```
 
 **建议**：每个 Phase 完成后在开发服务器上验证，确认无回归后再进入下一阶段。
@@ -429,17 +221,15 @@ Phase 8 (兼容性) ← 最后执行
 
 ## 版本发布检查清单
 
-Phase 0-8 全部完成后：
+Phase 0-4 全部完成后：
 
-- [ ] 所有文件中版本号统一为 `0.4.5`
+- [ ] 所有文件中版本号统一为 `0.4.6`
 - [ ] `pnpm test:run` 全部通过
 - [ ] `cargo test --workspace` 全部通过
-- [ ] `cargo clippy --workspace -- -D warnings` 无警告
-- [ ] `npx tsc --noEmit` 无类型错误
 - [ ] `pnpm build` 构建成功
-- [ ] `cargo build --release --workspace` 编译成功
 - [ ] 开发服务器手动验证桌面端功能正常
 - [ ] 移动端浏览器手动验证 UI 正常
+- [ ] Tauri 移动端手动验证导出和设置功能正常
 - [ ] CHANGELOG.md 更新完整
-- [ ] 无敏感文件（密钥、.env）在 Git 中
-- [ ] `src-tauri/gen/` 已从 Git 移除
+- [ ] README.md 版本号和路线图更新
+- [ ] 无敏感文件在 Git 中

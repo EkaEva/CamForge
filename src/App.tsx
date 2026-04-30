@@ -58,10 +58,10 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <div class="h-screen h-[100dvh] flex flex-col bg-surface-container-low">
+      <div class="h-screen h-[100dvh] flex flex-col bg-surface-container-low overflow-x-hidden">
         <TitleBar onOpenSettings={handleOpenSettings} onOpenHelp={handleOpenHelp} />
         {isMobile() && (
-          <header class="h-14 bg-chrome-bg border-b border-chrome-border flex items-center px-4 md:hidden flex-shrink-0" style={{ 'margin-top': 'env(safe-area-inset-top)' }}>
+          <header class="h-14 bg-chrome-bg border-b border-chrome-border flex items-center px-3 md:hidden flex-shrink-0 overflow-x-hidden" style={{ 'margin-top': 'env(safe-area-inset-top)' }}>
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen())}
@@ -70,30 +70,30 @@ function App() {
             >
               <Icon name="menu" size={24} class="text-chrome-text-active" />
             </button>
-            <h1 class="ml-3 text-lg font-semibold text-chrome-text-active font-display">CamForge</h1>
-            <div class="ml-auto flex items-center gap-0.5">
+            <h1 class="ml-2 text-lg font-semibold text-chrome-text-active font-display truncate min-w-0">CamForge</h1>
+            <div class="ml-auto flex items-center gap-px">
               <button
                 type="button"
                 onClick={undoParams}
                 disabled={!canUndo()}
-                class="w-10 h-10 flex items-center justify-center rounded-lg disabled:opacity-30 hover:bg-chrome-surface-hover active:bg-chrome-active transition-colors"
+                class="w-9 h-9 flex items-center justify-center rounded-lg disabled:opacity-30 hover:bg-chrome-surface-hover active:bg-chrome-active transition-colors"
                 aria-label={t().aria.undo}
               >
-                <Icon name="undo" size={20} class="text-chrome-text" />
+                <Icon name="undo" size={18} class="text-chrome-text" />
               </button>
               <button
                 type="button"
                 onClick={redoParams}
                 disabled={!canRedo()}
-                class="w-10 h-10 flex items-center justify-center rounded-lg disabled:opacity-30 hover:bg-chrome-surface-hover active:bg-chrome-active transition-colors"
+                class="w-9 h-9 flex items-center justify-center rounded-lg disabled:opacity-30 hover:bg-chrome-surface-hover active:bg-chrome-active transition-colors"
                 aria-label={t().aria.redo}
               >
-                <Icon name="redo" size={20} class="text-chrome-text" />
+                <Icon name="redo" size={18} class="text-chrome-text" />
               </button>
               <button
                 type="button"
                 onClick={() => setLang(language() === 'en' ? 'zh' : 'en')}
-                class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-chrome-surface-hover active:bg-chrome-active transition-colors"
+                class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-chrome-surface-hover active:bg-chrome-active transition-colors"
                 aria-label={t().aria.language}
               >
                 <span class="text-xs font-display text-chrome-text">{language() === 'zh' ? '中文' : 'EN'}</span>
@@ -101,26 +101,26 @@ function App() {
               <button
                 type="button"
                 onClick={toggleTheme}
-                class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-chrome-surface-hover active:bg-chrome-active transition-colors"
+                class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-chrome-surface-hover active:bg-chrome-active transition-colors"
                 aria-label={t().aria.toggleTheme}
               >
-                <Icon name={isDark() ? 'light_mode' : 'dark_mode'} size={20} class="text-chrome-text" />
+                <Icon name={isDark() ? 'light_mode' : 'dark_mode'} size={18} class="text-chrome-text" />
               </button>
               <button
                 type="button"
                 onClick={handleOpenSettings}
-                class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-chrome-surface-hover active:bg-chrome-active transition-colors"
+                class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-chrome-surface-hover active:bg-chrome-active transition-colors"
                 aria-label={t().aria.settings}
               >
-                <Icon name="settings" size={20} class="text-chrome-text" />
+                <Icon name="settings" size={18} class="text-chrome-text" />
               </button>
               <button
                 type="button"
                 onClick={handleOpenHelp}
-                class="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-chrome-surface-hover active:bg-chrome-active transition-colors"
+                class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-chrome-surface-hover active:bg-chrome-active transition-colors"
                 aria-label={t().aria.help}
               >
-                <Icon name="help" size={20} class="text-chrome-text" />
+                <Icon name="help" size={18} class="text-chrome-text" />
               </button>
             </div>
           </header>
