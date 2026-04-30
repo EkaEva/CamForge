@@ -17,7 +17,7 @@ export function GeometryChart() {
     if (!ctx) return;
 
     const currentT = t();
-    const { delta_deg, alpha_all, rho } = data;
+    const { delta_deg, alpha_all } = data;
 
     const rect = canvasRef.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;

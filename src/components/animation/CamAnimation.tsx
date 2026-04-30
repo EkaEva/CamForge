@@ -50,8 +50,6 @@ export function CamAnimation(props: CamAnimationProps) {
   let touchStartDistance = 0;
   let touchStartZoom = 1;
   let touchStartX = 0;
-  // touchStartY reserved for future vertical swipe support
-  let touchStartY = 0;
 
   // 计算最大帧数
   const maxFrame = createMemo(() => {
@@ -359,7 +357,6 @@ export function CamAnimation(props: CamAnimationProps) {
     } else if (e.touches.length === 1) {
       // 单指触摸开始
       touchStartX = e.touches[0].clientX;
-      touchStartY = e.touches[0].clientY;
     }
   };
 

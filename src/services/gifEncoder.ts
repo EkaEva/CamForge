@@ -95,6 +95,7 @@ export async function generateGifAsync(
     ctx.fillRect(0, 0, opts.width, opts.height);
 
     // 绘制帧
+    // @ts-expect-error OffscreenCanvas context is compatible at runtime
     drawAnimationFrame(ctx, data, params, frameOptions);
 
     // 获取帧数据

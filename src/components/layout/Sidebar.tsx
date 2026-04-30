@@ -1,6 +1,6 @@
 import { Show, createSignal, onMount } from 'solid-js';
 import { NumberInput, Select, Toggle } from '../controls';
-import { params, displayOptions, isLoading, updateParam, updateDisplayOption, savePreset, loadPreset, getSavedPresets, deletePreset, validateParams, setParamsChanged, randomizeParams, loadPresetFromJSON, setDisplayOptions, setParamsUpdated, invalidParams, runSimulation } from '../../stores/simulation';
+import { params, displayOptions, updateParam, updateDisplayOption, savePreset, loadPreset, getSavedPresets, deletePreset, validateParams, setParamsChanged, randomizeParams, loadPresetFromJSON, setDisplayOptions, setParamsUpdated, invalidParams, runSimulation } from '../../stores/simulation';
 import { t } from '../../i18n';
 import { motionLawOptions, defaultParams, defaultDisplayOptions } from '../../constants';
 import { version } from '../../../package.json';
@@ -45,11 +45,6 @@ export function Sidebar(props: SidebarProps) {
       return true;
     }
     return false;
-  };
-
-  const handleRunSimulation = () => {
-    setParamsUpdated(true);
-    runSimulation();
   };
 
   const handleReset = () => {
@@ -111,8 +106,6 @@ export function Sidebar(props: SidebarProps) {
     reader.readAsText(file);
     target.value = '';
   };
-
-  const errorCount = () => validateParams(params()).errors.length;
 
   const sidebarClass = () => {
     if (props.isMobile) {
@@ -215,14 +208,14 @@ export function Sidebar(props: SidebarProps) {
                     label={t().sidebar.label.tc_law}
                     value={params().tc_law}
                     options={motionLawOptions}
-                    onChange={(v) => updateParam('tc_law', v)}
+                    onChange={(v) => updateParam('tc_law', v as import('../../types').MotionLaw)}
                     onValidate={validateAndRun}
                   />
                   <Select
                     label={t().sidebar.label.hc_law}
                     value={params().hc_law}
                     options={motionLawOptions}
-                    onChange={(v) => updateParam('hc_law', v)}
+                    onChange={(v) => updateParam('hc_law', v as import('../../types').MotionLaw)}
                     onValidate={validateAndRun}
                   />
                   <div class="col-span-2">
@@ -230,7 +223,7 @@ export function Sidebar(props: SidebarProps) {
                       label={t().sidebar.label.sn}
                       value={params().sn}
                       options={rotationOptions()}
-                      onChange={(v) => updateParam('sn', v)}
+                      onChange={(v) => updateParam('sn', v as number)}
                       onValidate={validateAndRun}
                     />
                   </div>

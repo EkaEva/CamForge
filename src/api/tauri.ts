@@ -25,7 +25,7 @@ export class TauriApi implements CamApi {
    * 注意：Tauri 环境下直接保存到文件，不返回 Blob
    * 这里返回空 Blob 以保持接口一致性
    */
-  async exportDxf(params: CamParams, includeActual = true): Promise<Blob> {
+  async exportDxf(_params: CamParams, _includeActual = true): Promise<Blob> {
     // Tauri 环境下使用文件保存对话框
     // 实际实现需要调用 Tauri 的文件保存 API
     // 这里作为占位符，实际导出逻辑在 simulation.ts 中
@@ -35,7 +35,7 @@ export class TauriApi implements CamApi {
   /**
    * 导出 CSV 文件
    */
-  async exportCsv(params: CamParams, lang = 'zh'): Promise<string> {
+  async exportCsv(_params: CamParams, _lang = 'zh'): Promise<string> {
     // Tauri 环境下 CSV 生成在前端完成
     // 这里返回空字符串，实际逻辑在 simulation.ts
     return '';
@@ -44,7 +44,7 @@ export class TauriApi implements CamApi {
   /**
    * 导出 SVG 文件
    */
-  async exportSvg(params: CamParams, lang = 'zh'): Promise<string> {
+  async exportSvg(_params: CamParams, _lang = 'zh'): Promise<string> {
     // SVG 生成在前端完成
     return '';
   }
@@ -52,7 +52,7 @@ export class TauriApi implements CamApi {
   /**
    * 导出 Excel 文件
    */
-  async exportExcel(params: CamParams, lang = 'zh'): Promise<Blob> {
+  async exportExcel(_params: CamParams, _lang = 'zh'): Promise<Blob> {
     // Excel 生成在前端完成
     return new Blob();
   }
@@ -61,9 +61,9 @@ export class TauriApi implements CamApi {
    * 导出 GIF 动画
    */
   async exportGif(
-    params: CamParams,
-    lang = 'zh',
-    onProgress?: (progress: number) => void
+    _params: CamParams,
+    _lang = 'zh',
+    _onProgress?: (progress: number) => void
   ): Promise<Blob> {
     // GIF 生成在前端完成（使用 Web Worker）
     return new Blob();

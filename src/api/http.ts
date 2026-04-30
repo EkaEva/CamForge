@@ -86,7 +86,7 @@ export class HttpApi implements CamApi {
    *
    * 注意：SVG 导出需要前端渲染，HTTP API 不支持
    */
-  async exportSvg(params: CamParams, lang = 'zh'): Promise<string> {
+  async exportSvg(_params: CamParams, _lang = 'zh'): Promise<string> {
     // SVG 需要前端 Canvas 渲染，无法在纯后端生成
     throw new Error('SVG export requires frontend rendering. Use the desktop app.');
   }
@@ -96,7 +96,7 @@ export class HttpApi implements CamApi {
    *
    * 注意：Excel 导出需要前端库，HTTP API 不支持
    */
-  async exportExcel(params: CamParams, lang = 'zh'): Promise<Blob> {
+  async exportExcel(_params: CamParams, _lang = 'zh'): Promise<Blob> {
     // Excel 生成需要 xlsx 库，在前端完成
     throw new Error('Excel export requires frontend library. Use the desktop app.');
   }
@@ -107,9 +107,9 @@ export class HttpApi implements CamApi {
    * 注意：GIF 导出需要前端 Canvas 渲染
    */
   async exportGif(
-    params: CamParams,
-    lang = 'zh',
-    onProgress?: (progress: number) => void
+    _params: CamParams,
+    _lang = 'zh',
+    _onProgress?: (progress: number) => void
   ): Promise<Blob> {
     // GIF 需要前端 Canvas 渲染
     throw new Error('GIF export requires frontend rendering. Use the desktop app.');

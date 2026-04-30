@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isTauriEnv, isMobilePlatform, isDesktopPlatform } from '../platform';
+import { isTauriEnv, isDesktopPlatform } from '../platform';
 
 describe('platform detection', () => {
   it('isTauriEnv returns false in browser', () => {

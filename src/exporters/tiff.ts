@@ -48,6 +48,7 @@ export async function encodeCanvasToTIFFAsync(canvas: HTMLCanvasElement, dpi: nu
   }
 
   // 创建 TIFF 文件
+  // @ts-expect-error utif2 encode types are incorrect
   const tiffArray = UTIF.encode([width, height, rgbData, {
     dpi: [dpi, dpi],
     compression: 5,   // LZW 无损压缩
@@ -101,6 +102,7 @@ export function encodeCanvasToTIFF(canvas: HTMLCanvasElement, dpi: number = 600)
     rgbData[rgbIdx + 2] = rgba[rgbaIdx + 2];
   }
 
+  // @ts-expect-error utif2 encode types are incorrect
   const tiffArray = UTIF.encode([width, height, rgbData, {
     dpi: [dpi, dpi],
     compression: 5,

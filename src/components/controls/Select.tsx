@@ -1,23 +1,25 @@
 import { language } from '../../i18n';
 
 interface SelectOption {
-  value: number;
+  value: number | string;
   label: string;
   labelZh?: string;
 }
 
 interface SelectProps {
   label: string;
-  value: number;
+  value: number | string;
   options: SelectOption[];
-  onChange: (value: number) => void;
-  onValidate?: (value: number) => boolean;
+  onChange: (value: number | string) => void;
+  onValidate?: (value: number | string) => boolean;
 }
 
 export function Select(props: SelectProps) {
   const handleChange = (e: Event) => {
     const target = e.target as HTMLSelectElement;
-    const newValue = parseInt(target.value, 10);
+    const raw = target.value;
+    const numVal = parseInt(raw, 10);
+    const newValue = !isNaN(numVal) && String(numVal) === raw ? numVal : raw;
     props.onChange(newValue);
 
     if (props.onValidate) {

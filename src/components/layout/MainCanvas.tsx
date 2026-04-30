@@ -237,7 +237,6 @@ export function MainCanvas(props: MainCanvasProps) {
 
       if (result.success) {
         const path = result.path || filename;
-        const shortName = path.split(/[/\\]/).pop() || filename;
         const pathInfo = !isMobilePlatform() && result.path ? ` → ${result.path}` : '';
         setExportStatus({ type: 'success', message: `${t().export.exported}: ${filename}${pathInfo}`, files: [filename] });
         if (isMobilePlatform()) {
@@ -286,7 +285,6 @@ export function MainCanvas(props: MainCanvasProps) {
     const startTime = Date.now();
     const minDuration = 300;
     const exportedFiles: string[] = [];
-    const failedFiles: string[] = [];
     let saveDir = getDownloadDir() || '';
 
     try {
@@ -297,8 +295,8 @@ export function MainCanvas(props: MainCanvasProps) {
       const animFormat = customExportAnimFormat();
       const animDpi = customExportAnimDPI();
 
-      const isTauriEnv = checkIsTauriEnv();
-      if (isTauriEnv && !isMobilePlatform() && !saveDir) {
+      const isTauri = checkIsTauriEnv();
+      if (isTauri && !isMobilePlatform() && !saveDir) {
         const { open } = await import('@tauri-apps/plugin-dialog');
         const selectedDir = await open({
           directory: true,
@@ -413,7 +411,7 @@ export function MainCanvas(props: MainCanvasProps) {
           toastMsg,
           'success',
           6000,
-          isTauriEnv() && saveDir ? {
+          checkIsTauriEnv() && saveDir ? {
             label: currentLang === 'zh' ? '打开位置' : 'Open',
             onClick: () => revealFileInManager(saveDir),
           } : undefined,
@@ -707,7 +705,7 @@ export function MainCanvas(props: MainCanvasProps) {
                       }}
                       class="analysis-cycle-btn flex items-center gap-1.5"
                     >
-                      <span class="cycle-label" key={analysisView()}>
+                      <span class="cycle-label">
                         {analysisView() === 'kinematics' ? t().chart.kinematicsLabel :
                          analysisView() === 'curvature' ? t().tabs.curvatureRadius :
                          t().tabs.pressureAngle}
@@ -724,13 +722,13 @@ export function MainCanvas(props: MainCanvasProps) {
                 <div class="flex-1 relative overflow-hidden">
                   <Switch>
                     <Match when={analysisView() === 'kinematics'}>
-                      <div role="tabpanel" class="w-full h-full"><MotionCurves hideLegend /></div>
+                      <div role="tabpanel" class="w-full h-full"><MotionCurves /></div>
                     </Match>
                     <Match when={analysisView() === 'curvature'}>
-                      <div role="tabpanel" class="w-full h-full"><CurvatureChart hideLegend /></div>
+                      <div role="tabpanel" class="w-full h-full"><CurvatureChart /></div>
                     </Match>
                     <Match when={analysisView() === 'pressure'}>
-                      <div role="tabpanel" class="w-full h-full"><GeometryChart hideLegend /></div>
+                      <div role="tabpanel" class="w-full h-full"><GeometryChart /></div>
                     </Match>
                   </Switch>
                 </div>

@@ -3,6 +3,7 @@ import { JSX } from 'solid-js';
 interface IconProps {
   name: string;
   class?: string;
+  classList?: Record<string, boolean>;
   size?: number;
   fill?: boolean;
   weight?: number;
@@ -17,6 +18,7 @@ export function Icon(props: IconProps) {
   return (
     <span
       class={`material-symbols-outlined inline-block select-none ${props.class ?? ''}`}
+      classList={props.classList}
       style={{
         'font-size': `${size()}px`,
         'font-variation-settings': `'FILL' ${fill()}, 'wght' ${weight()}, 'GRAD' 0, 'opsz' ${size()}`,

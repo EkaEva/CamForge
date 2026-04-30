@@ -14,6 +14,8 @@ const createMockData = (): SimulationData => ({
   s: [0, 10, 10, 5, 0],
   v: [0, 100, 0, -50, 0],
   a: [0, 0, -100, 0, 50],
+  ds_ddelta: [0, 10, 0, -5, 0],
+  phase_bounds: [0, 90, 120, 210, 360],
   x: [40, 50, 50, 45, 40],
   y: [0, 0, 10, 10, 0],
   x_actual: [35, 45, 45, 40, 35],
@@ -21,7 +23,14 @@ const createMockData = (): SimulationData => ({
   rho: [40, 50, 50, 45, 40],
   rho_actual: [35, 45, 45, 40, 35],
   alpha_all: [0, 30, 0, 20, 0],
-  ds_ddelta: [0, 10, 0, -5, 0],
+  s_0: 40,
+  r_max: 50,
+  max_alpha: 30,
+  min_rho: 35,
+  min_rho_idx: 3,
+  min_rho_actual: 30,
+  min_rho_actual_idx: 3,
+  h: 10,
 });
 
 const createMockParams = (): CamParams => ({
