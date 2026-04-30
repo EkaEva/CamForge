@@ -131,6 +131,9 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install
 
+      - name: Initialize Android project
+        run: pnpm tauri android init
+
       - name: Copy Android icons to project
         run: |
           # 复制生成的图标到 Android 项目
