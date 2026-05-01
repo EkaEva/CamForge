@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { validateParams } from '../simulation';
+import { computeSimulationLocally, validateParams } from '../simulation';
 import { defaultParams } from '../../constants';
+import { FollowerType } from '../../types';
 
 describe('validateParams', () => {
   it('should validate default params', () => {
@@ -31,5 +32,35 @@ describe('validateParams', () => {
     const p = { ...defaultParams, omega: 0 };
     const result = validateParams(p);
     expect(result.valid).toBe(false);
+  });
+
+  it('should validate oscillating geometry like the backend', () => {
+    const p = {
+      ...defaultParams,
+      follower_type: FollowerType.OscillatingRoller,
+      e: 0,
+      arm_length: 80,
+      h: 10,
+      r_0: 40,
+      pivot_distance: 95,
+    };
+
+    expect(validateParams(p).valid).toBe(true);
+    expect(validateParams({ ...p, pivot_distance: 89 }).valid).toBe(false);
+    expect(validateParams({ ...p, e: 1 }).valid).toBe(false);
+  });
+
+  it('should apply flat face offset to required half width', () => {
+    const base = {
+      ...defaultParams,
+      follower_type: FollowerType.TranslatingFlatFaced,
+      r_r: 0,
+      e: 0,
+      flat_face_offset: 0,
+    };
+    const offset = { ...base, flat_face_offset: 5 };
+
+    expect(computeSimulationLocally(offset).flat_face_min_half_width)
+      .not.toBe(computeSimulationLocally(base).flat_face_min_half_width);
   });
 });

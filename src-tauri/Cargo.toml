@@ -29,6 +29,8 @@ serde_json.workspace = true
 num-traits.workspace = true
 thiserror.workspace = true
 anyhow.workspace = true
+dirs = "6"
+dunce = "1"
 
 [features]
 default = []

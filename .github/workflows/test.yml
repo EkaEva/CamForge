@@ -10,52 +10,55 @@ jobs:
   test-frontend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
         with:
           version: 9
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install
 
       - name: Run tests
-        run: pnpm test
+        run: pnpm test:run
 
       - name: TypeScript check
         run: pnpm tsc --noEmit
 
+      - name: ESLint check
+        run: pnpm lint
+
   test-backend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: Run Rust tests
-        run: cd src-tauri && cargo test
+        run: cargo test --workspace
 
       - name: Rust clippy check
-        run: cd src-tauri && cargo clippy -- -D warnings
+        run: cargo clippy --workspace -- -D warnings
 
   build-check:
     runs-on: ubuntu-latest
     needs: [test-frontend, test-backend]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
         with:
           version: 9
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
           cache: 'pnpm'
 
       - name: Install dependencies

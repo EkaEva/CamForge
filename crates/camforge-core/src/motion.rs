@@ -1,10 +1,105 @@
 //! 运动规律计算模块
 //!
 //! 实现六种推杆运动规律的位移、速度、加速度计算
+//! `compute_rise_point` 为单一权威实现，其他函数委托至它
 
 use crate::types::MotionLaw;
 
+/// 计算推程单个点的位移、速度、加速度（单一权威实现）
+///
+/// 所有运动规律的计算从此函数派生，确保一致性。
+///
+/// # Arguments
+/// * `t` - 归一化时间 (0-1)，即 δ/δ₀
+/// * `h` - 推杆最大位移 (mm)
+/// * `omega` - 凸轮角速度 (rad/s)
+/// * `delta_rad` - 对应运动角 (rad)
+/// * `law` - 运动规律
+///
+/// # Returns
+/// * `(s, v, a)` - 位移、速度、加速度
+pub fn compute_rise_point(
+    t: f64,
+    h: f64,
+    omega: f64,
+    delta_rad: f64,
+    law: MotionLaw,
+) -> (f64, f64, f64) {
+    match law {
+        MotionLaw::Uniform => {
+            let s = h * t;
+            let v = h * omega / delta_rad;
+            let a = 0.0;
+            (s, v, a)
+        }
+        MotionLaw::ConstantAcceleration => {
+            if t < 0.5 {
+                let s = 2.0 * h * t * t;
+                let v = 4.0 * h * omega * t / delta_rad;
+                let a = 4.0 * h * omega * omega / (delta_rad * delta_rad);
+                (s, v, a)
+            } else {
+                let s = h * (1.0 - 2.0 * (1.0 - t) * (1.0 - t));
+                let v = 4.0 * h * omega * (1.0 - t) / delta_rad;
+                let a = -4.0 * h * omega * omega / (delta_rad * delta_rad);
+                (s, v, a)
+            }
+        }
+        MotionLaw::SimpleHarmonic => {
+            let s = h * (1.0 - (std::f64::consts::PI * t).cos()) / 2.0;
+            let v = h * omega * std::f64::consts::PI * (std::f64::consts::PI * t).sin()
+                / (2.0 * delta_rad);
+            let a = h
+                * omega
+                * omega
+                * std::f64::consts::PI
+                * std::f64::consts::PI
+                * (std::f64::consts::PI * t).cos()
+                / (2.0 * delta_rad * delta_rad);
+            (s, v, a)
+        }
+        MotionLaw::Cycloidal => {
+            let s = h * (t - (2.0 * std::f64::consts::PI * t).sin() / (2.0 * std::f64::consts::PI));
+            let v = h * omega * (1.0 - (2.0 * std::f64::consts::PI * t).cos()) / delta_rad;
+            let a = h
+                * omega
+                * omega
+                * 2.0
+                * std::f64::consts::PI
+                * (2.0 * std::f64::consts::PI * t).sin()
+                / (delta_rad * delta_rad);
+            (s, v, a)
+        }
+        MotionLaw::QuinticPolynomial => {
+            let t2 = t * t;
+            let t3 = t2 * t;
+            let t4 = t3 * t;
+            let t5 = t4 * t;
+            let s = h * (10.0 * t3 - 15.0 * t4 + 6.0 * t5);
+            let v = h * omega * (30.0 * t2 - 60.0 * t3 + 30.0 * t4) / delta_rad;
+            let a =
+                h * omega * omega * (60.0 * t - 180.0 * t2 + 120.0 * t3) / (delta_rad * delta_rad);
+            (s, v, a)
+        }
+        MotionLaw::SepticPolynomial => {
+            let t2 = t * t;
+            let t3 = t2 * t;
+            let t4 = t3 * t;
+            let t5 = t4 * t;
+            let t6 = t5 * t;
+            let t7 = t6 * t;
+            let s = h * (35.0 * t4 - 84.0 * t5 + 70.0 * t6 - 20.0 * t7);
+            let v = h * omega * (140.0 * t3 - 420.0 * t4 + 420.0 * t5 - 140.0 * t6) / delta_rad;
+            let a = h * omega * omega * (420.0 * t2 - 1680.0 * t3 + 2100.0 * t4 - 840.0 * t5)
+                / (delta_rad * delta_rad);
+            (s, v, a)
+        }
+    }
+}
+
 /// 计算推程阶段的位移、速度、加速度
+///
+/// 委托至 `compute_rise_point`，遍历转角数组。
 ///
 /// # Arguments
 /// * `delta_arr` - 推程转角数组 (rad)，从 0 开始
@@ -12,9 +107,6 @@ use crate::types::MotionLaw;
 /// * `h` - 推杆最大位移 (mm)
 /// * `omega` - 凸轮角速度 (rad/s)
 /// * `law` - 运动规律
-///
-/// # Returns
-/// * `(s, v, a)` - 位移、速度、加速度数组
 pub fn compute_rise(
     delta_arr: &[f64],
     delta_0: f64,
@@ -27,82 +119,12 @@ pub fn compute_rise(
     let mut v = vec![0.0; n];
     let mut a = vec![0.0; n];
 
-    match law {
-        MotionLaw::Uniform => {
-            // 等速运动
-            for i in 0..n {
-                s[i] = h * delta_arr[i] / delta_0;
-                v[i] = h * omega / delta_0;
-                // a[i] = 0 (already initialized)
-            }
-        }
-        MotionLaw::ConstantAcceleration => {
-            // 等加速等减速
-            let half = delta_0 / 2.0;
-            for i in 0..n {
-                let delta = delta_arr[i];
-                if delta <= half {
-                    // 等加速段
-                    s[i] = 2.0 * h * delta.powi(2) / delta_0.powi(2);
-                    v[i] = 4.0 * h * omega * delta / delta_0.powi(2);
-                    a[i] = 4.0 * h * omega.powi(2) / delta_0.powi(2);
-                } else {
-                    // 等减速段
-                    s[i] = h - 2.0 * h * (delta_0 - delta).powi(2) / delta_0.powi(2);
-                    v[i] = 4.0 * h * omega * (delta_0 - delta) / delta_0.powi(2);
-                    a[i] = -4.0 * h * omega.powi(2) / delta_0.powi(2);
-                }
-            }
-        }
-        MotionLaw::SimpleHarmonic => {
-            // 简谐运动
-            for i in 0..n {
-                let ratio = std::f64::consts::PI * delta_arr[i] / delta_0;
-                s[i] = h * (1.0 - ratio.cos()) / 2.0;
-                v[i] = std::f64::consts::PI * h * omega * ratio.sin() / (2.0 * delta_0);
-                a[i] = std::f64::consts::PI.powi(2) * h * omega.powi(2) * ratio.cos()
-                    / (2.0 * delta_0.powi(2));
-            }
-        }
-        MotionLaw::Cycloidal => {
-            // 摆线运动
-            for i in 0..n {
-                let ratio = 2.0 * std::f64::consts::PI * delta_arr[i] / delta_0;
-                s[i] = h * (delta_arr[i] / delta_0 - ratio.sin() / (2.0 * std::f64::consts::PI));
-                v[i] = h * omega * (1.0 - ratio.cos()) / delta_0;
-                a[i] = 2.0 * std::f64::consts::PI * h * omega.powi(2) * ratio.sin()
-                    / delta_0.powi(2);
-            }
-        }
-        MotionLaw::QuinticPolynomial => {
-            // 五次多项式 (3-4-5)
-            for i in 0..n {
-                let t = delta_arr[i] / delta_0;
-                let t2 = t.powi(2);
-                let t3 = t.powi(3);
-                let t4 = t.powi(4);
-                let t5 = t4 * t;
-                s[i] = h * (10.0 * t3 - 15.0 * t4 + 6.0 * t5);
-                v[i] = h * omega / delta_0 * (30.0 * t2 - 60.0 * t3 + 30.0 * t4);
-                a[i] = h * omega.powi(2) / delta_0.powi(2) * (60.0 * t - 180.0 * t2 + 120.0 * t3);
-            }
-        }
-        MotionLaw::SepticPolynomial => {
-            // 七次多项式 (4-5-6-7)
-            for i in 0..n {
-                let t = delta_arr[i] / delta_0;
-                let t2 = t.powi(2);
-                let t3 = t.powi(3);
-                let t4 = t.powi(4);
-                let t5 = t.powi(5);
-                let t6 = t.powi(6);
-                let t7 = t.powi(7);
-                s[i] = h * (35.0 * t4 - 84.0 * t5 + 70.0 * t6 - 20.0 * t7);
-                v[i] = h * omega / delta_0 * (140.0 * t3 - 420.0 * t4 + 420.0 * t5 - 140.0 * t6);
-                a[i] = h * omega.powi(2) / delta_0.powi(2)
-                    * (420.0 * t2 - 1680.0 * t3 + 2100.0 * t4 - 840.0 * t5);
-            }
-        }
+    for i in 0..n {
+        let t = delta_arr[i] / delta_0;
+        let (si, vi, ai) = compute_rise_point(t, h, omega, delta_0, law);
+        s[i] = si;
+        v[i] = vi;
+        a[i] = ai;
     }
 
     (s, v, a)
@@ -110,15 +132,14 @@ pub fn compute_rise(
 
 /// 计算回程阶段的位移、速度、加速度
 ///
+/// 委托至 `compute_rise_point`，变换结果：s = h - si, v = -vi, a = -ai
+///
 /// # Arguments
 /// * `delta_arr` - 回程转角数组 (rad)，从 0 开始（局部坐标）
 /// * `delta_ret` - 回程运动角 (rad)
 /// * `h` - 推杆最大位移 (mm)
 /// * `omega` - 凸轮角速度 (rad/s)
 /// * `law` - 运动规律
-///
-/// # Returns
-/// * `(s, v, a)` - 位移、速度、加速度数组
 pub fn compute_return(
     delta_arr: &[f64],
     delta_ret: f64,
@@ -131,83 +152,12 @@ pub fn compute_return(
     let mut v = vec![0.0; n];
     let mut a = vec![0.0; n];
 
-    match law {
-        MotionLaw::Uniform => {
-            // 等速运动
-            for i in 0..n {
-                s[i] = h * (1.0 - delta_arr[i] / delta_ret);
-                v[i] = -h * omega / delta_ret;
-                // a[i] = 0
-            }
-        }
-        MotionLaw::ConstantAcceleration => {
-            // 等加速等减速
-            let half = delta_ret / 2.0;
-            for i in 0..n {
-                let delta = delta_arr[i];
-                if delta <= half {
-                    // 等加速段（速度减小）
-                    s[i] = h - 2.0 * h * delta.powi(2) / delta_ret.powi(2);
-                    v[i] = -4.0 * h * omega * delta / delta_ret.powi(2);
-                    a[i] = -4.0 * h * omega.powi(2) / delta_ret.powi(2);
-                } else {
-                    // 等减速段
-                    s[i] = 2.0 * h * (delta_ret - delta).powi(2) / delta_ret.powi(2);
-                    v[i] = -4.0 * h * omega * (delta_ret - delta) / delta_ret.powi(2);
-                    a[i] = 4.0 * h * omega.powi(2) / delta_ret.powi(2);
-                }
-            }
-        }
-        MotionLaw::SimpleHarmonic => {
-            // 简谐运动
-            for i in 0..n {
-                let ratio = std::f64::consts::PI * delta_arr[i] / delta_ret;
-                s[i] = h * (1.0 + ratio.cos()) / 2.0;
-                v[i] = -std::f64::consts::PI * h * omega * ratio.sin() / (2.0 * delta_ret);
-                a[i] = -std::f64::consts::PI.powi(2) * h * omega.powi(2) * ratio.cos()
-                    / (2.0 * delta_ret.powi(2));
-            }
-        }
-        MotionLaw::Cycloidal => {
-            // 摆线运动
-            for i in 0..n {
-                let ratio = 2.0 * std::f64::consts::PI * delta_arr[i] / delta_ret;
-                s[i] = h - h * (delta_arr[i] / delta_ret - ratio.sin() / (2.0 * std::f64::consts::PI));
-                v[i] = -h * omega * (1.0 - ratio.cos()) / delta_ret;
-                a[i] = -2.0 * std::f64::consts::PI * h * omega.powi(2) * ratio.sin()
-                    / delta_ret.powi(2);
-            }
-        }
-        MotionLaw::QuinticPolynomial => {
-            // 五次多项式 (3-4-5)
-            for i in 0..n {
-                let t = delta_arr[i] / delta_ret;
-                let t2 = t.powi(2);
-                let t3 = t.powi(3);
-                let t4 = t.powi(4);
-                let poly = 10.0 * t3 - 15.0 * t4 + 6.0 * t.powi(5);
-                s[i] = h * (1.0 - poly);
-                v[i] = -h * omega / delta_ret * (30.0 * t2 - 60.0 * t3 + 30.0 * t4);
-                a[i] = -h * omega.powi(2) / delta_ret.powi(2)
-                    * (60.0 * t - 180.0 * t2 + 120.0 * t3);
-            }
-        }
-        MotionLaw::SepticPolynomial => {
-            // 七次多项式 (4-5-6-7)
-            for i in 0..n {
-                let t = delta_arr[i] / delta_ret;
-                let t2 = t.powi(2);
-                let t3 = t.powi(3);
-                let t4 = t.powi(4);
-                let t5 = t.powi(5);
-                let t6 = t.powi(6);
-                let poly = 35.0 * t4 - 84.0 * t5 + 70.0 * t6 - 20.0 * t.powi(7);
-                s[i] = h * (1.0 - poly);
-                v[i] = -h * omega / delta_ret * (140.0 * t3 - 420.0 * t4 + 420.0 * t5 - 140.0 * t6);
-                a[i] = -h * omega.powi(2) / delta_ret.powi(2)
-                    * (420.0 * t2 - 1680.0 * t3 + 2100.0 * t4 - 840.0 * t5);
-            }
-        }
+    for i in 0..n {
+        let t = delta_arr[i] / delta_ret;
+        let (si, vi, ai) = compute_rise_point(t, h, omega, delta_ret, law);
+        s[i] = h - si;
+        v[i] = -vi;
+        a[i] = -ai;
     }
 
     (s, v, a)
@@ -306,5 +256,205 @@ mod tests {
         assert_eq!(arr.len(), 5);
         assert!((arr[0] - 0.0).abs() < 1e-10);
         assert!((arr[4] - 0.8).abs() < 1e-10);
+    }
+
+    // ===== 新增测试 =====
+
+    #[test]
+    fn test_rise_point_uniform() {
+        let (s, v, a) = compute_rise_point(
+            0.5,
+            10.0,
+            1.0,
+            std::f64::consts::FRAC_PI_2,
+            MotionLaw::Uniform,
+        );
+        assert!((s - 5.0).abs() < 1e-10); // h * t = 10 * 0.5
+        assert!(a.abs() < 1e-10); // 等速运动加速度为 0
+    }
+
+    #[test]
+    fn test_rise_point_simple_harmonic() {
+        let h = 10.0;
+        let (s_start, _, _) = compute_rise_point(
+            0.0,
+            h,
+            1.0,
+            std::f64::consts::FRAC_PI_2,
+            MotionLaw::SimpleHarmonic,
+        );
+        let (s_mid, _, _) = compute_rise_point(
+            0.5,
+            h,
+            1.0,
+            std::f64::consts::FRAC_PI_2,
+            MotionLaw::SimpleHarmonic,
+        );
+        let (s_end, _, _) = compute_rise_point(
+            1.0,
+            h,
+            1.0,
+            std::f64::consts::FRAC_PI_2,
+            MotionLaw::SimpleHarmonic,
+        );
+        assert!((s_start - 0.0).abs() < 1e-10);
+        assert!((s_mid - h / 2.0).abs() < 1e-6);
+        assert!((s_end - h).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_rise_point_cycloidal() {
+        let h = 10.0;
+        let (s_start, _, _) = compute_rise_point(
+            0.0,
+            h,
+            1.0,
+            std::f64::consts::FRAC_PI_2,
+            MotionLaw::Cycloidal,
+        );
+        let (s_end, _, _) = compute_rise_point(
+            1.0,
+            h,
+            1.0,
+            std::f64::consts::FRAC_PI_2,
+            MotionLaw::Cycloidal,
+        );
+        assert!((s_start - 0.0).abs() < 1e-10);
+        assert!((s_end - h).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_rise_point_quintic() {
+        let h = 10.0;
+        let (s_start, v_start, a_start) = compute_rise_point(
+            0.0,
+            h,
+            1.0,
+            std::f64::consts::FRAC_PI_2,
+            MotionLaw::QuinticPolynomial,
+        );
+        let (s_end, v_end, a_end) = compute_rise_point(
+            1.0,
+            h,
+            1.0,
+            std::f64::consts::FRAC_PI_2,
+            MotionLaw::QuinticPolynomial,
+        );
+        assert!((s_start - 0.0).abs() < 1e-10);
+        assert!((s_end - h).abs() < 1e-6);
+        assert!(v_start.abs() < 1e-6); // 五次多项式起点速度为 0
+        assert!(v_end.abs() < 1e-6); // 终点速度也为 0
+        assert!(a_start.abs() < 1e-6); // 起点加速度为 0
+        assert!(a_end.abs() < 1e-6); // 终点加速度为 0
+    }
+
+    #[test]
+    fn test_rise_point_septic() {
+        let h = 10.0;
+        let (s_start, v_start, a_start) = compute_rise_point(
+            0.0,
+            h,
+            1.0,
+            std::f64::consts::FRAC_PI_2,
+            MotionLaw::SepticPolynomial,
+        );
+        let (s_end, v_end, a_end) = compute_rise_point(
+            1.0,
+            h,
+            1.0,
+            std::f64::consts::FRAC_PI_2,
+            MotionLaw::SepticPolynomial,
+        );
+        assert!((s_start - 0.0).abs() < 1e-10);
+        assert!((s_end - h).abs() < 1e-6);
+        assert!(v_start.abs() < 1e-6);
+        assert!(v_end.abs() < 1e-6);
+        assert!(a_start.abs() < 1e-6);
+        assert!(a_end.abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_rise_point_constant_acceleration() {
+        let h = 10.0;
+        let delta_0 = std::f64::consts::FRAC_PI_2;
+        let (s_half, v_half, a_half) =
+            compute_rise_point(0.5, h, 1.0, delta_0, MotionLaw::ConstantAcceleration);
+        // t=0.5 时位移应为 h/2（对称）
+        assert!((s_half - h / 2.0).abs() < 1e-6);
+        // 加速度在 t<0.5 为正，t>0.5 为负
+        let (s_first, _, a_first) =
+            compute_rise_point(0.25, h, 1.0, delta_0, MotionLaw::ConstantAcceleration);
+        let (_, _, a_second) =
+            compute_rise_point(0.75, h, 1.0, delta_0, MotionLaw::ConstantAcceleration);
+        assert!(a_first > 0.0);
+        assert!(a_second < 0.0);
+    }
+
+    #[test]
+    fn test_rise_velocity_non_negative() {
+        let delta_0 = std::f64::consts::FRAC_PI_2;
+        let h = 10.0;
+        let omega = 1.0;
+
+        for law in 1..=6 {
+            let law = MotionLaw::try_from(law).unwrap();
+            let delta_arr = linspace(0.0, delta_0, 100, true);
+            let (_, v, _) = compute_rise(&delta_arr, delta_0, h, omega, law);
+            // 推程速度应为非负（除等加速等减速的减速段）
+            if law != MotionLaw::ConstantAcceleration {
+                for vi in &v {
+                    assert!(
+                        *vi >= 0.0,
+                        "Rise velocity should be non-negative for law {:?}, got {}",
+                        law,
+                        vi
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_rise_return_consistency() {
+        // 推程和回程使用相同规律时，回程应为推程的镜像
+        let delta_0 = std::f64::consts::FRAC_PI_2;
+        let h = 10.0;
+        let omega = 1.0;
+
+        for law in 1..=6 {
+            let law = MotionLaw::try_from(law).unwrap();
+            let delta_arr = linspace(0.0, delta_0, 100, true);
+            let (s_rise, v_rise, a_rise) = compute_rise(&delta_arr, delta_0, h, omega, law);
+            let (s_ret, v_ret, a_ret) = compute_return(&delta_arr, delta_0, h, omega, law);
+
+            // 回程起点 = 推程终点 = h
+            assert!(
+                (s_ret[0] - h).abs() < 1e-6,
+                "Return start mismatch for law {:?}",
+                law
+            );
+            // 回程终点 = 推程起点 = 0
+            assert!(
+                (s_ret[99] - 0.0).abs() < 1e-6,
+                "Return end mismatch for law {:?}",
+                law
+            );
+            // 回程速度 = -推程速度
+            assert!(
+                (v_ret[0] + v_rise[0]).abs() < 1e-6,
+                "Return velocity sign mismatch for law {:?}",
+                law
+            );
+        }
+    }
+
+    #[test]
+    fn test_linspace_edge_cases() {
+        // n=0
+        assert_eq!(linspace(0.0, 1.0, 0, true).len(), 0);
+        // n=1
+        let arr = linspace(5.0, 10.0, 1, true);
+        assert_eq!(arr.len(), 1);
+        assert!((arr[0] - 5.0).abs() < 1e-10);
     }
 }

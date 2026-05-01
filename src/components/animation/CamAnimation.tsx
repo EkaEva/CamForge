@@ -2,6 +2,7 @@ import { createSignal, createMemo, onCleanup, onMount, Show, createEffect } from
 import { simulationData, params, displayOptions, cursorFrame, setCursorFrame } from '../../stores/simulation';
 import { t } from '../../i18n';
 import { TARGET_FPS, EPSILON } from '../../constants/numeric';
+import { FollowerType } from '../../types';
 import { Icon } from '../ui/Icon';
 import { useWindowSize } from '../../hooks/useWindowSize';
 
@@ -142,32 +143,58 @@ export function CamAnimation(props: CamAnimationProps) {
     const angleDeg = (frameIdx * 360) / n;
     const angleRad = -sn * (angleDeg * Math.PI / 180);
 
-    const [xRotTheory, yRotTheory] = getRotatedCam(x, y, angleRad);
-
-    const useActual = r_r > 0;
+    const isFlatFaced = p.follower_type === FollowerType.TranslatingFlatFaced || p.follower_type === FollowerType.OscillatingFlatFaced;
+    const isOscillating = p.follower_type === FollowerType.OscillatingRoller || p.follower_type === FollowerType.OscillatingFlatFaced;
+    const useActual = r_r > 0 || isFlatFaced;
     const profileX = useActual ? x_actual : x;
     const profileY = useActual ? y_actual : y;
+
+    // Direct-frame animation: rotate cam, fixed follower
+    const [xRotTheory, yRotTheory] = getRotatedCam(x, y, angleRad);
     const [xRot, yRot] = getRotatedCam(profileX, profileY, angleRad);
 
     const followerX = -sn * pz * e;
-    const contactY = s_0 + s[frameIdx];
 
-    const deltaI = (angleDeg * Math.PI) / 180;
-    const theta = -sn * deltaI;
-    const cosT = Math.cos(theta);
-    const sinT = Math.sin(theta);
-    const cosD = Math.cos(deltaI);
-    const sinD = Math.sin(deltaI);
+    // Contact point and oscillating geometry
+    let contactX: number;
+    let contactY: number;
+    let pivotX = 0;
+    let pivotY = 0;
+    let armAngle = 0;
 
-    const sp = s_0 + s[frameIdx];
-    const dsd = ds_ddelta[frameIdx];
+    if (isOscillating) {
+      // Direct-frame: cam rotates, pivot is fixed.
+      // Compute contact point directly from pivot position and arm kinematics.
+      const gammaRad = p.gamma * Math.PI / 180;
+      pivotX = -p.pivot_distance * Math.cos(gammaRad);
+      pivotY = -p.pivot_distance * Math.sin(gammaRad);
 
-    const dx0 = sp * cosD + dsd * sinD - pz * e * sinD;
-    const dy0 = -sp * sinD + dsd * cosD - pz * e * cosD;
-    const dx = -sn * dx0;
-    const dy = dy0;
-    let tx = dx * cosT - dy * sinT;
-    let ty = dx * sinT + dy * cosT;
+      // Arm angle = initial_angle + angular displacement ψ = s/L
+      const delta0Rad = p.initial_angle * Math.PI / 180;
+      const psi_i = s[frameIdx] / p.arm_length;
+      const armAngleRad = delta0Rad + psi_i;
+
+      // Arm endpoint / roller center
+      contactX = pivotX + p.arm_length * Math.cos(armAngleRad);
+      contactY = pivotY + p.arm_length * Math.sin(armAngleRad);
+      armAngle = armAngleRad;
+    } else if (isFlatFaced) {
+      // Translating flat-faced: contact point offset by ds/ddelta from follower axis
+      contactX = followerX + ds_ddelta[frameIdx];
+      contactY = s_0 + s[frameIdx];
+    } else {
+      // Translating roller/knife-edge: contact on follower axis
+      contactX = followerX;
+      contactY = s_0 + s[frameIdx];
+    }
+
+    // Tangent and normal computation
+    // For both oscillating (inverted frame) and translating (direct frame),
+    // compute tangent from the profile that is displayed (fixed or rotated).
+    const iPrev = (frameIdx - 1 + n) % n;
+    const iNext = (frameIdx + 1) % n;
+    let tx = xRotTheory[iNext] - xRotTheory[iPrev];
+    let ty = yRotTheory[iNext] - yRotTheory[iPrev];
     const lenT = Math.hypot(tx, ty);
     if (lenT > EPSILON) {
       tx /= lenT;
@@ -179,9 +206,7 @@ export function CamAnimation(props: CamAnimationProps) {
 
     const nx1 = -ty, ny1 = tx;
     const nx2 = ty, ny2 = -tx;
-    const cx = followerX;
-    const cy = contactY;
-    const dot1 = (0 - cx) * nx1 + (0 - cy) * ny1;
+    const dot1 = (0 - contactX) * nx1 + (0 - contactY) * ny1;
     let nx: number, ny: number;
     if (dot1 > 0) {
       nx = nx1;
@@ -198,7 +223,11 @@ export function CamAnimation(props: CamAnimationProps) {
     return {
       angleDeg,
       followerX,
+      contactX,
       contactY,
+      pivotX,
+      pivotY,
+      armAngle,
       tx, ty,
       nx, ny,
       alphaI: alpha_all[frameIdx],
@@ -234,7 +263,11 @@ export function CamAnimation(props: CamAnimationProps) {
   const shouldShowTheoryProfile = createMemo(() => {
     const p = params();
     const opts = displayOptions();
-    if (p.r_r <= 0) return false;
+    const isFlatFaced = p.follower_type === FollowerType.TranslatingFlatFaced || p.follower_type === FollowerType.OscillatingFlatFaced;
+    // Show theory profile when actual profile differs from theory:
+    // - Roller followers (r_r > 0): actual is offset inward by r_r
+    // - Flat-faced followers: actual is envelope, theory is contact trajectory
+    if (p.r_r <= 0 && !isFlatFaced) return false;
     return opts.showTangent || opts.showNormal || opts.showPressureArc || opts.showCenterLine ||
            opts.showBaseCircle || opts.showOffsetCircle || opts.showUpperLimit || opts.showLowerLimit;
   });
@@ -453,59 +486,175 @@ export function CamAnimation(props: CamAnimationProps) {
         <path d={camPath()} fill="none" stroke="#EF4444" stroke-width={0.8 * zoom()} />
 
         {/* 推杆 */}
-        <Show when={params().r_r > 0} fallback={
+        {(() => {
+          const fd = frameData()!;
+          const z = zoom();
+          const p2 = params();
+          const r_0 = p2.r_0;
+          const cxSvg = fd.contactX * z;
+          const cySvg = -fd.contactY * z;
+
+          if (p2.follower_type === FollowerType.TranslatingFlatFaced) {
+            // 平底直动从动件：水平线段 + 竖直杆身
+            // 平底半宽：使用最小半宽 + 30% 余量，确保覆盖所有接触点
+            const minHalfW = data ? data.flat_face_min_half_width : 0;
+            const faceHalfW = (minHalfW > 0 ? minHalfW * 1.3 : r_0 * 0.3) * z;
+            // 平底以从动件轴线为中心，接触点在 cxSvg（含 ds/ddelta 偏置）
+            const followerXSvg = (fd.followerX + p2.flat_face_offset) * z;
+            return (
+              <>
+                {/* 平底线段（以从动件轴线为中心） */}
+                <line
+                  x1={followerXSvg - faceHalfW} y1={cySvg}
+                  x2={followerXSvg + faceHalfW} y2={cySvg}
+                  stroke="var(--on-surface)" stroke-width={1.2 * z}
+                />
+                {/* 竖直杆身（从动件轴线） */}
+                <line
+                  x1={followerXSvg} y1={cySvg}
+                  x2={followerXSvg} y2={cySvg - viewBoxData().r_max * 0.3 * z}
+                  stroke="var(--on-surface)" stroke-width={0.8 * z}
+                />
+                {/* 实际接触点标记（在平底上偏置 ds/ddelta） */}
+                <circle cx={cxSvg} cy={cySvg} r={r_0 * 0.025 * z}
+                  fill="var(--primary)" />
+              </>
+            );
+          }
+
+          if (p2.follower_type === FollowerType.OscillatingRoller || p2.follower_type === FollowerType.OscillatingFlatFaced) {
+            // 摆动从动件：臂 + 滚子/平底 + 固定铰支座
+            const pxSvg = fd.pivotX * z;
+            const pySvg = -fd.pivotY * z;
+            const armLen = Math.hypot(cxSvg - pxSvg, cySvg - pySvg);
+            const cosA = armLen > EPSILON ? (cxSvg - pxSvg) / armLen : 1;
+            const sinA = armLen > EPSILON ? (cySvg - pySvg) / armLen : 0;
+            const faceCenterX = cxSvg + p2.flat_face_offset * z * sinA;
+            const faceCenterY = cySvg - p2.flat_face_offset * z * cosA;
+
+            // 铰支座参数（沿凸轮中心→枢轴方向）
+            const pivDist = Math.hypot(pxSvg, pySvg);
+            const supCos = pivDist > EPSILON ? pxSvg / pivDist : 0;
+            const supSin = pivDist > EPSILON ? pySvg / pivDist : 1;
+            const sz = r_0 * 0.12 * z;
+            const circleR = sz * 0.2;
+            const triBase = circleR + sz * 0.05;
+            const triHeight = sz * 1.35;
+            const hw = sz * 1.3;
+            const hatchLen = sz * 0.5;
+            const nHatch = 5;
+
+            // 三角形顶点（沿支撑方向）
+            const triTopX = pxSvg + supCos * triBase;
+            const triTopY = pySvg + supSin * triBase;
+            const triBotX = pxSvg + supCos * triHeight;
+            const triBotY = pySvg + supSin * triHeight;
+            // 垂直于支撑方向的分量
+            const perpX2 = -supSin;
+            const perpY2 = supCos;
+
+            return (
+              <>
+                {/* 臂 */}
+                <line
+                  x1={pxSvg} y1={pySvg}
+                  x2={cxSvg} y2={cySvg}
+                  stroke="var(--on-surface)" stroke-width={0.8 * z}
+                />
+                {/* 滚子/平底端 */}
+                {p2.follower_type === FollowerType.OscillatingRoller ? (
+                  <>
+                    <circle cx={cxSvg} cy={cySvg} r={p2.r_r * z}
+                      fill="none" stroke="var(--on-surface)" stroke-width={0.8 * z} />
+                    <circle cx={cxSvg} cy={cySvg} r={r_0 * 0.02 * z}
+                      fill="var(--on-surface)" />
+                  </>
+                ) : (
+                  // 平底线段（垂直于臂）
+                  <line
+                    x1={faceCenterX - r_0 * 0.25 * z * sinA} y1={faceCenterY + r_0 * 0.25 * z * cosA}
+                    x2={faceCenterX + r_0 * 0.25 * z * sinA} y2={faceCenterY - r_0 * 0.25 * z * cosA}
+                    stroke="var(--on-surface)" stroke-width={1.2 * z}
+                  />
+                )}
+                {/* 固定铰支座 */}
+                <circle cx={pxSvg} cy={pySvg} r={circleR}
+                  fill="none" stroke="var(--on-surface)" stroke-width={0.7 * z} />
+                <polygon
+                  points={`${triTopX},${triTopY} ${triBotX - perpX2 * sz},${triBotY - perpY2 * sz} ${triBotX + perpX2 * sz},${triBotY + perpY2 * sz}`}
+                  fill="var(--on-surface)"
+                />
+                <line
+                  x1={triBotX - perpX2 * hw} y1={triBotY - perpY2 * hw}
+                  x2={triBotX + perpX2 * hw} y2={triBotY + perpY2 * hw}
+                  stroke="var(--on-surface)" stroke-width={1 * z}
+                />
+                {Array.from({ length: nHatch }).map((_, j) => {
+                  const frac = (j + 0.5) / nHatch;
+                  const bx = triBotX + perpX2 * hw * (2 * frac - 1);
+                  const by = triBotY + perpY2 * hw * (2 * frac - 1);
+                  return (
+                    <line
+                      x1={bx} y1={by}
+                      x2={bx + supCos * hatchLen} y2={by + supSin * hatchLen}
+                      stroke="var(--on-surface)" stroke-width={0.5 * z}
+                    />
+                  );
+                })}
+              </>
+            );
+          }
+
+          // 直动滚子从动件
+          if (p2.r_r > 0) {
+            return (
+              <>
+                {/* 滚子外圈 */}
+                <circle
+                  cx={cxSvg} cy={cySvg}
+                  r={p2.r_r * z}
+                  fill="none" stroke="var(--on-surface)" stroke-width={0.8 * z}
+                />
+                {/* 滚子中心点 */}
+                <circle
+                  cx={cxSvg} cy={cySvg}
+                  r={r_0 * 0.02 * z}
+                  fill="var(--on-surface)"
+                />
+                {/* 推杆杆身 */}
+                <line
+                  x1={cxSvg} y1={cySvg}
+                  x2={cxSvg} y2={cySvg - viewBoxData().r_max * 0.3 * z}
+                  stroke="var(--on-surface)" stroke-width={0.8 * z}
+                />
+              </>
+            );
+          }
+
           // 尖底从动件
-          <>
-            <polygon
-              points={`${frameData()!.followerX * zoom() - params().r_0 * 0.075 * zoom()},${-frameData()!.contactY * zoom() - params().r_0 * 0.1 * zoom()} ${frameData()!.followerX * zoom()},${-frameData()!.contactY * zoom() - 0.4 * zoom()} ${frameData()!.followerX * zoom() + params().r_0 * 0.075 * zoom()},${-frameData()!.contactY * zoom() - params().r_0 * 0.1 * zoom()}`}
-              fill="var(--on-surface)"
-              stroke="var(--on-surface)"
-              stroke-width={0.8 * zoom()}
-            />
-            <line
-              x1={frameData()!.followerX * zoom()}
-              y1={-frameData()!.contactY * zoom() - params().r_0 * 0.1 * zoom()}
-              x2={frameData()!.followerX * zoom()}
-              y2={-frameData()!.contactY * zoom() - viewBoxData().r_max * 0.3 * zoom()}
-              stroke="var(--on-surface)"
-              stroke-width={0.8 * zoom()}
-            />
-          </>
-        }>
-          {/* 滚子从动件 */}
-          {/* 滚子外圈 */}
-          <circle
-            cx={frameData()!.followerX * zoom()}
-            cy={-frameData()!.contactY * zoom()}
-            r={params().r_r * zoom()}
-            fill="none"
-            stroke="var(--on-surface)"
-            stroke-width={0.8 * zoom()}
-          />
-          {/* 滚子中心点 */}
-          <circle
-            cx={frameData()!.followerX * zoom()}
-            cy={-frameData()!.contactY * zoom()}
-            r={params().r_0 * 0.02 * zoom()}
-            fill="var(--on-surface)"
-          />
-          {/* 推杆杆身 */}
-          <line
-            x1={frameData()!.followerX * zoom()}
-            y1={-frameData()!.contactY * zoom()}
-            x2={frameData()!.followerX * zoom()}
-            y2={-frameData()!.contactY * zoom() - viewBoxData().r_max * 0.3 * zoom()}
-            stroke="var(--on-surface)"
-            stroke-width={0.8 * zoom()}
-          />
-        </Show>
+          return (
+            <>
+              <polygon
+                points={`${cxSvg - r_0 * 0.075 * z},${cySvg - r_0 * 0.1 * z} ${cxSvg},${cySvg - 0.4 * z} ${cxSvg + r_0 * 0.075 * z},${cySvg - r_0 * 0.1 * z}`}
+                fill="var(--on-surface)"
+                stroke="var(--on-surface)"
+                stroke-width={0.8 * z}
+              />
+              <line
+                x1={cxSvg} y1={cySvg - r_0 * 0.1 * z}
+                x2={cxSvg} y2={cySvg - viewBoxData().r_max * 0.3 * z}
+                stroke="var(--on-surface)" stroke-width={0.8 * z}
+              />
+            </>
+          );
+        })()}
 
         {/* 切线 */}
         <Show when={displayOptions().showTangent && frameData()}>
           <line
-            x1={(frameData()!.followerX - p.r_0 * frameData()!.tx) * zoom()}
+            x1={(frameData()!.contactX - p.r_0 * frameData()!.tx) * zoom()}
             y1={(-frameData()!.contactY + p.r_0 * frameData()!.ty) * zoom()}
-            x2={(frameData()!.followerX + p.r_0 * frameData()!.tx) * zoom()}
+            x2={(frameData()!.contactX + p.r_0 * frameData()!.tx) * zoom()}
             y2={(-frameData()!.contactY - p.r_0 * frameData()!.ty) * zoom()}
             stroke="#10B981"
             stroke-width={0.3 * zoom()}
@@ -515,9 +664,9 @@ export function CamAnimation(props: CamAnimationProps) {
         {/* 法线 */}
         <Show when={(displayOptions().showNormal || displayOptions().showPressureArc) && frameData()}>
           <line
-            x1={(frameData()!.followerX + p.r_0 * frameData()!.nx) * zoom()}
+            x1={(frameData()!.contactX + p.r_0 * frameData()!.nx) * zoom()}
             y1={(-frameData()!.contactY - p.r_0 * frameData()!.ny) * zoom()}
-            x2={(frameData()!.followerX - p.r_0 * frameData()!.nx) * zoom()}
+            x2={(frameData()!.contactX - p.r_0 * frameData()!.nx) * zoom()}
             y2={(-frameData()!.contactY + p.r_0 * frameData()!.ny) * zoom()}
             stroke="#F59E0B"
             stroke-width={0.3 * zoom()}
@@ -527,9 +676,9 @@ export function CamAnimation(props: CamAnimationProps) {
         {/* 中心线（压力角弧显示时） */}
         <Show when={displayOptions().showPressureArc && frameData() && frameData()!.alphaI > 0.5}>
           <line
-            x1={frameData()!.followerX * zoom()}
+            x1={frameData()!.contactX * zoom()}
             y1={-frameData()!.contactY * zoom()}
-            x2={frameData()!.followerX * zoom()}
+            x2={frameData()!.contactX * zoom()}
             y2={(-frameData()!.contactY + p.r_0 * 0.5) * zoom()}
             stroke="var(--on-surface)"
             stroke-width={0.3 * zoom()}
@@ -540,7 +689,7 @@ export function CamAnimation(props: CamAnimationProps) {
         <Show when={displayOptions().showPressureArc && frameData() && frameData()!.alphaI > 0.5}>
           <path
             d={generateArcPath(
-              frameData()!.followerX * zoom(),
+              frameData()!.contactX * zoom(),
               -frameData()!.contactY * zoom(),
               frameData()!.nx,
               frameData()!.ny,

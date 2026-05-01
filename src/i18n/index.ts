@@ -7,8 +7,8 @@ const [language, setLanguage] = createSignal<Language>('zh');
 
 // 初始化
 function initI18n() {
-  if (typeof window !== 'undefined') {
-    const savedLang = localStorage.getItem('language') as Language | null;
+  if (typeof window !== 'undefined' && typeof window.localStorage?.getItem === 'function') {
+    const savedLang = window.localStorage.getItem('language') as Language | null;
     if (savedLang) {
       setLanguage(savedLang);
     }

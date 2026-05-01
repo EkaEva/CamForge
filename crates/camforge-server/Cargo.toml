@@ -13,14 +13,16 @@ camforge-core.workspace = true
 # 使用 workspace 共享依赖
 serde.workspace = true
 serde_json.workspace = true
-thiserror.workspace = true
-anyhow.workspace = true
 
 # HTTP 服务器
 axum = "0.7"
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "fs", "limit"] }
 tokio = { version = "1", features = ["full"] }
+
+# Nonce 生成
+rand = "0.9"
+base64 = "0.22"
 
 [features]
 default = []

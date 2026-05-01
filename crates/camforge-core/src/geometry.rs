@@ -51,6 +51,20 @@ pub fn compute_pressure_angle(
     Ok(alpha)
 }
 
+/// 计算平底从动件压力角
+///
+/// 平底从动件的接触力始终垂直于从动件平面，
+/// 因此压力角恒为 0。
+///
+/// # Arguments
+/// * `n` - 数据点数
+///
+/// # Returns
+/// * 全零压力角数组 (度)
+pub fn compute_flat_faced_pressure_angle(n: usize) -> Vec<f64> {
+    vec![0.0; n]
+}
+
 /// 计算曲率半径
 ///
 /// 使用参数曲线曲率公式：ρ = ((x'² + y'²)^(3/2)) / |x'y'' - y'x''|
@@ -67,7 +81,11 @@ pub fn compute_curvature_radius(x: &[f64], y: &[f64]) -> Result<Vec<f64>, String
         return Err(format!("Need at least 3 points, got {}", n));
     }
     if y.len() != n {
-        return Err(format!("x and y must have same length, got {} and {}", n, y.len()));
+        return Err(format!(
+            "x and y must have same length, got {} and {}",
+            n,
+            y.len()
+        ));
     }
 
     let mut rho = vec![0.0; n];
@@ -152,8 +170,12 @@ mod tests {
         // 圆形凸轮，曲率半径应等于半径
         let r = 40.0;
         let n = 360;
-        let x: Vec<f64> = (0..n).map(|i| r * (2.0 * std::f64::consts::PI * i as f64 / n as f64).cos()).collect();
-        let y: Vec<f64> = (0..n).map(|i| r * (2.0 * std::f64::consts::PI * i as f64 / n as f64).sin()).collect();
+        let x: Vec<f64> = (0..n)
+            .map(|i| r * (2.0 * std::f64::consts::PI * i as f64 / n as f64).cos())
+            .collect();
+        let y: Vec<f64> = (0..n)
+            .map(|i| r * (2.0 * std::f64::consts::PI * i as f64 / n as f64).sin())
+            .collect();
 
         let rho = compute_curvature_radius(&x, &y).unwrap();
 
@@ -197,7 +219,11 @@ mod tests {
 
         // 直线的曲率半径应接近无穷大
         for &r in &rho {
-            assert!(r.abs() > 1000.0 || r.is_infinite(), "Straight line should have infinite curvature radius, got {}", r);
+            assert!(
+                r.abs() > 1000.0 || r.is_infinite(),
+                "Straight line should have infinite curvature radius, got {}",
+                r
+            );
         }
     }
 }

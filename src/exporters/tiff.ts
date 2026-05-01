@@ -88,7 +88,8 @@ export async function generateTIFFBlob(canvas: HTMLCanvasElement, dpi: number = 
 export function encodeCanvasToTIFF(canvas: HTMLCanvasElement, dpi: number = 600): Blob {
   const width = canvas.width;
   const height = canvas.height;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Failed to get 2D context');
   const imageData = ctx.getImageData(0, 0, width, height);
 
   const rgba = imageData.data;

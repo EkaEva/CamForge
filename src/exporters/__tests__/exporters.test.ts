@@ -31,6 +31,8 @@ const createMockData = (): SimulationData => ({
   min_rho_actual: 30,
   min_rho_actual_idx: 3,
   h: 10,
+  has_concave_region: false,
+  flat_face_min_half_width: 10,
 });
 
 const createMockParams = (): CamParams => ({
@@ -49,6 +51,12 @@ const createMockParams = (): CamParams => ({
   hc_law: 6,
   sn: 1,
   pz: 1,
+  follower_type: 2, // TranslatingRoller
+  arm_length: 80,
+  pivot_distance: 120,
+  initial_angle: 0,
+  gamma: 0,
+  flat_face_offset: 0,
 });
 
 describe('exporters', () => {

@@ -1,6 +1,33 @@
 // CamForge TypeScript 类型定义
 
 /**
+ * 从动件类型枚举
+ */
+export enum FollowerType {
+  /** 直动尖底从动件 */
+  TranslatingKnifeEdge = 1,
+  /** 直动滚子从动件 */
+  TranslatingRoller = 2,
+  /** 直动平底从动件 */
+  TranslatingFlatFaced = 3,
+  /** 摆动滚子从动件 */
+  OscillatingRoller = 4,
+  /** 摆动平底从动件 */
+  OscillatingFlatFaced = 5,
+}
+
+/**
+ * 从动件类型名称映射（支持国际化）
+ */
+export const FollowerTypeNames: Record<FollowerType, { zh: string; en: string }> = {
+  [FollowerType.TranslatingKnifeEdge]: { zh: '直动尖底', en: 'Translating Knife-Edge' },
+  [FollowerType.TranslatingRoller]: { zh: '直动滚子', en: 'Translating Roller' },
+  [FollowerType.TranslatingFlatFaced]: { zh: '直动平底', en: 'Translating Flat-Faced' },
+  [FollowerType.OscillatingRoller]: { zh: '摆动滚子', en: 'Oscillating Roller' },
+  [FollowerType.OscillatingFlatFaced]: { zh: '摆动平底', en: 'Oscillating Flat-Faced' },
+};
+
+/**
  * 运动规律枚举
  *
  * 定义凸轮机构常用的 6 种标准运动规律。
@@ -49,6 +76,12 @@ export interface CamParams {
   hc_law: MotionLaw;      // 回程运动规律
   sn: number;             // 旋向符号 (+1 顺时针, -1 逆时针)
   pz: number;             // 偏距符号 (+1 正偏距, -1 负偏距)
+  follower_type: FollowerType; // 从动件类型
+  arm_length: number;     // 摆动从动件臂长 (mm), 仅摆动类型使用
+  pivot_distance: number; // 摆动从动件枢轴至凸轮中心距 (mm), 仅摆动类型使用
+  initial_angle: number;  // 摆动从动件初始臂角 (度), 仅摆动类型使用
+  gamma: number;          // 安装偏角 (度), 仅摆动类型使用, 0=枢轴在凸轮正左方
+  flat_face_offset: number; // 平底偏置量 (mm), 平底中心线相对臂中心线的偏移
 }
 
 /// 完整模拟数据
@@ -74,6 +107,9 @@ export interface SimulationData {
   min_rho_actual: number | null;  // 实际轮廓最小曲率半径
   min_rho_actual_idx: number;
   h: number;
+  has_concave_region: boolean;       // 是否存在凹区域（平底从动件不可用）
+  flat_face_min_half_width: number;  // 平底最小半宽 = max(|ds/ddelta - flat_face_offset|)
+  computationError?: string;         // 计算错误信息（NaN/Infinity 等），非空时数据不可信
 }
 
 /// 显示选项

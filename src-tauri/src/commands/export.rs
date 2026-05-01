@@ -4,7 +4,7 @@
 
 use std::fs::File;
 use std::io::Write;
-use std::path::{Path, PathBuf, Component};
+use std::path::{Component, Path, PathBuf};
 use tauri::State;
 
 use crate::commands::simulation::SimState;
@@ -12,13 +12,8 @@ use crate::commands::simulation::SimState;
 /// 允许的导出文件扩展名
 const ALLOWED_EXTENSIONS: &[&str] = &["dxf", "csv"];
 
-/// 验证导出文件路径安全性
-///
-/// 执行多层安全检查：
-/// 1. 路径遍历攻击检测（包括编码形式）
-/// 2. 绝对路径检测
-/// 3. 文件扩展名白名单验证
-/// 4. 文件名有效性检查
+/// Validate export path: accept absolute paths in safe directories (from save dialogs)
+/// and relative paths, while blocking path traversal and dangerous locations.
 fn validate_export_path(filepath: &str) -> Result<PathBuf, String> {
     let path = Path::new(filepath);
     let filepath_lower = filepath.to_lowercase();
@@ -27,33 +22,14 @@ fn validate_export_path(filepath: &str) -> Result<PathBuf, String> {
     if filepath.contains("..") {
         return Err("Path traversal not allowed: path cannot contain '..'".to_string());
     }
-    // 检查 URL 编码的路径遍历
-    if filepath_lower.contains("%2e%2e") || filepath_lower.contains("%2e.") || filepath_lower.contains(".%2e") {
+    if filepath_lower.contains("%2e%2e")
+        || filepath_lower.contains("%2e.")
+        || filepath_lower.contains(".%2e")
+    {
         return Err("Path traversal not allowed: encoded path traversal detected".to_string());
     }
 
-    // 2. 检查绝对路径（仅允许相对路径或文件名）
-    if path.is_absolute() {
-        return Err("Absolute paths not allowed: please use relative path or filename only".to_string());
-    }
-
-    // 3. 检查路径组件安全性
-    for component in path.components() {
-        match component {
-            Component::ParentDir => {
-                return Err("Path traversal not allowed: parent directory reference detected".to_string());
-            }
-            Component::RootDir => {
-                return Err("Root directory not allowed in path".to_string());
-            }
-            Component::Prefix(_) => {
-                return Err("Path prefix not allowed (e.g., C:)".to_string());
-            }
-            _ => {}
-        }
-    }
-
-    // 4. 验证文件扩展名（大小写不敏感）
+    // 2. 验证文件扩展名（大小写不敏感）
     let ext = path
         .extension()
         .and_then(|e| e.to_str())
@@ -68,7 +44,7 @@ fn validate_export_path(filepath: &str) -> Result<PathBuf, String> {
         ));
     }
 
-    // 5. 获取文件名并验证
+    // 3. 获取文件名并验证
     let filename = path
         .file_name()
         .and_then(|n| n.to_str())
@@ -78,10 +54,98 @@ fn validate_export_path(filepath: &str) -> Result<PathBuf, String> {
         return Err("Invalid filename: filename cannot be empty".to_string());
     }
 
-    // 6. 检查文件名不包含危险字符
+    // 4. 检查文件名不包含危险字符
     let dangerous_chars = ['<', '>', ':', '"', '|', '?', '*', '\0'];
     if filename.chars().any(|c| dangerous_chars.contains(&c)) {
         return Err("Invalid filename: contains dangerous characters".to_string());
+    }
+
+    // 5. 检查危险文件类型（.env, .keystore 等）
+    let filename_lower = filename.to_lowercase();
+    if filename_lower.ends_with(".env")
+        || filename_lower.ends_with(".keystore")
+        || filename_lower.ends_with(".jks")
+        || filename_lower.ends_with(".pem")
+        || filename_lower.ends_with(".key")
+    {
+        return Err(format!("Dangerous file type not allowed: {}", filename));
+    }
+
+    // 6. 绝对路径：允许来自保存对话框的安全目录路径
+    if path.is_absolute() {
+        // 检查路径组件安全性（允许 Prefix 如 C: 但不允许 ParentDir/RootDir）
+        for component in path.components() {
+            match component {
+                Component::ParentDir => {
+                    return Err(
+                        "Path traversal not allowed: parent directory reference detected"
+                            .to_string(),
+                    );
+                }
+                Component::RootDir => {
+                    return Err("Root directory not allowed in path".to_string());
+                }
+                _ => {}
+            }
+        }
+
+        // 验证绝对路径位于允许的用户目录内
+        let allowed_dirs: Vec<PathBuf> = [
+            dirs::download_dir(),
+            dirs::document_dir(),
+            dirs::desktop_dir(),
+            dirs::home_dir(),
+        ]
+        .iter()
+        .filter_map(|d| d.clone())
+        .collect();
+
+        let resolved = if path.exists() {
+            dunce::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+        } else {
+            // 文件尚不存在，检查父目录
+            if let Some(parent) = path.parent() {
+                if parent.exists() {
+                    match dunce::canonicalize(parent) {
+                        Ok(canonical_parent) => canonical_parent.join(filename),
+                        Err(_) => path.to_path_buf(),
+                    }
+                } else {
+                    path.to_path_buf()
+                }
+            } else {
+                path.to_path_buf()
+            }
+        };
+
+        for allowed_dir in &allowed_dirs {
+            if resolved.starts_with(allowed_dir) {
+                return Ok(path.to_path_buf());
+            }
+        }
+
+        return Err(format!(
+            "Absolute path not in allowed directories (Downloads, Documents, Desktop, Home): {}",
+            filepath
+        ));
+    }
+
+    // 相对路径：检查路径组件安全性
+    for component in path.components() {
+        match component {
+            Component::ParentDir => {
+                return Err(
+                    "Path traversal not allowed: parent directory reference detected".to_string(),
+                );
+            }
+            Component::RootDir => {
+                return Err("Root directory not allowed in path".to_string());
+            }
+            Component::Prefix(_) => {
+                return Err("Path prefix not allowed (e.g., C:)".to_string());
+            }
+            _ => {}
+        }
     }
 
     Ok(path.to_path_buf())
@@ -97,10 +161,11 @@ pub fn export_dxf(
     // 验证文件路径安全性
     let safe_path = validate_export_path(&filepath)?;
 
-    let data_guard = state.data.lock().map_err(|e| format!("State lock poisoned: {}", e))?;
-    let data = data_guard
-        .as_ref()
-        .ok_or("No simulation data available")?;
+    let data_guard = state
+        .data
+        .lock()
+        .map_err(|e| format!("State lock poisoned: {}", e))?;
+    let data = data_guard.as_ref().ok_or("No simulation data available")?;
 
     let mut file = File::create(&safe_path).map_err(|e| e.to_string())?;
 
@@ -202,55 +267,101 @@ fn write_polyline(file: &mut File, x: &[f64], y: &[f64], layer: &str) -> Result<
 
 /// 导出 CSV 格式
 #[tauri::command]
-pub fn export_csv(
-    filepath: String,
-    lang: String,
-    state: State<SimState>,
-) -> Result<(), String> {
+pub fn export_csv(filepath: String, lang: String, state: State<SimState>) -> Result<(), String> {
     // 验证文件路径安全性
     let safe_path = validate_export_path(&filepath)?;
 
-    let data_guard = state.data.lock().map_err(|e| format!("State lock poisoned: {}", e))?;
-    let data = data_guard
-        .as_ref()
-        .ok_or("No simulation data available")?;
+    let data_guard = state
+        .data
+        .lock()
+        .map_err(|e| format!("State lock poisoned: {}", e))?;
+    let data = data_guard.as_ref().ok_or("No simulation data available")?;
+    let params_guard = state
+        .params
+        .lock()
+        .map_err(|e| format!("State lock poisoned: {}", e))?;
+    let params = params_guard.as_ref().ok_or("No simulation parameters available")?;
 
     let mut file = File::create(&safe_path).map_err(|e| e.to_string())?;
 
     // Write BOM for Excel UTF-8 compatibility
-    file.write_all(&[0xEF, 0xBB, 0xBF]).map_err(|e| e.to_string())?;
+    file.write_all(&[0xEF, 0xBB, 0xBF])
+        .map_err(|e| e.to_string())?;
+
+    // Compute actual curvature radius if roller follower
+    let has_actual = params.r_r > 0.0;
 
     // Header row (i18n)
     let headers = if lang == "zh" {
-        "转角 δ (°),向径 R (mm),推杆位移 s (mm),推杆速度 v (mm/s),推杆加速度 a (mm/s²),曲率半径 ρ (mm),压力角 α (°)"
+        if has_actual {
+            "转角 δ (°),向径 R (mm),推杆位移 s (mm),推杆速度 v (mm/s),推杆加速度 a (mm/s²),理论曲率半径 ρ (mm),实际曲率半径 ρₐ (mm),压力角 α (°)"
+        } else {
+            "转角 δ (°),向径 R (mm),推杆位移 s (mm),推杆速度 v (mm/s),推杆加速度 a (mm/s²),曲率半径 ρ (mm),压力角 α (°)"
+        }
     } else {
-        "Angle δ (°),Radius R (mm),Displacement s (mm),Velocity v (mm/s),Acceleration a (mm/s²),Curvature ρ (mm),Pressure Angle α (°)"
+        if has_actual {
+            "Angle δ (°),Radius R (mm),Displacement s (mm),Velocity v (mm/s),Acceleration a (mm/s²),Theory ρ (mm),Actual ρₐ (mm),Pressure Angle α (°)"
+        } else {
+            "Angle δ (°),Radius R (mm),Displacement s (mm),Velocity v (mm/s),Acceleration a (mm/s²),Curvature ρ (mm),Pressure Angle α (°)"
+        }
     };
     writeln!(file, "{}", headers).map_err(|e| e.to_string())?;
 
     // Data rows
     for i in 0..data.delta_deg.len() {
         let r = (data.x[i].powi(2) + data.y[i].powi(2)).sqrt();
-        let rho = if data.rho[i].is_finite() {
+        let rho_val = if data.rho[i].is_finite() {
             format!("{:.4}", data.rho[i].abs())
         } else {
             String::new()
         };
+        let rho_actual_val = if has_actual && i < data.rho_actual.len() && data.rho_actual[i].is_finite() {
+            format!("{:.4}", data.rho_actual[i].abs())
+        } else {
+            String::new()
+        };
 
-        writeln!(
-            file,
-            "{:.2},{:.4},{:.4},{:.4},{:.4},{},{}",
-            data.delta_deg[i],
-            r,
-            data.s[i],
-            data.v[i],
-            data.a[i],
-            rho,
-            data.alpha_all[i]
-        ).map_err(|e| e.to_string())?;
+        if has_actual {
+            writeln!(
+                file,
+                "{},{},{},{},{},{},{},{}",
+                csv_escape(&format!("{:.2}", data.delta_deg[i])),
+                csv_escape(&format!("{:.4}", r)),
+                csv_escape(&format!("{:.4}", data.s[i])),
+                csv_escape(&format!("{:.4}", data.v[i])),
+                csv_escape(&format!("{:.4}", data.a[i])),
+                csv_escape(&rho_val),
+                csv_escape(&rho_actual_val),
+                csv_escape(&format!("{:.4}", data.alpha_all[i]))
+            )
+            .map_err(|e| e.to_string())?;
+        } else {
+            writeln!(
+                file,
+                "{},{},{},{},{},{},{}",
+                csv_escape(&format!("{:.2}", data.delta_deg[i])),
+                csv_escape(&format!("{:.4}", r)),
+                csv_escape(&format!("{:.4}", data.s[i])),
+                csv_escape(&format!("{:.4}", data.v[i])),
+                csv_escape(&format!("{:.4}", data.a[i])),
+                csv_escape(&rho_val),
+                csv_escape(&format!("{:.4}", data.alpha_all[i]))
+            )
+            .map_err(|e| e.to_string())?;
+        }
     }
 
     Ok(())
+}
+
+/// Escape a CSV cell value to prevent formula injection
+fn csv_escape(val: &str) -> String {
+    let dangerous = ['=', '+', '-', '@', '\t', '\r'];
+    if val.starts_with(dangerous) || val.contains(',') || val.contains('"') || val.contains('\n') {
+        format!("\"{}\"", val.replace('"', "\"\""))
+    } else {
+        val.to_string()
+    }
 }
 
 #[cfg(test)]

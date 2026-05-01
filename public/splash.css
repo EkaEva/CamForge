@@ -1,0 +1,12 @@
+/* Splash screen styles — extracted from index.html for CSP compliance */
+#splash{position:fixed;inset:0;z-index:9999;background:#1c1b1b;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Inter',system-ui,sans-serif;transition:opacity 0.5s ease}
+#splash.fade-out{opacity:0;pointer-events:none}
+.splash-grid{position:absolute;inset:0;opacity:0.15}
+.splash-text{position:relative;text-align:center;margin-bottom:40px}
+.splash-title{font-size:48px;font-weight:700;color:#e5e2e1;letter-spacing:-0.02em;opacity:0}
+.splash-accent{color:#E07A5F}
+.splash-subtitle{font-size:14px;font-weight:400;color:#c4c7c7;letter-spacing:0.08em;text-transform:uppercase;margin-top:8px;opacity:0}
+.splash-version{font-size:12px;font-weight:500;color:#8e9192;margin-top:20px;opacity:0}
+.splash-cam-wrap{position:relative;width:160px;height:160px}
+.splash-cam-base{opacity:0}
+.splash-curves{position:absolute;bottom:60px;width:min(880px,70vw);height:60px;opacity:0}

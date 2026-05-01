@@ -1,22 +1,39 @@
-# CamForge v0.4.5 系统性审查报告
+# CamForge v0.4.8 系统性审查报告
 
 ## 1. 审查概述
 
 | 项目 | 内容 |
 |------|------|
-| **审查范围** | CamForge 项目全量源代码，包括前端（`src/` TypeScript/SolidJS）、后端（`src-tauri/` Rust）、核心计算库（`crates/camforge-core`、`crates/camforge-server`）、配置文件、CI/CD 流水线、文档、测试覆盖及依赖管理 |
-| **审查方法** | 静态代码分析 + 架构审查 + 安全扫描 + 配置审计，采用多代理并行分治策略，分别对前端、后端、核心库、配置/文档/测试四个维度进行深度审查后合并去重 |
-| **审查时间** | 2026-04-29 |
-| **审查环境** | Windows 11, Node.js 20, Rust 2021 edition, Tauri v2 + SolidJS 1.9 + Tailwind CSS 4.2 |
-| **项目版本** | v0.4.4（Cargo.toml / package.json），审查目标为 v0.4.5 优化方向 |
+| **审查范围** | CamForge 项目全量源代码，包括前端（`src/` TypeScript/SolidJS，~65 源文件）、后端（`src-tauri/` Rust Tauri 命令处理器）、核心计算库（`crates/camforge-core`、`crates/camforge-server`）、配置文件（Vite、TypeScript、ESLint、Tailwind、Cargo）、CI/CD 流水线（GitHub Actions）、Docker 部署、项目文档（8 篇）、测试覆盖（13 个 TypeScript 测试文件 + 5 个 Rust 内联测试模块）及依赖管理 |
+| **审查方法** | 静态代码分析 + 架构审查 + 安全扫描 + 配置审计 + 测试覆盖率评估，采用多代理并行分治策略，分别对前端代码质量、Rust 后端代码质量、测试与文档完整性、依赖管理与安全性 4 个维度进行深度审查后合并去重 |
+| **审查时间** | 2026-05-01 |
+| **审查环境** | Windows 11 Home China 10.0.26200, Node.js 20, Rust 2021 edition, Tauri v2 + SolidJS 1.9 + Tailwind CSS 4.2 + Axum 0.7 |
+| **项目版本** | v0.4.8（package.json / Cargo.toml 当前版本），审查目标为 v0.4.9 优化方向 |
 
 ### 项目技术栈
 
 - **前端框架**: SolidJS 1.9 + TypeScript 5.6 + Tailwind CSS 4.2
-- **后端框架**: Tauri v2 (Rust) + Axum (HTTP Server)
+- **桌面壳**: Tauri v2 (Rust)，支持 Windows/macOS/Linux/Android/iOS
+- **Web 后端**: Axum 0.7 (Rust) + Tokio，RESTful API
 - **核心计算库**: Rust workspace（camforge-core / camforge-server / src-tauri）
-- **构建工具**: Vite 6 + Vitest 4
-- **部署方式**: Docker + 桌面安装包（Windows/macOS/Linux/Android）
+- **构建工具**: Vite 6 + Vitest 4 + pnpm
+- **部署方式**: Docker (Web 模式) + NSIS/DMG/AppImage (桌面模式)
+
+---
+
+## 修复进度跟踪
+
+> 最后更新: 2026-05-01 | 修复目标版本: v0.4.8
+
+| 严重程度 | 总数 | 已修复 | 未修复 | 完成率 |
+|:--------:|:----:|:------:|:------:|:------:|
+| 严重 | 3 | 3 | 0 | 100% |
+| 高 | 18 | 5 | 13 | 28% |
+| 中 | 35 | 3 | 32 | 9% |
+| 低 | 32 | 0 | 32 | 0% |
+| **合计** | **88** | **11** | **77** | **13%** |
+
+状态标记: ✅ 已修复 | ⬜ 未修复 | ⚠️ 已验证无需修复
 
 ---
 
@@ -26,948 +43,811 @@
 
 | 严重程度 | 数量 | 说明 |
 |:--------:|:----:|------|
-| **严重** | 15 | 阻断性问题，导致核心功能无法使用、系统崩溃或存在严重安全漏洞 |
-| **高** | 22 | 重要功能影响，影响主要业务流程或存在较大安全隐患 |
-| **中** | 44 | 局部功能影响，仅影响非核心功能或特定场景 |
-| **低** | 39 | 轻微影响或优化建议，不影响功能实现但影响代码质量 |
-| **合计** | **120** | |
+| **严重** | 3 | 阻断性问题，导致核心功能无法使用、系统崩溃或存在严重安全漏洞 |
+| **高** | 18 | 重要功能影响，影响主要业务流程或存在较大安全隐患 |
+| **中** | 35 | 局部功能影响，仅影响非核心功能或特定场景 |
+| **低** | 32 | 轻微影响或优化建议，不影响功能实现但影响代码质量或维护性 |
 
 ### 按类别统计
 
 | 类别 | 严重 | 高 | 中 | 低 | 合计 |
-|------|:----:|:--:|:--:|:--:|:----:|
-| 安全 | 4 | 5 | 2 | 1 | 12 |
-| 代码质量 | 5 | 4 | 14 | 12 | 35 |
-| 架构设计 | 2 | 3 | 6 | 4 | 15 |
-| 性能 | 1 | 2 | 6 | 3 | 12 |
-| 测试 | 0 | 3 | 8 | 3 | 14 |
-| 兼容性 | 1 | 2 | 3 | 4 | 10 |
-| 文档 | 1 | 2 | 2 | 5 | 10 |
-| 依赖管理 | 1 | 1 | 3 | 7 | 12 |
-| CI/CD | 0 | 2 | 2 | 3 | 7 |
+|:-----|:----:|:---:|:---:|:---:|:----:|
+| **代码质量** | 1 | 6 | 12 | 11 | 30 |
+| **架构设计** | 0 | 5 | 6 | 5 | 16 |
+| **性能** | 0 | 0 | 3 | 6 | 9 |
+| **安全** | 1 | 3 | 5 | 6 | 15 |
+| **兼容性** | 0 | 0 | 0 | 2 | 2 |
+| **文档** | 0 | 2 | 4 | 3 | 9 |
+| **依赖管理** | 0 | 1 | 3 | 2 | 6 |
+| **测试** | 1 | 2 | 5 | 2 | 10 |
 
 ---
 
 ## 3. 详细问题清单
 
-### 3.1 严重问题（Critical）
+### 3.1 严重（Critical）
 
-#### CR-01: 压力角计算公式使用 `atan()` 而非 `atan2()`，存在数学错误
+#### ✅ CR-01: Android 签名密钥库文件已提交至仓库
 
-- **类别**: 代码质量
-- **位置**: `crates/camforge-core/src/geometry.rs:44`
-- **描述**: 文档注释（第10行）声明使用 `arctan2(ds/dδ - pz·e, s_0 + s)`，但实现使用 `(numerator / denominator).atan().abs() * RAD2DEG`。`atan(y/x)` 丢失象限信息，且当分子分母同时为零时返回 NaN，该 NaN 会静默传播至下游所有计算（曲率、轮廓、导出），导致最终结果不可信。
-- **影响**: 核心数学计算结果可能错误，直接影响凸轮机构运动学分析的准确性。
+- **问题描述**: 项目根目录存在 `camforge-next.keystore`（2774 字节）二进制 Android 密钥库文件，已直接提交至代码仓库。密钥库文件包含用于签名 Android APK 的私钥。如果密钥库密码强度不足或在 CI 中以明文形式使用，任何能访问此仓库的攻击者均可冒充 CamForge 开发者签名应用程序，分发恶意 APK。CI 流水线（`release.yml` 第 162-177 行）在构建时通过 `ANDROID_KEYSTORE_BASE64` secret 解码生产密钥库是正确的做法，但仓库中的此文件可能是旧版或调试密钥库，仍构成安全隐患。`.gitignore` 中未排除 `*.keystore` 类型文件。
+- **问题位置**: `camforge-next.keystore`（项目根目录）
+- **严重程度**: 严重
+- **问题类别**: 安全
+- **影响范围**: Android 应用签名安全，潜在的供应链攻击风险
 
-#### CR-02: 导出命令拒绝绝对路径，破坏标准保存对话框工作流
+#### ✅ CR-02: 前端运动计算 NaN/Infinity 静默传播
 
-- **类别**: 架构设计 / 安全
-- **位置**: `src-tauri/src/commands/export.rs:36-37`
-- **描述**: `validate_export_path` 函数拒绝绝对路径。在标准 Tauri 工作流中，前端使用保存对话框（`dialog:allow-save` 已授权）返回绝对路径（如 `C:\Users\user\Documents\output.dxf`），但该路径会被导出命令拒绝。这意味着导出功能在标准保存对话框流程下无法正常工作。
-- **影响**: 用户无法通过系统保存对话框选择输出位置，导出功能基本不可用。
+- **问题描述**: `computeSimulationLocally` 函数在检测到计算产生非有限值（NaN 或 Infinity）时，仅输出 `console.warn` 警告（[compute.ts:282-284](src/stores/simulation/compute.ts#L282-L284)），但随后将包含无效数值的 `SimulationData` 正常返回给调用方。下游消费者（三个图表组件、SVG 生成、所有导出格式）会接收到 NaN/Infinity 值，导致画布渲染垃圾图形、导出文件内容损坏、或抛出难以调试的运行时错误（如 `ctx.arc(NaN, ...)` 等）。当前没有任何错误状态机制阻止无效数据向下游传播。
+- **问题位置**: [src/stores/simulation/compute.ts:282-284](src/stores/simulation/compute.ts#L282-L284)
+- **严重程度**: 严重
+- **问题类别**: 代码质量
+- **影响范围**: 核心仿真计算→图表渲染→导出全链路数据完整性
 
-#### CR-03: `n_points` 缺少上限验证，可导致资源耗尽攻击
+#### ✅ CR-03: `randomizeParams` 平底从动件重试循环存在竞态条件
 
-- **类别**: 安全
-- **位置**: `src-tauri/src/commands/simulation.rs:39`、`crates/camforge-core/src/full_motion.rs:180-224`
-- **描述**: `CamParams::validate()`（`types.rs:94`）检查 `n_points <= 720`，但该方法在 Tauri 命令处理器中**从未被调用**。`validate_motion_params` 仅检查 `n_points >= 36` 但无上限。恶意前端可发送 `n_points = 10_000_000`，导致超过 1GB 的内存分配和 CPU 耗尽。
-- **影响**: 服务器可被恶意请求瘫痪，存在拒绝服务（DoS）风险。
-
-#### CR-04: Tauri FS scope 无法保护 `std::fs::File::create`
-
-- **类别**: 安全
-- **位置**: `src-tauri/src/commands/export.rs:105, 218`、`src-tauri/capabilities/default.json:22-34`
-- **描述**: 导出命令直接使用 `std::fs::File::create`，完全绕过 Tauri 的 FS 插件 scope 限制。`fs:scope` 的拒绝列表（`**/.env`、`**/*.keystore` 等）仅对前端 JavaScript 通过 `@tauri-apps/plugin-fs` 的调用生效，Rust 后端可写入 OS 用户有权限的任意路径。
-- **影响**: 文件系统安全策略被绕过，前端可间接写入受保护路径。
-
-#### CR-05: `$HOME/**` 文件系统权限范围过大
-
-- **类别**: 安全
-- **位置**: `src-tauri/capabilities/default.json:28`
-- **描述**: 文件系统 scope 授予应用对整个用户主目录的写权限。结合 `fs:allow-write-file` 和 `fs:allow-mkdir`，前端 JS 可在用户主目录下任意位置写入文件，违反最小权限原则。
-- **影响**: 应用被 XSS 攻击后可在用户主目录下写入任意文件。
-
-#### CR-06: CSP 包含开发环境专用 localhost 地址
-
-- **类别**: 安全
-- **位置**: `src-tauri/tauri.conf.json:27`
-- **描述**: Content Security Policy 的 `connect-src` 包含 `http://localhost:3000/`、`http://localhost:5173/`、`ws://localhost:1420/`、`http://localhost:1420/`，这些是 Vite 开发服务器地址。在生产构建中，攻击者可在本地运行服务绕过 CSP 限制。
-- **影响**: 生产环境 CSP 形同虚设，数据可通过本地服务外泄。
-
-#### CR-07: Android 签名密钥文件存在于磁盘
-
-- **类别**: 安全
-- **位置**: `camforge-next.keystore`
-- **描述**: Android 签名密钥文件存在于项目根目录。虽然 `.gitignore` 的 `*.keystore` 通配符规则目前生效，但文件名 `camforge-next.keystore` 与 `.gitignore` 中显式列出的 `camforge.keystore` 不匹配，仅依赖通配符保护。
-- **影响**: 误操作 `git add .` 或修改 `.gitignore` 规则可能导致密钥泄露。
-
-#### CR-08: Tauri 自动生成代码被提交到 Git
-
-- **类别**: 依赖管理 / 安全
-- **位置**: `src-tauri/gen/`
-- **描述**: `src-tauri/gen/` 下 40+ 个自动生成文件被 Git 跟踪，包括 Android 构建配置、Kotlin 源码、图标 PNG 等。此目录应由 `tauri android init` 自动重新生成，不应纳入版本控制。
-- **影响**: 仓库膨胀（二进制资源），且可能因过期生成代码覆盖新生成结果。
-
-#### CR-09: 前端 `MotionLaw` 枚举重复定义，存在静默分歧风险
-
-- **类别**: 代码质量 / 架构设计
-- **位置**: `src/types/index.ts:8-33`、`src/services/motion.ts:10-35`
-- **描述**: `MotionLaw` 枚举和 `MotionLawNames` 记录在 `types/index.ts` 和 `services/motion.ts` 中完全相同地定义了两次。`motion.ts` 不从 `types/index.ts` 导入。若仅更新其一，两个定义将静默分歧，导致逻辑错误。
-- **影响**: 枚举值不一致时运动规律计算结果将完全不同，且难以调试。
-
-#### CR-10: 前端 `isTauriEnv()` 函数重复定义，实现不一致
-
-- **类别**: 代码质量
-- **位置**: `src/utils/tauri.ts:12`、`src/utils/platform.ts:5`
-- **描述**: 两个独立的 `isTauriEnv()` 函数存在。`tauri.ts` 直接检查 `'__TAURI_INTERNALS__' in window`，`platform.ts` 包装了 try/catch。不同文件从不同位置导入，try/catch 行为差异可能导致不一致。
-- **影响**: 平台检测逻辑分散，维护困难且可能产生行为差异。
-
-#### CR-11: CSV 导出未转义包含逗号或引号的值
-
-- **类别**: 安全
-- **位置**: `src/exporters/csv.ts:41-61`
-- **描述**: 数据值以逗号分隔但未进行引号转义。若值包含逗号、引号或换行符，CSV 结构将被破坏。更重要的是，在 Excel 中打开时以 `=`、`+`、`-`、`@` 开头的值可触发公式注入。
-- **影响**: 导出的 CSV 文件可能被利用进行公式注入攻击。
-
-#### CR-12: `loadPresetFromJSON` 未验证用户输入的 JSON 字段值
-
-- **类别**: 安全 / 代码质量
-- **位置**: `src/stores/simulation.ts:1116-1148`
-- **描述**: 函数解析 JSON 并检查必需键存在，但从不验证值是否为有效数字且在可接受范围内。恶意构造的预设文件可注入 `Infinity`、`NaN`、负 `n_points` 或非整数 `tc_law` 值，这些值直接通过 `setParams(preset.params)` 应用到状态。
-- **影响**: 恶意预设文件可导致应用崩溃或产生不可预测的计算结果。
-
-#### CR-13: `NumberInput` 组件在验证前调用 `onChange`，无效值已传播到状态
-
-- **类别**: 代码质量
-- **位置**: `src/components/controls/NumberInput.tsx:27-57`
-- **描述**: 在 `validateAndNotify()` 中，`props.onChange(num)` 在第 47 行被调用，**早于** 第 49 行的 `onValidate` 检查。若 `onValidate` 返回 `false`，该值已被应用到全局状态并可能触发模拟计算。
-- **影响**: 无效参数值可绕过验证进入状态存储，导致模拟计算错误或崩溃。
-
-#### CR-14: 缺少 `LICENSE` 文件
-
-- **类别**: 文档
-- **位置**: 项目根目录（文件不存在）
-- **描述**: `README.md` 和 `package.json` 均声明 MIT 许可证，但仓库中不存在 `LICENSE` 文件。无许可证文件意味着代码在法律上是"保留所有权利"，与声明的 MIT 许可不符。
-- **影响**: 法律合规问题，潜在贡献者可能因许可证不明确而放弃参与。
-
-#### CR-15: 服务器无请求体大小限制，可导致拒绝服务
-
-- **类别**: 安全
-- **位置**: `crates/camforge-server/src/main.rs:52-61`
-- **描述**: Axum 默认不限制请求体大小。攻击者可 POST 任意大 JSON 负载到 `/api/simulate`、`/api/export/dxf` 等端点，耗尽服务器内存。
-- **影响**: 服务器可被单个大请求瘫痪。
+- **问题描述**: 在随机化参数后为避免平底从动件产生凹面区域的重试循环中（[randomize.ts:110-120](src/stores/simulation/randomize.ts#L110-L120)），`runSimulation()` 是异步函数但调用时未使用 `await`。由于 `setSimulationData(data)` 在 [core.ts:102](src/stores/simulation/core.ts#L102) 中是异步执行的，循环中立即读取的 `simulationData()?.has_concave_region` 获取的是**上一次模拟运行的陈旧数据**。这导致重试逻辑完全失效——循环可能在首次迭代就错误退出，或执行完所有 10 次迭代才退出（每次读到的都是变更前的旧状态）。平底从动件随机化时无法正确规避凹面区域。
+- **问题位置**: [src/stores/simulation/randomize.ts:110-120](src/stores/simulation/randomize.ts#L110-L120)
+- **严重程度**: 严重
+- **问题类别**: 代码质量、测试
+- **影响范围**: 平底从动件随机化功能完全不可靠
 
 ---
 
-### 3.2 高严重度问题（High）
+### 3.2 高（High）
 
-#### HI-01: 服务器 TCP 绑定使用 `unwrap()` 导致硬 panic
+#### ⬜ HI-01: Tauri 命令与 Axum 路由间存在大量计算逻辑重复
 
-- **类别**: 代码质量
-- **位置**: `crates/camforge-server/src/main.rs:66, 77`
-- **描述**: `TcpListener::bind(&addr).await.unwrap()` 和 `axum::serve(listener, app).await.unwrap()` 在端口被占用或地址无效时会 panic 整个服务器进程，无有用的错误信息。
-- **影响**: 服务器无法优雅处理启动失败。
+- **问题描述**: `run_simulation`（[commands/simulation.rs:41-235](src-tauri/src/commands/simulation.rs#L41-L235)）和 `simulate`（[routes/simulation.rs:25-212](crates/camforge-server/src/routes/simulation.rs#L25-L212)）包含约 200 行几乎逐行相同的凸轮轮廓计算、曲率半径计算、最小曲率半径搜索及凹面检测代码。此外，[commands/export.rs:155-245](src-tauri/src/commands/export.rs#L155-L245) 和 [routes/export.rs:257-365](crates/camforge-server/src/routes/export.rs#L257-L365) 中的 DXF 生成逻辑也完全重复。任何计算逻辑的变更或 Bug 修复需要在两处同步进行，极易产生不一致。`camforge-core` 作为共享库本应封装完整的仿真计算流程，但目前每次调用仍需消费者自行组装多步骤计算管道。
+- **问题位置**:
+  - [src-tauri/src/commands/simulation.rs:41-235](src-tauri/src/commands/simulation.rs#L41-L235)
+  - [crates/camforge-server/src/routes/simulation.rs:25-212](crates/camforge-server/src/routes/simulation.rs#L25-L212)
+  - [src-tauri/src/commands/export.rs:155-245](src-tauri/src/commands/export.rs#L155-L245)
+  - [crates/camforge-server/src/routes/export.rs:257-365](crates/camforge-server/src/routes/export.rs#L257-L365)
+- **严重程度**: 高
+- **问题类别**: 架构设计
+- **影响范围**: 双模式（桌面+Web）代码一致性维护成本极高
 
-#### HI-02: 运动规律计算存在两套重复实现
+#### ⬜ HI-02: 三个图表组件各自实现完全独立但逻辑相同的交互处理代码
 
-- **类别**: 架构设计 / 代码质量
-- **位置**: `crates/camforge-core/src/motion.rs:18-108`、`crates/camforge-core/src/full_motion.rs:112-177`
-- **描述**: `motion.rs` 的 `compute_rise()`/`compute_return()` 和 `full_motion.rs` 的 `compute_motion_point()` 分别实现了相同的六种运动规律。任何 bug 修复必须在两处同时应用，且两者可能产生不同结果。
-- **影响**: 运动规律计算结果可能因代码路径不同而产生分歧。
+- **问题描述**: `MotionCurves.tsx`（[341-397](src/components/charts/MotionCurves.tsx#L341-L397)）、`GeometryChart.tsx`（[257-313](src/components/charts/GeometryChart.tsx#L257-L313)）、`CurvatureChart.tsx`（[363-419](src/components/charts/CurvatureChart.tsx#L363-L419)）三个图表组件中各自独立实现了鼠标悬停提示框渲染（~200 行重复）、`getFrameFromX` 坐标转换、`handleMouseDown/Move/Up` 事件处理等完全相同的逻辑。项目中已存在共享 Hook `useChartInteraction.ts`（149 行）和 `useChartPadding.ts`（71 行）专门为此设计，但三个图表组件均未导入这些 Hook。此外，7 个图表相关文件各自独立绘制了相同的网格线/相位边界/背景/标题样板代码（~350 行重复）。
+- **问题位置**:
+  - [src/components/charts/MotionCurves.tsx:271-397](src/components/charts/MotionCurves.tsx#L271-L397)
+  - [src/components/charts/GeometryChart.tsx:195-313](src/components/charts/GeometryChart.tsx#L195-L313)
+  - [src/components/charts/CurvatureChart.tsx:286-419](src/components/charts/CurvatureChart.tsx#L286-L419)
+  - [src/utils/chartDrawing/motionCurves.ts:53-88](src/utils/chartDrawing/motionCurves.ts#L53-L88)
+  - [src/utils/chartDrawing/curvature.ts:53-88](src/utils/chartDrawing/curvature.ts#L53-L88)
+  - [src/utils/chartDrawing/pressureAngle.ts:53-88](src/utils/chartDrawing/pressureAngle.ts#L53-L88)
+  - [src/hooks/useChartInteraction.ts](src/hooks/useChartInteraction.ts) (未被引用)
+  - [src/hooks/useChartPadding.ts](src/hooks/useChartPadding.ts) (未被引用)
+- **严重程度**: 高
+- **问题类别**: 代码质量、架构设计
+- **影响范围**: 每次修改交互行为需要同时修改 3-7 个文件
 
-#### HI-03: `compute_rise`/`compute_return` 除零风险
+#### ✅ HI-03: `chartColors.ts` 颜色常量完整定义但从未被图表绘制函数使用
 
-- **类别**: 代码质量
-- **位置**: `crates/camforge-core/src/motion.rs:34, 46, 60, 70, 80`
-- **描述**: 当 `delta_0` 或 `delta_ret` 为零时直接除以零，产生 NaN/Inf。虽然 `validate_motion_params` 检查了这些值，但公开 API 函数可被外部库消费者直接调用。
-- **影响**: 库 API 缺乏防御性，外部调用者可能得到静默的 NaN 结果。
+- **问题描述**: [chartColors.ts](src/constants/chartColors.ts) 定义了 37 个颜色常量，组织为 6 个语义色彩对象（`MOTION_COLORS`、`PRESSURE_ANGLE_COLORS`、`CURVATURE_COLORS`、`CAM_PROFILE_COLORS`、`ANIMATION_COLORS`、`CHART_COLORS`）。然而，所有图表绘制工具函数和组件中均直接硬编码了十六进制颜色字符串（如 `motionCurves.ts` 使用 `'#DC2626'`、`'#2563EB'` 而应使用 `MOTION_COLORS`；`curvature.ts` 使用 `'#DC2626'` 而非 `CURVATURE_COLORS.theoryRho`）。这不仅使颜色常量文件成为死代码，也使得全局颜色方案调整需要逐个修改散落在 8 个文件中的硬编码值。
+- **问题位置**:
+  - [src/constants/chartColors.ts](src/constants/chartColors.ts) (完整定义但未被引用)
+  - [src/utils/chartDrawing/motionCurves.ts](src/utils/chartDrawing/motionCurves.ts) (硬编码颜色)
+  - [src/utils/chartDrawing/curvature.ts](src/utils/chartDrawing/curvature.ts) (硬编码颜色)
+  - [src/utils/chartDrawing/pressureAngle.ts](src/utils/chartDrawing/pressureAngle.ts) (硬编码颜色)
+  - [src/utils/chartDrawing/camProfile.ts](src/utils/chartDrawing/camProfile.ts) (硬编码颜色)
+- **严重程度**: 高
+- **问题类别**: 代码质量
+- **影响范围**: 全局配色方案维护困难，设计不一致风险
 
-#### HI-04: 服务器无请求速率限制
+#### ⬜ HI-04: `io/storage.ts` 模块完全未被任何源文件导入
 
-- **类别**: 安全
-- **位置**: `crates/camforge-server/src/main.rs:20-43`
-- **描述**: `/api/simulate` 端点执行完整的凸轮模拟计算（最多 720 个点的多项式求值、曲率计算、轮廓生成），无任何速率限制。简单循环即可耗尽 CPU。
-- **影响**: 计算密集型端点可被恶意循环耗尽服务器资源。
+- **问题描述**: [io/storage.ts](src/io/storage.ts) 是一个 147 行的存储抽象层实现，提供了 `StorageAdapter` 接口、`LocalStorageAdapter`（含 JSON 序列化/反序列化）和 `MemoryStorageAdapter`（localStorage 不可用时的内存回退）。然而，项目中无任何源文件导入该模块。所有需要存储功能的模块（`settings.ts`、`presets.ts`、`i18n/index.ts`）均直接操作 `localStorage` 全局对象，这相当于存在一个完整的抽象层但完全未被使用。
+- **问题位置**: [src/io/storage.ts](src/io/storage.ts)
+- **严重程度**: 高
+- **问题类别**: 代码质量、架构设计
+- **影响范围**: 147 行死代码，同时各模块绕过统一存储接口，增加了存储逻辑不一致的风险
 
-#### HI-05: `CamParams::validate()` 已定义但从未被调用
+#### ⬜ HI-05: `MainCanvas.tsx` 严重单文件巨型组件（983 行）
 
-- **类别**: 架构设计
-- **位置**: `crates/camforge-core/src/types.rs:68-115`、`src-tauri/src/commands/simulation.rs:39`
-- **描述**: `CamParams` 有全面的 `validate()` 方法检查所有约束，但 `run_simulation` 从未调用它。验证分散在下游函数中，导致 `n_points > 720` 不被强制执行，且错误消息语言不一致（部分中文、部分英文）。
-- **影响**: 参数验证不完整，部分约束未被检查。
+- **问题描述**: [MainCanvas.tsx](src/components/layout/MainCanvas.tsx) 包含仿真/导出双标签页逻辑、导出按钮组件、图例渲染、自定义导出 UI（200+ 行表单状态管理）、动画帧数据计算、状态显示等多个职责域。单文件 983 行的体量使其极难维护，自定义导出表单和导出逻辑可单独提取为独立组件。
+- **问题位置**: [src/components/layout/MainCanvas.tsx](src/components/layout/MainCanvas.tsx)
+- **严重程度**: 高
+- **问题类别**: 代码质量
+- **影响范围**: 导出功能维护困难，代码理解成本高
 
-#### HI-06: 互斥锁中毒恢复隐藏数据损坏
+#### ⬜ HI-06: `CamAnimation.tsx` 严重单文件巨型组件（877 行）
 
-- **类别**: 代码质量 / 架构设计
-- **位置**: `src-tauri/src/commands/simulation.rs:117-118, 128-129`、`src-tauri/src/commands/export.rs:100, 213`
-- **描述**: 所有互斥锁使用 `unwrap_or_else(|e| e.into_inner())` 静默恢复中毒状态。中毒的互斥锁意味着持有锁的线程发生了 panic，数据可能处于不一致状态。静默继续可能导致返回错误的模拟数据或写入损坏的导出文件。
-- **影响**: 数据一致性无法保证，可能导致难以调试的级联错误。
+- **问题描述**: [CamAnimation.tsx](src/components/animation/CamAnimation.tsx) 同时包含 SVG 渲染、动画帧循环、触摸/捏合手势处理、键盘事件绑定、缩放/平移状态、5 种不同从动件类型的渲染逻辑及播放控制条。建议拆分为独立模块：`followerRenderer.ts`、`animationLoop.ts`、`touchHandlers.ts` 各自负责单一职责。
+- **问题位置**: [src/components/animation/CamAnimation.tsx](src/components/animation/CamAnimation.tsx)
+- **严重程度**: 高
+- **问题类别**: 代码质量
+- **影响范围**: 核心动画组件几乎无法进行增量修改或单元测试
 
-#### HI-07: CI 测试工作流使用 `pnpm test`（watch 模式）而非 `pnpm test:run`
+#### ⬜ HI-07: `GeometryChart` 组件命名与功能不匹配
 
-- **类别**: CI/CD
-- **位置**: `.github/workflows/test.yml:29`
-- **描述**: `package.json` 定义 `"test": "vitest"` 启动交互式 watch 模式。在 CI 中这将无限挂起（或直到 GitHub Actions 的 6 小时超时）。虽然 Vitest 自动检测 CI 环境禁用 watch，但依赖隐式行为是脆弱的。
-- **影响**: CI 测试可能超时失败。
+- **问题描述**: 组件文件命名为 `GeometryChart.tsx`，在 `MainCanvas.tsx` 中也以 `GeometryChart` 导入，但图表标题显示"压力角曲线 / Pressure Angle Curve"。该组件实际渲染的是压力角图表而非凸轮几何图。命名误导性严重影响代码导航和理解。
+- **问题位置**:
+  - [src/components/charts/GeometryChart.tsx:1](src/components/charts/GeometryChart.tsx#L1) (组件定义)
+  - [src/components/charts/GeometryChart.tsx:54](src/components/charts/GeometryChart.tsx#L54) (标题"压力角曲线")
+  - [src/components/layout/MainCanvas.tsx:6](src/components/layout/MainCanvas.tsx#L6) (导入引用)
+- **严重程度**: 高
+- **问题类别**: 代码质量
+- **影响范围**: 代码导航混淆，新开发者需要额外时间理解组件映射
 
-#### HI-08: CI Rust 测试仅在 `src-tauri` 运行，未覆盖完整工作区
+#### ⚠️ HI-08: Axum 安全中间件对每个响应完整缓冲 1MB 请求体
 
-- **类别**: CI/CD
-- **位置**: `.github/workflows/test.yml:42-44`
-- **描述**: 工作区有 3 个 crate（`camforge-core`、`camforge-server`、`src-tauri`），但 CI 仅测试 `src-tauri`。`camforge-core` 有 5 个文件的测试、`camforge-server` 有路由处理器均未在 CI 中测试。
-- **影响**: 核心库和服务端代码的回归不会被 CI 捕获。
+- **问题描述**: CSP nonce 替换中间件（[main.rs:143-150](crates/camforge-server/src/main.rs#L143-L150)）对每个 HTTP 响应执行 `axum::body::to_bytes(body, 1024 * 1024).await`，将整个响应体读入内存以替换 `__CSP_NONCE__` 占位符。此操作对所有响应执行——包括不包含 HTML 的 JSON API 响应和二进制导出数据——因为内容类型检查在缓冲之后才执行。对于主要返回 JSON/二进制的 API 服务器而言，这是不必要的性能开销。
+- **问题位置**: [crates/camforge-server/src/main.rs:143-150](crates/camforge-server/src/main.rs#L143-L150)
+- **严重程度**: 高
+- **问题类别**: 性能、架构设计
+- **影响范围**: 每个 API 响应均增加不必要的内存分配和延迟
 
-#### HI-09: `camforge-server` 零测试覆盖
+#### ⬜ HI-09: Axum API 服务器完全无身份验证机制
 
-- **类别**: 测试
-- **位置**: `crates/camforge-server/src/`（5 个源文件）
-- **描述**: 服务器 crate 的 5 个源文件（`main.rs`、`error.rs`、`routes/mod.rs`、`routes/simulation.rs`、`routes/export.rs`）无任何 `#[test]` 或 `#[cfg(test)]` 标注。
-- **影响**: API 端点、错误处理和路由逻辑完全未被测试覆盖。
+- **问题描述**: Web 服务器模式下的所有端点（`/api/simulate`、`/api/export/*`）均无需任何身份验证即可访问。虽然后端配置了 CORS 和 CSP（提供浏览器层面的基础保护），但任何能路由到服务器的非浏览器客户端（同一网络上的对等节点、SSRF 攻击源）均可无限制调用所有计算密集型 API。
+- **问题位置**: [crates/camforge-server/src/main.rs:100-140](crates/camforge-server/src/main.rs#L100-L140) (路由注册无认证中间件)
+- **严重程度**: 高
+- **问题类别**: 安全
+- **影响范围**: Web 部署模式下所有 API 端点无保护暴露
 
-#### HI-10: Tailwind CSS v4 配置不匹配
+#### ✅ HI-10: 速率限制参数被解析但从未实施
 
-- **类别**: 兼容性
-- **位置**: `tailwind.config.js`、`postcss.config.js`、`package.json:50`
-- **描述**: 项目使用 Tailwind CSS v4.2.3，但配置使用 v3 范式：JavaScript `tailwind.config.js` 文件带 `content` 和 `theme.extend` 键。在 Tailwind v4 中，配置通过 CSS `@theme` 指令完成，JavaScript 配置文件仅在 CSS 中显式 `@config` 导入时才加载。当前设置可能静默失败，不应用自定义主题颜色和字体。
-- **影响**: 自定义主题样式可能不生效，UI 显示为 Tailwind 默认样式。
+- **问题描述**: [main.rs:175-179](crates/camforge-server/src/main.rs#L175-L179) 读取环境变量 `RATE_LIMIT`，打印 `"Rate limit: 60 requests/minute per IP"` 日志，但该值从未传递给任何 Tower 速率限制中间件。服务器实际上**完全无速率限制保护**。攻击者可对 `/api/simulate` 等计算密集型端点发起洪水攻击。误导性的日志输出会让运维人员以为防护已生效。
+- **问题位置**: [crates/camforge-server/src/main.rs:175-179](crates/camforge-server/src/main.rs#L175-L179)
+- **严重程度**: 高
+- **问题类别**: 安全、性能
+- **影响范围**: Web 服务可被恶意请求洪泛导致拒绝服务
 
-#### HI-11: `autoprefixer` 与 Tailwind v4 冗余
+#### ✅ HI-11: Tauri CSV 导出缺少 `rho_actual` 列且无公式注入防护
 
-- **类别**: 依赖管理
-- **位置**: `postcss.config.js:3`、`package.json:44`
-- **描述**: Tailwind CSS v4 内置供应商前缀功能，`autoprefixer` 插件及其依赖冗余，增加构建开销并可能产生冲突的前缀规则。
-- **影响**: 不必要的构建时间和潜在的样式冲突。
+- **问题描述**: 服务器端 CSV 导出（[routes/export.rs:367-438](crates/camforge-server/src/routes/export.rs#L367-L438)）在滚子半径 > 0 时包含 `rho_actual`（实际轮廓曲率半径）列，并且使用 `csv_escape` 对单元格进行公式注入防护（转义以 `=`、`+`、`-`、`@` 开头的值）。但 Tauri 桌面端 CSV 导出（[commands/export.rs:269-312](src-tauri/src/commands/export.rs#L269-L312)）完全省略了 `rho_actual` 列，也没有任何 CSV 转义处理。这导致桌面用户获得不完整的数据集且面临 Excel 公式注入风险。
+- **问题位置**:
+  - [src-tauri/src/commands/export.rs:269-312](src-tauri/src/commands/export.rs#L269-L312)
+  - [crates/camforge-server/src/routes/export.rs:367-438](crates/camforge-server/src/routes/export.rs#L367-L438)
+- **严重程度**: 高
+- **问题类别**: 安全、兼容性
+- **影响范围**: 桌面端导出数据不完整且存在安全风险
 
-#### HI-12: `ErrorBoundary` 不是真正的 SolidJS 错误边界
+#### ✅ HI-12: 项目同时存在 `package-lock.json` 和 `pnpm-lock.yaml` 两个锁文件
 
-- **类别**: 代码质量
-- **位置**: `src/components/ErrorBoundary.tsx:1-99`
-- **描述**: SolidJS 没有 React 风格的组件级错误边界。该组件监听 `window 'error'` 和 `unhandledrejection` 事件，**不会** 捕获子组件渲染期间抛出的错误。若组件 JSX 抛出异常，整个应用将未处理崩溃。
-- **影响**: 组件渲染错误导致应用白屏崩溃。
+- **问题描述**: 项目根目录同时存在 npm 的 `package-lock.json`（最后修改 4月28日）和 pnpm 的 `pnpm-lock.yaml`（最后修改 4月30日）。`README.md` 推荐使用 pnpm，但若有人无意中执行 `npm install`，两个锁文件将产生不同的依赖树，导致难以排查的环境不一致问题。
+- **问题位置**: `package-lock.json`、`pnpm-lock.yaml`（项目根目录）
+- **严重程度**: 高
+- **问题类别**: 依赖管理
+- **影响范围**: 多人协作时依赖版本不一致，导致"在我机器上能跑"问题
 
-#### HI-13: `canvas.getContext('2d')!` 非空断言无回退
+#### ✅ HI-13: Tauri 命令锁序契约无文档记录，存在潜在死锁风险
 
-- **类别**: 代码质量
-- **位置**: `src/exporters/tiff.ts:23, 89`、`src/stores/simulation.ts:970, 1026`
-- **描述**: 使用非空断言操作符。若 canvas 处于损坏状态或平台不支持 2D 上下文，将在运行时抛出异常。
-- **影响**: 特定环境下应用崩溃。
+- **问题描述**: `get_frame_data`（[commands/simulation.rs:246-254](src-tauri/src/commands/simulation.rs#L246-L254)）和 `run_simulation`（[commands/simulation.rs:225-232](src-tauri/src/commands/simulation.rs#L225-L232)）均按 `data`→`params` 的顺序获取 `Mutex` 锁，当前不存在死锁。但如果未来的开发者在新增函数中以相反顺序（`params`→`data`）获取锁，将产生经典死锁条件。关键的锁获取顺序契约没有被任何注释、文档或基于作用域的 Drop 守卫记录下来。
+- **问题位置**: [src-tauri/src/commands/simulation.rs:225-254](src-tauri/src/commands/simulation.rs#L225-L254)
+- **严重程度**: 高
+- **问题类别**: 架构设计
+- **影响范围**: 后续代码变更可能引入运行时死锁
 
-#### HI-14: 图表组件直接访问 `window.innerWidth` 而非使用响应式信号
+#### ⬜ HI-14: SECURITY.md 安全声明与代码实际状态不符
 
-- **类别**: 性能 / 代码质量
-- **位置**: `src/components/charts/CurvatureChart.tsx:33-41`、`GeometryChart.tsx:33-41`、`MotionCurves.tsx:33-41`
-- **描述**: 每个图表的 `draw()` 函数直接调用 `window.innerWidth`。由于 `window.innerWidth` 不是信号，在 `createEffect` 中调用时，窗口大小改变后 padding 计算将使用过期值，直到下次信号触发的重绘。
-- **影响**: 窗口调整大小后图表布局可能短暂不正确。
+- **问题描述**: `SECURITY.md` 中声称的安全措施——"Input validation: All simulation parameters are validated for NaN/Infinity"、"CSV escaping: Export data is sanitized to prevent formula injection"、"Request limiting: API rate limiting is enforced"——这些是 v0.4.5 安全修复后的**期望状态**而非当前代码的真实状态。如上文 HI-10 所示，速率限制并未实施；HI-11 显示只有服务器端 CSV 有转义。文档与实际的不一致可能导致错误的信任假设。
+- **问题位置**: [SECURITY.md](SECURITY.md)
+- **严重程度**: 高
+- **问题类别**: 文档、安全
+- **影响范围**: 安全审计和合规性评估可能基于错误信息
 
-#### HI-15: `Math.max(...largeArray.map(...))` 可能栈溢出
+#### ⬜ HI-15: 缺少 OpenAPI/Swagger API 规范文档
 
-- **类别**: 性能
-- **位置**: `src/components/charts/CurvatureChart.tsx:95`、`MotionCurves.tsx:95-96`、`GeometryChart.tsx:95`
-- **描述**: 使用 `Math.max(...alpha_all.map(Math.abs))` 模式。项目已有 `arrayMax`/`arrayMaxBy` 安全工具函数，但图表组件未使用。虽然当前 `n_points` 最大 720 在安全范围内，但与项目自身规范不一致。
-- **影响**: 若未来增大 `n_points` 上限，可能导致栈溢出。
+- **问题描述**: 尽管 `docs/ARCHITECTURE.md` 列出了端点列表，`docs/DEPLOYMENT.md` 包含 curl 示例，但项目完全没有 OpenAPI/Swagger 规范、自动生成式 API 文档或正式的 API 参考文档。所有 API 文档仅以 Rust 内联 doc 注释的形式存在。`REFACTORING_PLAN.md` Phase 3 步骤 3.8 "Add API documentation comments" 标记为未完成。
+- **问题位置**: 项目整体
+- **严重程度**: 高
+- **问题类别**: 文档
+- **影响范围**: API 消费者（包括前端团队和第三方集成者）缺乏结构化参考
 
-#### HI-16: `generateSVG()` 函数约 900 行模板字符串
+#### ⬜ HI-16: 前端 TypeScript JSDoc 覆盖率仅约 17%
 
-- **类别**: 架构设计 / 代码质量
-- **位置**: `src/stores/simulation.ts:553-943`
-- **描述**: 通过约 390 行的模板字面量生成 SVG 内容，难以维护、调试和测试。未转义值——若标签包含 XML 特殊字符（`<`、`>`、`&`），SVG 将格式错误。
-- **影响**: 代码可维护性极差，XML 注入风险。
+- **问题描述**: 在约 65 个前端源文件中，仅有 6 个文件包含 JSDoc `/** */` 注释（`types/index.ts`、`useChartInteraction.ts`、`useChartPadding.ts`、`gifEncoder.ts`、`history.ts`、`csv.ts`）。其余 ~59 个文件——包括所有图表组件、动画组件、UI 控件、API 适配层、状态管理模块——均缺乏 JSDoc 文档。`CONTRIBUTING.md` 虽然规定了 JSDoc 格式标准，但未被遵守。
+- **问题位置**: `src/` 目录中 59 个文件缺少 JSDoc
+- **严重程度**: 高
+- **问题类别**: 文档
+- **影响范围**: 新开发者上手困难，IDE 智能提示信息缺失
 
-#### HI-17: 触摸事件未在单指滑动时调用 `preventDefault()`
+#### ⬜ HI-17: Tauri 桌面模式下 CSP 允许加载 Google Fonts CDN 外部资源
 
-- **类别**: 兼容性
-- **位置**: `src/components/animation/CamAnimation.tsx:366-387`
-- **描述**: `handleTouchMove` 仅在双指缩放时调用 `e.preventDefault()`，单指帧拖动时不调用，可能导致移动设备上意外的滚动行为。
-- **影响**: 移动端用户体验受影响，拖动帧时页面可能意外滚动。
+- **问题描述**: [tauri.conf.json:27](src-tauri/tauri.conf.json#L27) 的 CSP 策略中 `style-src`、`font-src`、`connect-src` 均允许 `https://fonts.googleapis.com` 和 `https://fonts.gstatic.com`。对于桌面应用程序（Tauri 模式），没有理由从外部 CDN 加载字体——字体应当本地打包或随应用分发。允许外部字体 CDN 连接增加了不必要的网络依赖和潜在的内容篡改风险。
+- **问题位置**: [src-tauri/tauri.conf.json:27](src-tauri/tauri.conf.json#L27)
+- **严重程度**: 高
+- **问题类别**: 安全、架构设计
+- **影响范围**: 桌面应用在离线环境下字体加载失败，外部 CDN 依赖增加攻击面
 
-#### HI-18: 同一组件中多次 `onMount()` 调用
+#### ⬜ HI-18: Tauri 桌面端命令零测试覆盖
 
-- **类别**: 架构设计
-- **位置**: `src/App.tsx:41, 55`、`CurvatureChart.tsx:421, 443`、`GeometryChart.tsx:315, 337`、`MotionCurves.tsx:399, 426`、`HelpPanel.tsx:27, 49`、`SettingsPanel.tsx:34, 56`
-- **描述**: 多个组件在同一组件中使用多个 `onMount()` 调用，分散生命周期逻辑，增加初始化顺序的理解难度。
-- **影响**: 代码可读性降低，初始化逻辑难以追踪。
-
-#### HI-19: 服务器计算管道在导出端点中重复
-
-- **类别**: 架构设计 / 代码质量
-- **位置**: `crates/camforge-server/src/routes/export.rs:25-43, 46-84`、`routes/simulation.rs:20-101`
-- **描述**: 每个导出路由（`export_dxf`、`export_csv`）独立运行完整计算管道（`compute_full_motion` → `compute_cam_profile` → `compute_roller_profile` → `compute_curvature_radius` → `compute_pressure_angle`），与 `simulation.rs` 重复。任何管道变更必须在三处更新。
-- **影响**: 代码重复导致维护成本高，且易引入不一致。
-
-#### HI-20: `CamParams::validate()` 不检查 NaN 或 Infinity
-
-- **类别**: 代码质量 / 安全
-- **位置**: `crates/camforge-core/src/types.rs:66-116`
-- **描述**: 所有 `f64` 字段可通过反序列化设为 NaN 或 Infinity。验证函数检查 `self.h <= 0.0`，但 `NaN <= 0.0` 返回 `false`，因此 NaN 的 `h` 通过验证。下游计算将静默产生 NaN 结果。
-- **影响**: 无效输入参数通过验证，导致计算结果全为 NaN。
-
-#### HI-21: 生产环境 CSP 包含 localhost URL
-
-- **类别**: 安全
-- **位置**: `src-tauri/tauri.conf.json:27`
-- **描述**: CSP `connect-src` 包含 `ws://localhost:1420/`、`http://localhost:1420/`、`http://localhost:3000/`、`http://localhost:5173/` 等开发服务器地址。在生产构建中应移除。
-- **影响**: XSS 攻击者可利用本地服务进行数据外泄。
-
-#### HI-22: 家目录写权限范围过大
-
-- **类别**: 安全
-- **位置**: `src-tauri/capabilities/default.json:27`
-- **描述**: `{ "path": "$HOME/**" }` 授予对整个用户主目录的写权限。应缩小到 `$DOWNLOAD/**` 和 `$DOCUMENT/**` 等特定目录。
-- **影响**: 前端 JS 可在用户主目录下任意位置写入文件。
+- **问题描述**: `src-tauri/src/commands/` 下的 `run_simulation`、`get_frame_data`、`export_dxf`、`export_csv` 四个核心 IPC 命令完全没有任何单元测试。这是桌面应用的主要入口点，数据验证和业务逻辑的关键路径。`camforge-core` 库的测试仅覆盖底层数学模型，不覆盖命令处理器中的 IPC 参数解析、状态管理、锁行为和导出路径验证。
+- **问题位置**: [src-tauri/src/commands/](src-tauri/src/commands/)（整个目录零测试）
+- **严重程度**: 高
+- **问题类别**: 测试
+- **影响范围**: 桌面应用核心命令路径回归风险极高
 
 ---
 
-### 3.3 中等严重度问题（Medium）
+### 3.3 中（Medium）
 
-#### ME-01: 浮点数精确比较 `r_r == 0.0`
+#### ⬜ ME-01: `TitleBar.tsx`、`SettingsPanel.tsx` 等布局组件零测试
 
-- **类别**: 代码质量
-- **位置**: `crates/camforge-core/src/profile.rs:98`
-- **描述**: 浮点数相等比较不可靠。若 `r_r` 从其他运算得到 `1e-16` 而非 `0.0`，函数将进入滚子计算路径而非快速路径。
-- **影响**: 特定参数组合下可能走错计算分支。
+- **问题描述**: 自定义标题栏组件（含窗口控制按钮：最小化/最大化/关闭）、设置面板（含拖拽调整宽度）、帮助面板、侧边栏、状态栏等关键布局组件均无任何测试覆盖。
+- **问题位置**: [src/components/layout/TitleBar.tsx](src/components/layout/TitleBar.tsx)、[SettingsPanel.tsx](src/components/layout/SettingsPanel.tsx)、[HelpPanel.tsx](src/components/layout/HelpPanel.tsx)、[Sidebar.tsx](src/components/layout/Sidebar.tsx)
+- **严重程度**: 中
+- **问题类别**: 测试
 
-#### ME-02: `powf(1.5)` 计算效率低
+#### ⬜ ME-02: 图表组件零 Canvas 渲染测试
 
-- **类别**: 性能
-- **位置**: `crates/camforge-core/src/geometry.rs:86`
-- **描述**: `powf(1.5)` 显著慢于 `speed_sq * speed_sq.sqrt()`。在 360-720 个点的热循环中，性能差异明显。
-- **影响**: 压力角计算效率可优化约 30-50%。
+- **问题描述**: `MotionCurves.tsx`、`CurvatureChart.tsx`、`GeometryChart.tsx` 三个 Canvas 图表组件完全无测试覆盖。`chartDrawing.test.ts` 仅测试了 `validateChartData` 和 `normalizeChartOptions` 两个入口参数校验函数，而核心绘制函数（`drawMotionCurves`、`drawCamProfile`、`drawCurvatureRadius`、`drawPressureAngle`、`drawAnimationFrame`、`exportToCanvas`）均未测试。Canvas 2D 上下文的 mock 机制在 Vitest + jsdom 中可用但未被利用。
+- **问题位置**:
+  - [src/components/charts/](src/components/charts/) (零组件测试)
+  - [src/utils/__tests__/chartDrawing.test.ts](src/utils/__tests__/chartDrawing.test.ts) (仅有 2 个测试)
+- **严重程度**: 中
+- **问题类别**: 测试
 
-#### ME-03: 曲率半径返回 `f64::INFINITY` 但丢失符号
+#### ⬜ ME-03: 动画组件零测试覆盖
 
-- **类别**: 代码质量
-- **位置**: `crates/camforge-core/src/geometry.rs:90-93`
-- **描述**: 当 `speed_cubed` 接近零时返回 `INFINITY`，但不保留符号信息。下游代码通过 `is_finite()` 检查处理，但无穷值无符号，`r - r.signum() * params.r_r` 在 INFINITY 时产生 INFINITY。
-- **影响**: 特定退化输入下结果处理依赖脆弱的检查。
+- **问题描述**: `CamAnimation.tsx`（877 行）包含复杂的 SVG 渲染、requestAnimationFrame 循环、触摸手势和键盘事件处理，但完全无测试覆盖。动画状态机（播放/暂停/帧步进）的正确性无法通过自动化验证。
+- **问题位置**: [src/components/animation/CamAnimation.tsx](src/components/animation/CamAnimation.tsx)
+- **严重程度**: 中
+- **问题类别**: 测试
 
-#### ME-04: `tc_law` 和 `hc_law` 使用 `i32` 而非 `MotionLaw` 枚举
+#### ⬜ ME-04: 缺少端到端（E2E）测试框架
 
-- **类别**: 架构设计
-- **位置**: `crates/camforge-core/src/types.rs:34-38`
-- **描述**: 使用 `i32` 选择运动规律丧失类型安全。`MotionLaw` 枚举存在且有 `TryFrom<i32>`，但 `CamParams` 使用原始整数，每次使用时都需要验证。
-- **影响**: 无效运动规律编号可能在运行时才被发现。
+- **问题描述**: 项目中无 Playwright、Cypress 或任何 E2E 测试配置。整个应用的关键用户流程（参数修改→仿真计算→结果可视化→导出）无法自动化验证。`TODO.md` Phase 5 "E2E Tests & Final Polish" 所有 5 项任务完成度为 0%。
+- **问题位置**: 项目整体
+- **严重程度**: 中
+- **问题类别**: 测试
 
-#### ME-05: `validate_motion_params` 与 `CamParams::validate()` 重复且不一致
+#### ⬜ ME-05: API 适配器层无测试
 
-- **类别**: 架构设计 / 代码质量
-- **位置**: `crates/camforge-core/src/full_motion.rs:180-224`、`crates/camforge-core/src/types.rs:68-115`
-- **描述**: 两个验证函数都检查角度和、`h > 0`、`omega > 0` 等，但有差异：`validate_motion_params` 允许 `n_points >= 36` 无上限；`CamParams::validate()` 上限 720。通过 `validate()` 的参数可能在 `validate_motion_params()` 中失败。
-- **影响**: 验证逻辑不一致，部分有效参数可能被错误拒绝或无效参数通过验证。
+- **问题描述**: [src/api/tauri.ts](src/api/tauri.ts) 和 [src/api/http.ts](src/api/http.ts) 是前端自适应切换 Tauri IPC / HTTP REST 两种模式的关键适配层，但均无测试。自动检测逻辑、请求参数序列化、错误处理路径均未被验证。
+- **问题位置**: [src/api/tauri.ts](src/api/tauri.ts)、[src/api/http.ts](src/api/http.ts)、[src/api/index.ts](src/api/index.ts)
+- **严重程度**: 中
+- **问题类别**: 测试
 
-#### ME-06: `compute_cam_profile` 仅对 X 坐标应用旋转方向
+#### ⬜ ME-06: `Sidebar.tsx` 单文件过长（630 行），含 5 个可折叠面板
 
-- **类别**: 代码质量
-- **位置**: `crates/camforge-core/src/profile.rs:57-70`
-- **描述**: `x[i] = -sn_f * x[i]` 但 Y 不调整。`sn` 参数仅镜像 X 轴，对于完整方向反转通常需要两个坐标都变换。行为未文档化。
-- **影响**: `sn` 参数的行为可能不符合用户预期。
+- **问题描述**: 侧边栏管理 5 个可折叠面板（运动规律、几何参数、仿真设置、显示选项、预设管理），每个面板含表单控件和验证逻辑。所有面板逻辑耦合在一个文件中，降低了可维护性和可复用性。
+- **问题位置**: [src/components/layout/Sidebar.tsx](src/components/layout/Sidebar.tsx)
+- **严重程度**: 中
+- **问题类别**: 代码质量
 
-#### ME-07: `compute_roller_profile` 的 `sn` 参数冗余
+#### ⬜ ME-07: `exports.ts`（stores）单文件过长（699 行）
 
-- **类别**: 代码质量
-- **位置**: `crates/camforge-core/src/profile.rs:127-131`
-- **描述**: `sn` 参数确定初始法线方向，但第 134-136 行始终通过点积验证并修正法线朝内。这意味着 `sn` 对输出无影响。
-- **影响**: 参数存在但无实际效果，误导 API 使用者。
+- **问题描述**: 该文件同时包含 SVG 生成（~400 行模板字符串 XML）、PNG/TIFF/GIF/Excel 多格式导出编排，以及 Tauri 和浏览器两种环境下的文件保存逻辑。职责过多，各导出格式处理逻辑可提取到 `exporters/` 目录下各自独立的模块中。
+- **问题位置**: [src/stores/simulation/exports.ts](src/stores/simulation/exports.ts)
+- **严重程度**: 中
+- **问题类别**: 代码质量
 
-#### ME-08: 服务器 CSV 导出存在注入漏洞
+#### ⬜ ME-08: `computeMotion` 默认分支静默回退到简谐运动
 
-- **类别**: 安全
-- **位置**: `crates/camforge-server/src/routes/export.rs:246-262`
-- **描述**: CSV 值使用 `format!()` 生成且未转义。标头字符串和数据未加引号，在 Excel 中打开时可被利用进行公式注入。
-- **影响**: 导出的 CSV 在 Excel 中打开时可能执行恶意公式。
+- **问题描述**: [motion.ts:96-103](src/services/motion.ts#L96-L103) 中 `switch` 语句的 `default` 分支在收到无效运动规律值时静默回退到简谐运动，不抛出警告或错误通知用户其选择无效。这会隐藏配置错误并产生意外的仿真结果。
+- **问题位置**: [src/services/motion.ts:96-103](src/services/motion.ts#L96-L103)
+- **严重程度**: 中
+- **问题类别**: 代码质量
 
-#### ME-09: CSV 导出中未使用的计算
+#### ⬜ ME-09: TIFF 编码失败静默回退为 PNG
 
-- **类别**: 性能
-- **位置**: `crates/camforge-server/src/routes/export.rs:57`
-- **描述**: `compute_roller_profile` 的结果赋给 `_x_actual, _y_actual` 但从未使用，浪费 CPU 计算滚子偏移。
-- **影响**: 每次 CSV 导出执行不必要的计算。
+- **问题描述**: [tiff.ts:72-81](src/exporters/tiff.ts#L72-L81) 中 `catch` 块在 TIFF 编码失败时静默生成 PNG 格式的 Blob（但文件扩展名仍为 `.tiff`）。用户期望获得 TIFF 文件却接收到错误编码的 PNG 数据，UI 无任何错误提示，仅控制台输出错误日志。
+- **问题位置**: [src/exporters/tiff.ts:72-81](src/exporters/tiff.ts#L72-L81)
+- **严重程度**: 中
+- **问题类别**: 代码质量
 
-#### ME-10: `rho_actual` 公式在 `r` 为 0 时产生退化结果
+#### ⬜ ME-10: `loadPresetFromJSON` 将原始异常信息暴露给用户
 
-- **类别**: 代码质量
-- **位置**: `crates/camforge-server/src/routes/simulation.rs:42-49`
-- **描述**: `r - r.signum() * params.r_r` 当 `r` 恰好为 `0.0` 时，`r.signum()` 返回 `0.0`，`rho_actual = 0`。曲率半径为零在物理上不可能，表示尖点。
-- **影响**: 退化输入下结果物理意义不明确。
+- **问题描述**: [presets.ts:154](src/stores/simulation/presets.ts#L154) 的 catch 子句将原始异常对象直接拼接入错误消息（`"JSON 解析失败: ${e}"`），异常信息可能包含调用栈等内部细节，通过 UI 暴露给最终用户。
+- **问题位置**: [src/stores/simulation/presets.ts:154](src/stores/simulation/presets.ts#L154)
+- **严重程度**: 中
+- **问题类别**: 代码质量、安全
 
-#### ME-11: 通配符 CORS 源无环境防护
+#### ⬜ ME-11: `(window as any)` 类型绕过
 
-- **类别**: 安全
-- **位置**: `crates/camforge-server/src/main.rs:22`
-- **描述**: `CORS_ORIGINS=*` 环境变量启用完全开放的 CORS，无警告或确认。错误配置的生产部署可能将 API 暴露给任意源。
-- **影响**: 服务器 API 可被任意域访问。
+- **问题描述**: [platform.ts:18](src/utils/platform.ts#L18) 使用 `(window as any).__TAURI_INTERNALS__` 访问 Tauri 内部对象。应使用 `@tauri-apps/api` 提供的适当类型接口或自定义接口声明。
+- **问题位置**: [src/utils/platform.ts:18](src/utils/platform.ts#L18)
+- **严重程度**: 中
+- **问题类别**: 代码质量
 
-#### ME-12: 角度和验证容差未定义为常量
+#### ⬜ ME-12: `value as never` 类型强制转换绕过类型系统
 
-- **类别**: 代码质量
-- **位置**: `crates/camforge-core/src/types.rs:71`、`crates/camforge-core/src/full_motion.rs:197`
-- **描述**: 两处都使用 `0.01` 度容差但未定义为常量，可能在修改其一时导致不一致。
-- **影响**: 验证行为可能因修改遗漏而不一致。
+- **问题描述**: [Sidebar.tsx:72-73](src/components/layout/Sidebar.tsx#L72-L73) 在 `Object.entries` 遍历默认参数时使用 `value as never` 完全绕过 TypeScript 类型检查，任何类型的值都可以被传递给 `updateParam`。
+- **问题位置**: [src/components/layout/Sidebar.tsx:72-73](src/components/layout/Sidebar.tsx#L72-L73)
+- **严重程度**: 中
+- **问题类别**: 代码质量
 
-#### ME-13: `From<String>` 错误转换丢失上下文
+#### ⬜ ME-13: `compute.ts` 中 epsilon 值不一致
 
-- **类别**: 架构设计
-- **位置**: `crates/camforge-server/src/error.rs:35-38`
-- **描述**: 所有 `String` 错误变为 `CalculationError`（422），但某些字符串可能来自验证（应为 400）。使用 `?` 运算符的函数会静默将验证错误变为计算错误。
-- **影响**: API 错误响应状态码可能不准确。
+- **问题描述**: [constants/numeric.ts](src/constants/numeric.ts) 定义 `EPSILON = 1e-10`。但 [compute.ts](src/stores/simulation/compute.ts) 中多处使用了不同的精度阈值：第 134 行 `1e-12`、第 236 行 `1e-12`（与第 180 行、第 202 行的 `1e-10` 不一致）。在关键数值计算中使用不一致的 epsilon 可能导致浮点比较行为不一致。
+- **问题位置**:
+  - [src/stores/simulation/compute.ts:134](src/stores/simulation/compute.ts#L134) (`1e-12`)
+  - [src/stores/simulation/compute.ts:236](src/stores/simulation/compute.ts#L236) (`1e-12`)
+  - [src/stores/simulation/compute.ts:180](src/stores/simulation/compute.ts#L180) (`1e-10`)
+  - [src/stores/simulation/compute.ts:202](src/stores/simulation/compute.ts#L202) (`1e-10`)
+- **严重程度**: 中
+- **问题类别**: 代码质量
 
-#### ME-14: 五次多项式使用 `t.powi(5)` 而非预计算值
+#### ⬜ ME-14: 前端与 Rust 后端运动规律实现存在版本同步风险
 
-- **类别**: 性能
-- **位置**: `crates/camforge-core/src/motion.rs:77-87, 96-99`
-- **描述**: `QuinticPolynomial` 预计算了 `t2`、`t3`、`t4` 但使用 `t.powi(5)` 而非 `t4 * t`。`SepticPolynomial` 类似，使用 `t.powi(7)` 而非 `t6 * t`。在热循环中浪费性能。
-- **影响**: 运动规律计算效率可小幅优化。
+- **问题描述**: [compute.ts:1](src/stores/simulation/compute.ts#L1) 注释说明该文件为 `camforge-core::compute_full_motion` 的前端镜像实现，但注释仅使用 `//` 行注释而未使用更显眼的 `TODO` 或引用具体 Rust 文件路径。如果 Rust 后端公式更新而前端不同步，两套计算将产生分歧，而当前无自动化的跨语言测试来检测这种不一致。
+- **问题位置**: [src/stores/simulation/compute.ts:1](src/stores/simulation/compute.ts#L1)
+- **严重程度**: 中
+- **问题类别**: 代码质量、架构设计
 
-#### ME-15: 同步 Tauri 命令阻塞线程池
+#### ✅ ME-15: 声明但未使用的 Rust 依赖 `anyhow`
 
-- **类别**: 性能
-- **位置**: `src-tauri/src/commands/simulation.rs:39`、`src-tauri/src/commands/export.rs:92, 205`
-- **描述**: 所有四个 Tauri 命令（`run_simulation`、`get_frame_data`、`export_dxf`、`export_csv`）是同步的。`run_simulation` 执行 O(n) 数值计算，导出命令执行阻塞文件 I/O。应使用 `async fn` 和 `spawn_blocking`。
-- **影响**: 长时间计算阻塞 Tauri 线程池，影响 UI 响应性。
+- **问题描述**: `anyhow` 在 workspace `Cargo.toml` 中声明并在 `camforge-server/Cargo.toml` 中引用（`anyhow.workspace = true`），但 `camforge-server` 的任何源代码中均未使用该 crate。所有错误处理均通过自定义 `ApiError` 枚举和 `String` 类型完成。
+- **问题位置**:
+  - [Cargo.toml:20](Cargo.toml#L20)
+  - [crates/camforge-server/Cargo.toml:17](crates/camforge-server/Cargo.toml#L17)
+- **严重程度**: 中
+- **问题类别**: 依赖管理
 
-#### ME-16: 每次模拟都克隆完整的 `SimulationData`
+#### ✅ ME-16: 声明但未使用的 Rust 依赖 `thiserror`
 
-- **类别**: 性能
-- **位置**: `src-tauri/src/commands/simulation.rs:117`
-- **描述**: `SimulationData` 包含约 15 个 `Vec<f64>` 字段，`sim_data.clone()` 复制所有字段。可使用 `Arc<SimulationData>` 共享所有权避免克隆。
-- **影响**: 每次模拟触发大量内存分配。
+- **问题描述**: `thiserror` 在 workspace `Cargo.toml` 和 `camforge-core/Cargo.toml` 中声明，但在任何 Rust 源文件中均无 `use thiserror` 导入。核心 crate 使用 `String` 作为错误类型（`Result<T, String>`），服务器使用自定义错误枚举。该依赖完全未被使用。
+- **问题位置**:
+  - [Cargo.toml:19](Cargo.toml#L19)
+  - [crates/camforge-core/Cargo.toml:18](crates/camforge-core/Cargo.toml#L18)
+- **严重程度**: 中
+- **问题类别**: 依赖管理
 
-#### ME-17: `compute_rotated_cam` 每帧调用无缓存
+#### ✅ ME-17: 声明但未被使用的 Rust 依赖 `num-traits`
 
-- **类别**: 性能
-- **位置**: `src-tauri/src/commands/simulation.rs:204`
-- **描述**: `get_frame_data` 每帧调用 `compute_rotated_cam`，分配两个新 `Vec<f64>`。60fps 动画 + 360 个轮廓点 = 每秒 120 次向量分配。凸轮轮廓不变，仅旋转角度变化。
-- **影响**: 动画帧请求时不必要的内存分配和计算。
+- **问题描述**: `num-traits` 在 `camforge-core/Cargo.toml` 中声明，但核心 crate 的任何源文件中均无 `use num_traits` 或 `num_traits::` 调用。该依赖对二进制文件大小有微小贡献但无任何功能作用。
+- **问题位置**: [crates/camforge-core/Cargo.toml:15](crates/camforge-core/Cargo.toml#L15)
+- **严重程度**: 中
+- **问题类别**: 依赖管理
 
-#### ME-18: CSV 导出数组长度不匹配风险
+#### ⬜ ME-18: 前端 `@types/react` 和 `@types/react-dom` 对 SolidJS 项目不必要
 
-- **类别**: 代码质量
-- **位置**: `src-tauri/src/commands/export.rs:232-250`
-- **描述**: 循环遍历 `data.delta_deg.len()` 但索引 `data.x[i]`、`data.y[i]` 等。若任一数组较短，将 panic。
-- **影响**: 未来重构可能引入数组越界 panic。
+- **问题描述**: `package.json` devDependencies 中包含 `@types/react`（^19.2.14）、`@types/react-dom`（^19.2.3）、`react`（^19.2.5）、`react-dom`（^19.2.5）。项目主力是 SolidJS 框架，React 仅由 Remotion（启动画面）使用。且 `tsconfig.json` 显式排除了 `src/splash` 目录，因此这些 React 类型包对主项目的类型检查也无实际作用。
+- **问题位置**: [package.json:48-53](package.json#L48-L53)
+- **严重程度**: 中
+- **问题类别**: 依赖管理
 
-#### ME-19: 帧索引仅验证一个数组长度
+#### ⬜ ME-19: Dockerfile 用 `sed` 原地修改 `Cargo.toml` 是脆弱方案
 
-- **类别**: 代码质量
-- **位置**: `src-tauri/src/commands/simulation.rs:136-138`
-- **描述**: `frame_idx >= data.s.len()` 检查后，`frame_idx` 用于索引 `data.ds_ddelta[frame_idx]` 和 `data.alpha_all[frame_idx]` 但未单独验证长度。
-- **影响**: 数组长度不一致时可能 panic。
+- **问题描述**: [Dockerfile:20](Dockerfile#L20) 使用 `sed '/src-tauri/d' Cargo.toml > Cargo.toml.tmp && mv Cargo.toml.tmp Cargo.toml` 排除 Tauri 工作区成员。如果工作区结构或 `src-tauri` 命名在未来变更，sed 模式可能静默失效导致构建错误。应使用 `cargo` 的原生标志或独立于主工作区的 Cargo.toml。
+- **问题位置**: [Dockerfile:20](Dockerfile#L20)
+- **严重程度**: 中
+- **问题类别**: 架构设计、兼容性
 
-#### ME-20: 同时持有两个互斥锁
+#### ⬜ ME-20: 缺少 `.dockerignore` 文件
 
-- **类别**: 架构设计
-- **位置**: `src-tauri/src/commands/simulation.rs:128-129`
-- **描述**: 同时锁定 `state.data` 和 `state.params`。虽然当前锁顺序一致，但未来代码修改顺序可能导致死锁。
-- **影响**: 未来重构可能引入死锁风险。
+- **问题描述**: 项目根目录无 `.dockerignore` 文件，Docker 构建上下文将包含 `node_modules/`、`target/`、`camforge-next.keystore` 及其他大文件/二进制文件，不仅拖慢构建速度还可能将敏感数据（如密钥库文件）泄露到 Docker 构建缓存中。
+- **问题位置**: 项目根目录
+- **严重程度**: 中
+- **问题类别**: 安全、性能
 
-#### ME-21: DXF 导出极端代码重复
+#### ⬜ ME-21: Docker 运行时容器以 root 用户运行
 
-- **类别**: 代码质量
-- **位置**: `src-tauri/src/commands/export.rs:108-177`
-- **描述**: 每个 `writeln!` 调用都有相同的 `.map_err(|e| e.to_string())?` 后缀，超过 30 处。应使用辅助函数或宏。
-- **影响**: 代码冗长，修改容易遗漏。
+- **问题描述**: [Dockerfile](Dockerfile) 的运行阶段基于 `alpine:3.19` 且无 `USER` 指令，容器以 root 权限运行。最佳实践要求容器以非 root 用户运行以限制潜在漏洞的影响范围。
+- **问题位置**: [Dockerfile:70](Dockerfile#L70)
+- **严重程度**: 中
+- **问题类别**: 安全
 
-#### ME-22: 硬编码响应式断点魔法数字
+#### ⬜ ME-22: CI 签名失败回退上传未签名 APK
 
-- **类别**: 代码质量
-- **位置**: `CurvatureChart.tsx:35-38`、`GeometryChart.tsx:35-38`、`MotionCurves.tsx:35-39`、`CamAnimation.tsx:22-24`
-- **描述**: 断点 `640` 和 `768` 在多个文件中硬编码。设计断点变更时需手动更新所有位置。
-- **影响**: 断点变更维护成本高。
+- **问题描述**: [release.yml:190-199](.github/workflows/release.yml#L190-L199) 当 `ANDROID_KEYSTORE_BASE64` 环境变量未设置时，构建流程回退为直接上传未签名的 APK。未签名 APK 无法在绝大多数 Android 设备上安装，且可能引发完整性信任问题。
+- **问题位置**: [.github/workflows/release.yml:190-199](.github/workflows/release.yml#L190-L199)
+- **严重程度**: 中
+- **问题类别**: 安全、兼容性
 
-#### ME-23: 三个图表组件重复响应式 padding 计算逻辑
+#### ⬜ ME-23: 服务器缺少 `Strict-Transport-Security`（HSTS）响应头
 
-- **类别**: 架构设计 / 代码质量
-- **位置**: `CurvatureChart.tsx`、`GeometryChart.tsx`、`MotionCurves.tsx` 各自定义 `getResponsivePadding()`
-- **描述**: 每个图表组件独立定义约 30 行的 `getResponsivePadding()` 函数，含独立的断点和 padding 值，存在分歧风险。
-- **影响**: 代码重复，修改时需同步三处。
+- **问题描述**: 服务器安全中间件（[main.rs:100-120](crates/camforge-server/src/main.rs#L100-L120)）实现了 CSP、`X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy` 等优质安全头，但缺少 `Strict-Transport-Security` 头。对于 `camforge.top` 生产 Web 部署，应强制 HTTPS。
+- **问题位置**: [crates/camforge-server/src/main.rs:100-120](crates/camforge-server/src/main.rs#L100-L120)
+- **严重程度**: 中
+- **问题类别**: 安全
 
-#### ME-24: 图表组件重复鼠标交互处理代码
+#### ⬜ ME-24: Rust 代码中文注释占比过高，国际化协作存在障碍
 
-- **类别**: 架构设计 / 代码质量
-- **位置**: `CurvatureChart.tsx:362-419`、`GeometryChart.tsx:256-313`、`MotionCurves.tsx:340-397`
-- **描述**: 三个图表组件实现几乎相同的 `getFrameFromX()`、`handleMouseDown`、`handleMouseMove`、`handleMouseUp`、`handleHover`、`handleMouseLeave` 函数，每个组件约 60 行重复代码。
-- **影响**: 交互逻辑重复，修改需同步三处。
+- **问题描述**: 所有 Rust 模块文档（`//!` 注释）及大多数函数内注释使用中文。对于本地中文团队适合，但如果项目发展为国际化团队或接受外部贡献，中文注释会造成理解障碍。同时 TypeScript 文件中中英文注释混用也不一致（`compute.ts` 使用中文注释，`history.ts` 使用英文注释）。
+- **问题位置**: `crates/` 和 `src/` 中超过 30 处中文注释
+- **严重程度**: 中
+- **问题类别**: 代码质量
 
-#### ME-25: 全局硬编码颜色值
+#### ⬜ ME-25: `compute_oscillating_profile` 返回元组而非结构体
 
-- **类别**: 代码质量
-- **位置**: 所有图表组件、`chartDrawing.ts`、`CamAnimation.tsx`
-- **描述**: `'#E07A5F'`、`'#3D5A80'`、`'#5B8C5A'` 等颜色在多个文件中作为字符串字面量硬编码。图表交互组件与 `chartDrawing.ts` 对同一概念使用不同颜色值（如 `'#EF4444'` vs `'#DC2626'`）。
-- **影响**: 颜色不一致，修改设计色板需搜索替换多处。
+- **问题描述**: [profile.rs:237](crates/camforge-core/src/profile.rs#L237) `compute_oscillating_profile` 返回 `Result<(Vec<f64>, Vec<f64>), String>`，而类似函数 `compute_cam_profile` 返回 `Result<ProfileResult, String>` 结构体。`compute_flat_faced_profile`（[profile.rs:163-171](crates/camforge-core/src/profile.rs#L163-L171)）更返回 5 元组（`Result<(Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>, f64), String>`），调用方必须按位置解构，易出错。
+- **问题位置**:
+  - [crates/camforge-core/src/profile.rs:237](crates/camforge-core/src/profile.rs#L237)
+  - [crates/camforge-core/src/profile.rs:163-171](crates/camforge-core/src/profile.rs#L163-L171)
+- **严重程度**: 中
+- **问题类别**: 架构设计
 
-#### ME-26: `savePreset` 直接使用 `localStorage` 绕过存储抽象
+#### ⬜ ME-26: `full_motion.rs` 中的 `validate_motion_params` 包装函数是多余的间接层
 
-- **类别**: 架构设计
-- **位置**: `src/stores/simulation.ts:372-397, 401-415`
-- **描述**: `savePreset`、`loadPreset`、`getSavedPresets`、`deletePreset` 直接使用 `localStorage`（前缀 `camforge-preset-`），绕过 `io/storage.ts` 的隐私模式回退和 `camforge_` 前缀规范。
-- **影响**: 存储行为不一致，隐私模式下预设可能丢失。
+- **问题描述**: [full_motion.rs:114-116](crates/camforge-core/src/full_motion.rs#L114-L116) 中定义的 `validate_motion_params` 函数体仅为 `params.validate()` 的直接委托，添加了一个函数调用层但无任何附加值。该包装仅在一处被调用（第 37 行）。
+- **问题位置**: [crates/camforge-core/src/full_motion.rs:114-116](crates/camforge-core/src/full_motion.rs#L114-L116)
+- **严重程度**: 中
+- **问题类别**: 代码质量
 
-#### ME-27: `getCurrentLang()` 直接读 `localStorage` 而非使用响应式信号
+#### ✅ ME-27: `#[allow(dead_code)]` 在 `csv_escape` 上不正确
 
-- **类别**: 架构设计
-- **位置**: `src/stores/simulation.ts:531`
-- **描述**: 直接读 `localStorage.getItem('language')` 而非使用 `i18n/index.ts` 的 `language()` 信号。不响应语言变更，且在信号已更新但 localStorage 写入失败时返回过期数据。
-- **影响**: 语言切换后 SVG 导出标签可能不更新。
+- **问题描述**: [routes/export.rs:441](crates/camforge-server/src/routes/export.rs#L441) `csv_escape` 函数标注了 `#[allow(dead_code)]`，但该函数实际被同文件中的 `generate_csv_content` 调用（第 414+ 行）。该属性要么已过时/不正确，要么暗示在某些编译条件下该函数不可达。
+- **问题位置**: [crates/camforge-server/src/routes/export.rs:441](crates/camforge-server/src/routes/export.rs#L441)
+- **严重程度**: 中
+- **问题类别**: 代码质量
 
-#### ME-28: 面板拖拽仅支持鼠标事件，不支持触摸
+#### ⬜ ME-28: `get_frame_data` 在持有锁期间执行计算密集型操作
 
-- **类别**: 兼容性
-- **位置**: `src/components/layout/HelpPanel.tsx:31-57`、`SettingsPanel.tsx:38-64`
-- **描述**: 可拖拽面板使用 `onMouseDown`/`onMouseMove`/`onMouseUp` 但不处理触摸事件。触摸设备上无法重新定位面板。
-- **影响**: 移动端用户无法拖拽面板。
+- **问题描述**: [commands/simulation.rs:246-361](src-tauri/src/commands/simulation.rs#L246-L361) 中 `get_frame_data` 在持有 `data` 和 `params` 两个 Mutex 锁的整个期间内执行凸轮轮廓旋转等非平凡计算，锁持有时间较长。应考虑先克隆必要数据再释放锁进行计算。
+- **问题位置**: [src-tauri/src/commands/simulation.rs:246-361](src-tauri/src/commands/simulation.rs#L246-L361)
+- **严重程度**: 中
+- **问题类别**: 性能
 
-#### ME-29: `ErrorBoundary` 清除错误后不修复根本问题
+#### ⬜ ME-29: `CamParams::validate()` 角度容差可能过严
 
-- **类别**: 代码质量
-- **位置**: `src/components/ErrorBoundary.tsx:47-49`
-- **描述**: 用户点击"清除"后错误状态被清除，但原始抛出异常的组件会重新渲染。若错误是确定性的，将立即再次抛出。
-- **影响**: 用户操作后立即再次看到错误。
+- **问题描述**: [types.rs:224-226](crates/camforge-core/src/types.rs#L224-L226) 角度和校验的容差设为 `0.01` 度（`(sum - 360.0).abs() > 0.01`）。当用户通过 UI 输入不精确的角度值（如含舍入误差的滑块值）时，此严格容差可能导致不必要的校验失败。0.01 度的工程精度容差值得商榷但应文档化说明。
+- **问题位置**: [crates/camforge-core/src/types.rs:224-226](crates/camforge-core/src/types.rs#L224-L226)
+- **严重程度**: 中
+- **问题类别**: 代码质量
 
-#### ME-30: `HttpApi` 的 `exportSvg`/`exportExcel` 无条件抛出异常
+#### ⬜ ME-30: `docs/WEB_OPTIMIZATION.md` 内容严重不完整
 
-- **类别**: 代码质量
-- **位置**: `src/api/http.ts:89-116`
-- **描述**: `exportSvg()`、`exportExcel()`、`exportGif()` 无条件抛出错误。`CamApi` 接口承诺这些返回值，不处理异常的调用者将崩溃。
-- **影响**: HTTP 模式下调用这些导出功能时应用崩溃。
+- **问题描述**: 该文档仅包含约 3 段关于 Logo 压缩的文字（约 660 字节），标题为"Web 部署优化说明"但完全未涉及：bundle 大小分析、代码分割策略、懒加载方案、CDN 配置、缓存头设置、预加载/预获取策略或性能预算设定。
+- **问题位置**: [docs/WEB_OPTIMIZATION.md](docs/WEB_OPTIMIZATION.md)
+- **严重程度**: 中
+- **问题类别**: 文档
 
-#### ME-31: `http.ts` 的 `healthCheck()` 未检查 `response.ok`
+#### ⬜ ME-31: 缺少架构决策记录（ADR）
 
-- **类别**: 代码质量
-- **位置**: `src/api/http.ts:121-124`
-- **描述**: 直接调用 `response.json()` 未检查 `response.ok`。404 或 500 响应将尝试将错误体解析为 JSON。
-- **影响**: 健康检查失败时产生误导性错误。
+- **问题描述**: `REFACTORING_PLAN.md` 记录了计划中的架构变更，但项目没有任何 ADR 来解释关键设计决策的**原因**——例如为何选择 6 种特定运动规律、为何选择特定的多项式阶数、为何选择 Rust 而非 Python、为何选择 Tauri 而非 Electron、为何 SolidJS 而非 React。
+- **问题位置**: 项目整体
+- **严重程度**: 中
+- **问题类别**: 文档
 
-#### ME-32: `TauriApi` 桩方法返回空数据，误导调用者
+#### ⬜ ME-32: 缺少独立的测试策略/指南文档
 
-- **类别**: 架构设计
-- **位置**: `src/api/tauri.ts:28-70`
-- **描述**: `exportDxf`、`exportCsv`、`exportSvg`、`exportExcel`、`exportGif` 返回空值（空 Blob、空字符串）。期望实际数据的调用者将静默成功但得到空输出。
-- **影响**: 导出功能在特定模式下静默失败。
+- **问题描述**: 尽管 `CONTRIBUTING.md` 简要提及"确保测试通过"，但没有专门文档说明如何运行测试、如何编写测试、测试策略是什么、覆盖率目标是多少。这让新贡献者在编写测试时缺少指导。
+- **问题位置**: 项目整体
+- **严重程度**: 中
+- **问题类别**: 文档、测试
 
-#### ME-33: `Sidebar` 导入整个 `package.json`
+#### ⬜ ME-33: Unicode path traversal 变体在导出路径验证中未覆盖
 
-- **类别**: 安全 / 性能
-- **位置**: `src/components/layout/Sidebar.tsx:6`
-- **描述**: `import { version } from '../../../package.json'` 可能将整个 `package.json` 内容导入 bundle。虽 bundler 可能 tree-shake，但脆弱且可能泄露敏感信息（脚本、依赖等）。
-- **影响**: 潜在的信息泄露和 bundle 体积增大。
+- **问题描述**: [commands/export.rs:25-30](src-tauri/src/commands/export.rs#L25-L30) 的 `validate_export_path` 检查了 `..`、`%2e%2e`、`%2e.`、`.%2e` 路径遍历变体，但未检查其他已知的编码变体，如 `%c0%ae%c0%ae/`（超长 UTF-8 编码）、`%252e%252e`（双重 URL 编码）以及 Unicode 变体（如 `‥` 双点字符）。虽然这些在现代操作系统上不太可能成功利用，但安全审计工具可能标记此问题。
+- **问题位置**: [src-tauri/src/commands/export.rs:25-30](src-tauri/src/commands/export.rs#L25-L30)
+- **严重程度**: 中
+- **问题类别**: 安全
 
-#### ME-34: `Toggle` 组件接口与 `NumberInput`/`Select` 不一致
+#### ⬜ ME-34: CI 工作流未包含依赖安全扫描
 
-- **类别**: 架构设计
-- **位置**: `src/components/controls/Toggle.tsx:3-7`
-- **描述**: `Toggle` 接受 `checked: () => boolean`（函数），而 `NumberInput` 和 `Select` 接受 `value: number`（普通值）。`Sidebar.tsx` 中每个 Toggle 调用必须包装值：`checked={() => displayOptions().showTangent}`。
-- **影响**: API 不一致增加使用复杂度。
+- **问题描述**: 所有 GitHub Actions 工作流（`test.yml`、`release.yml`、`docker.yml`）均未包含 `cargo audit`（Rust 依赖漏洞扫描）或 `pnpm audit`/`npm audit`（Node 依赖漏洞扫描）步骤。依赖中的已知漏洞无法在 CI 阶段被自动检测。
+- **问题位置**: [.github/workflows/test.yml](.github/workflows/test.yml)、[release.yml](.github/workflows/release.yml)、[docker.yml](.github/workflows/docker.yml)
+- **严重程度**: 中
+- **问题类别**: 安全、依赖管理
 
-#### ME-35: `initTheme()` 在模块作用域调用
+#### ⬜ ME-35: `generateRhoPath` 和 `generateRhoActualPath` 代码几乎相同
 
-- **类别**: 兼容性
-- **位置**: `src/App.tsx:13`
-- **描述**: `initTheme()` 在模块导入时立即执行，访问 `localStorage` 和 `document.documentElement`。在 SSR 或测试环境中可能失败。
-- **影响**: 测试和 SSR 环境兼容性问题。
-
-#### ME-36: `useI18n()` 返回非响应式值
-
-- **类别**: 代码质量
-- **位置**: `src/i18n/index.ts:45-53`
-- **描述**: `useI18n()` 返回 `t: t()` 和 `language: language()`，是当前值快照而非信号。使用 `useI18n()` 的组件在语言变更时**不会**重新渲染。
-- **影响**: 语言切换后部分 UI 不更新。
-
-#### ME-37: `debounceAsync` 存在 Promise 泄漏
-
-- **类别**: 代码质量
-- **位置**: `src/utils/debounce.ts:51-79`
-- **描述**: 快速调用时，每次调用创建新 Promise，前一次的 `resolve` 被覆盖，之前的 Promise 永远不会 settle。这是内存泄漏且可能导致 await 调用者挂起。
-- **影响**: 内存泄漏，await 调用者可能永远等待。
-
-#### ME-38: `tiffWorker.ts` 已定义但从未使用
-
-- **类别**: 代码质量
-- **位置**: `src/workers/tiffWorker.ts`
-- **描述**: Web Worker 从未被导入或实例化。实际 TIFF 编码在 `exporters/tiff.ts`（主线程）进行。这是死代码。
-- **影响**: 代码冗余，增加维护负担。
-
-#### ME-39: `StatusBar.tsx` 是死文件
-
-- **类别**: 代码质量
-- **位置**: `src/components/layout/StatusBar.tsx`
-- **描述**: 文件仅包含注释，未被任何地方导入。
-- **影响**: 代码冗余。
-
-#### ME-40: `MAX_UNDO_STEPS` 常量已导出但从未使用
-
-- **类别**: 代码质量
-- **位置**: `src/constants/numeric.ts:8`
-- **描述**: `MAX_UNDO_STEPS = 50` 已导出，但 `stores/history.ts:12` 定义了自己的 `MAX_HISTORY = 50` 常量。
-- **影响**: 常量重复定义，修改时可能遗漏。
-
-#### ME-41: `HelpPanel` 的 `openUrl` 未 await
-
-- **类别**: 代码质量
-- **位置**: `src/components/layout/HelpPanel.tsx:63-74`
-- **描述**: `openUrl(url)` 未使用 `await`，若抛出异常，错误被静默吞没。catch 块中的 `window.open` 回退不会被触发。
-- **影响**: URL 打开失败时无回退行为。
-
-#### ME-42: 重复 `Cargo.lock` 文件
-
-- **类别**: 依赖管理
-- **位置**: `Cargo.lock`、`src-tauri/Cargo.lock`
-- **描述**: 两个 `Cargo.lock` 文件存在于不同层级。工作区级应为唯一来源，`src-tauri/Cargo.lock` 是旧残留，可能导致依赖版本分歧。
-- **影响**: 依赖版本不一致风险。
-
-#### ME-43: 缺少 ESLint 配置
-
-- **类别**: 代码质量
-- **位置**: 项目根目录（文件不存在）
-- **描述**: 项目无 ESLint 配置。`CONTRIBUTING.md` 指定了编码规范（TypeScript strict mode、no `any` 等）但无自动化强制执行。
-- **影响**: 编码规范仅靠人工遵守，易产生不一致。
-
-#### ME-44: Docker Compose `version` 键已弃用
-
-- **类别**: 依赖管理
-- **位置**: `docker-compose.yml:1`
-- **描述**: Docker Compose v2 起 `version` 键已弃用，现代版本忽略此字段并显示警告。
-- **影响**: 构建时显示弃用警告。
+- **问题描述**: [exports.ts:241-268](src/stores/simulation/exports.ts#L241-L268) 和 [exports.ts:271-300](src/stores/simulation/exports.ts#L271-L300) 两个 SVG 路径生成函数唯一的区别是访问 `data.rho` 还是 `data.rho_actual`。应参数化 `isActual` 标志以消除约 60 行重复代码。
+- **问题位置**: [src/stores/simulation/exports.ts:241-300](src/stores/simulation/exports.ts#L241-L300)
+- **严重程度**: 中
+- **问题类别**: 代码质量
 
 ---
 
-### 3.4 低严重度问题（Low）
+### 3.4 低（Low）
 
-#### LO-01: 模块级常量 `RAD2DEG`/`DEG2RAD` 未共享
+#### ⬜ LO-01: `StatusBar.tsx` 为空占位文件
 
-- **类别**: 代码质量
-- **位置**: `crates/camforge-core/src/geometry.rs:6`、`crates/camforge-core/src/full_motion.rs:8`
-- **描述**: `RAD2DEG` 在 `geometry.rs` 私有定义，`DEG2RAD` 在 `full_motion.rs` 私有定义。应共享到 `types.rs` 或专用常量模块。
-- **影响**: 常量重复定义。
+- **问题描述**: [StatusBar.tsx](src/components/layout/StatusBar.tsx) 仅包含注释"StatusBar has been removed. This file is kept empty to avoid breaking any potential imports."如果无任何文件导入此模块，应彻底删除。如存在导入，应修复导入而非保留空占位文件。
+- **问题位置**: [src/components/layout/StatusBar.tsx](src/components/layout/StatusBar.tsx)
+- **严重程度**: 低
+- **问题类别**: 代码质量
 
-#### LO-02: 服务器使用 `println!` 而非结构化日志
+#### ⬜ LO-02: `getLanguageButtonText` 函数已导出但从未被导入
 
-- **类别**: 代码质量
-- **位置**: `crates/camforge-server/src/main.rs:68-75`
-- **描述**: 服务器使用 `println!` 输出启动信息。生产服务器应使用 `tracing` 或 `log` 进行结构化、可过滤的日志记录。
-- **影响**: 无法按级别过滤日志，生产环境调试困难。
+- **问题描述**: [i18n/index.ts:40-42](src/i18n/index.ts#L40-L42) 导出了 `getLanguageButtonText()` 函数，但无任何源文件导入。语言切换按钮文本在 [App.tsx:98](src/App.tsx#L98) 和 [TitleBar.tsx:68-70](src/components/layout/TitleBar.tsx#L68-L70) 中是内联计算的。
+- **问题位置**: [src/i18n/index.ts:40-42](src/i18n/index.ts#L40-L42)
+- **严重程度**: 低
+- **问题类别**: 代码质量
 
-#### LO-03: 服务器无优雅关闭处理
+#### ⬜ LO-03: `App.tsx` 中存在两个 `onMount` 调用
 
-- **类别**: 架构设计
-- **位置**: `crates/camforge-server/src/main.rs:47`
-- **描述**: 服务器无 SIGTERM/SIGINT 信号处理器。容器化部署中，进行中的请求可能被突然终止。
-- **影响**: 容器重启时请求中断。
+- **问题描述**: [App.tsx:40-45](src/App.tsx#L40-L45) 和 [App.tsx:55-57](src/App.tsx#L55-L57) 分别注册了 `onMount` 回调。SolidJS 中这虽然合法（按注册顺序执行），但两个独立的 `onMount` 调用不利于代码理解和维护，建议合并。
+- **问题位置**: [src/App.tsx:40-57](src/App.tsx#L40-L57)
+- **严重程度**: 低
+- **问题类别**: 代码质量
 
-#### LO-04: DXF 生成使用字符串拼接而非 DXF 库
+#### ⬜ LO-04: `debounce.ts` 使用 `any[]` 参数类型
 
-- **类别**: 架构设计
-- **位置**: `crates/camforge-server/src/routes/export.rs:105-213`
-- **描述**: DXF 输出手动构造，数十次重复 `lines.push("0".to_string())`。易错且难以维护。
-- **影响**: DXF 格式正确性依赖手动拼接。
+- **问题描述**: [debounce.ts:7](src/utils/debounce.ts#L7) `debounceAsync<T extends (...args: any[]) => Promise<void>>` 使用 `any[]` 导致去抖函数参数失去类型检查。可使用 TypeScript 的 `Parameters<T>` 工具类型推断参数。
+- **问题位置**: [src/utils/debounce.ts:7](src/utils/debounce.ts#L7)
+- **严重程度**: 低
+- **问题类别**: 代码质量
 
-#### LO-05: SVG 导出端点返回 501
+#### ⬜ LO-05: `utif2` 库使用 `@ts-expect-error` 抑制类型错误
 
-- **类别**: 架构设计
-- **位置**: `crates/camforge-server/src/routes/export.rs:93-101`
-- **描述**: SVG 端点返回 HTTP 501 JSON 错误，但错误消息建议使用桌面应用。应从路由表中移除或在 API 文档中说明。
-- **影响**: API 表面包含未实现端点。
+- **问题描述**: [tiff.ts:51](src/exporters/tiff.ts#L51) 和 [tiffWorker.ts:48](src/workers/tiffWorker.ts#L48) 均使用 `@ts-expect-error` 抑制 `UTIF.encode` 的类型错误。虽然第三方库类型定义不完善是常见情况，但建议在代码中添加注释说明具体原因，或提供本地的类型增强声明。
+- **问题位置**:
+  - [src/exporters/tiff.ts:51](src/exporters/tiff.ts#L51)
+  - [src/workers/tiffWorker.ts:48](src/workers/tiffWorker.ts#L48)
+- **严重程度**: 低
+- **问题类别**: 代码质量
 
-#### LO-06: `SimulationData` 的 `Vec<f64>` 字段无长度一致性保证
+#### ⬜ LO-06: `MAX_DPI` 常量在两处重复定义
 
-- **类别**: 架构设计
-- **位置**: `crates/camforge-core/src/types.rs:121-165`
-- **描述**: 无法防止创建 `s.len() != v.len()` 的 `SimulationData`。应使用构建器模式或构造函数验证数组长度一致性。
-- **影响**: 不一致的数组长度可能导致运行时 panic。
+- **问题描述**: [common.ts:28](src/utils/chartDrawing/common.ts#L28) 定义 `export const MAX_DPI = 600;`，但 [exports.ts:559](src/stores/simulation/exports.ts#L559) 和 [exports.ts:616](src/stores/simulation/exports.ts#L616) 各自内联重定义为 `const MAX_DPI = 600;`。导出模块应引用共享常量。
+- **问题位置**:
+  - [src/utils/chartDrawing/common.ts:28](src/utils/chartDrawing/common.ts#L28)
+  - [src/stores/simulation/exports.ts:559](src/stores/simulation/exports.ts#L559)
+  - [src/stores/simulation/exports.ts:616](src/stores/simulation/exports.ts#L616)
+- **严重程度**: 低
+- **问题类别**: 代码质量
 
-#### LO-07: `compute_full_motion` 函数 77 行未提取子函数
+#### ⬜ LO-07: SVG 导出布局尺寸硬编码
 
-- **类别**: 架构设计
-- **位置**: `crates/camforge-core/src/full_motion.rs:33-109`
-- **描述**: 函数在单个循环中处理升程、远休、回程、近休四个阶段。提取各阶段计算可提高可读性和可测试性。
-- **影响**: 函数过长，理解和测试困难。
+- **问题描述**: [exports.ts:159-164](src/stores/simulation/exports.ts#L159-L164) 中 SVG 图表宽度（500px）、高度（350px）、间距（20px）和内边距均为硬编码，不可配置也不响应式。
+- **问题位置**: [src/stores/simulation/exports.ts:159-164](src/stores/simulation/exports.ts#L159-L164)
+- **严重程度**: 低
+- **问题类别**: 代码质量
 
-#### LO-08: `serde_json` 是 camforge-core 未使用的依赖
+#### ⬜ LO-08: 缩放限制在 `CamAnimation.tsx` 中两处硬编码
 
-- **类别**: 依赖管理
-- **位置**: `crates/camforge-core/Cargo.toml`
-- **描述**: `serde_json = "1"` 声明为依赖但库源码中未使用。仅 `serde` with `derive` 用于序列化/反序列化。
-- **影响**: 不必要的编译时间。
+- **问题描述**: `Math.max(0.2, Math.min(3.0, ...))` 缩放边界在 [CamAnimation.tsx:41](src/components/animation/CamAnimation.tsx#L41)（滚轮事件）和 [CamAnimation.tsx:403](src/components/animation/CamAnimation.tsx#L403)（触摸捏合事件）各自硬编码。应提取为常量。
+- **问题位置**: [src/components/animation/CamAnimation.tsx:41,403](src/components/animation/CamAnimation.tsx)
+- **严重程度**: 低
+- **问题类别**: 代码质量
 
-#### LO-09: `tower` 依赖未实际使用
+#### ⬜ LO-09: 动画循环在组件非活跃时持续运行
 
-- **类别**: 依赖管理
-- **位置**: `crates/camforge-server/Cargo.toml`
-- **描述**: `tower` crate 已声明但未在服务器代码中导入。仅在添加 `RequestBodyLimitLayer` 时才需要。
-- **影响**: 不必要的编译时间。
+- **问题描述**: [CamAnimation.tsx:305-312](src/components/animation/CamAnimation.tsx#L305-L312) 的 `requestAnimationFrame` 循环在组件不可见或数据不可用时仍继续运行（虽跳过渲染但 CPU 仍在执行循环体）。应仅在活跃时启动循环。
+- **问题位置**: [src/components/animation/CamAnimation.tsx:305-312](src/components/animation/CamAnimation.tsx#L305-L312)
+- **严重程度**: 低
+- **问题类别**: 性能
 
-#### LO-10: `MotionLaw` 枚举判别值未文档化为稳定
+#### ⬜ LO-10: `SettingsPanel` 的窗口级事件监听器缺少面板状态检查
 
-- **类别**: 文档
-- **位置**: `crates/camforge-core/src/types.rs:196-209`
-- **描述**: `TryFrom<i32>` 硬编码 1-6。添加新运动规律时需在两处更新（枚举判别值和 `TryFrom`）。
-- **影响**: 扩展运动规律时需同步修改。
+- **问题描述**: [SettingsPanel.tsx:56-64](src/components/layout/SettingsPanel.tsx#L56-L64) 在 `window` 上注册 `mousemove`/`mouseup` 监听器。`handleMouseMove` 检查了 `dragging()` 状态但未检查面板是否打开——如果面板关闭时拖拽状态未正确清除，残留监听器将继续响应鼠标事件。
+- **问题位置**: [src/components/layout/SettingsPanel.tsx:56-64](src/components/layout/SettingsPanel.tsx#L56-L64)
+- **严重程度**: 低
+- **问题类别**: 代码质量
 
-#### LO-11: `linspace` 工具函数混入运动规律模块
+#### ⬜ LO-11: 动画帧范围为 0（无数据）时动画循环仍继续
 
-- **类别**: 架构设计
-- **位置**: `crates/camforge-core/src/motion.rs:218-233`
-- **描述**: `linspace` 是通用数学工具，混入运动规律模块。应放入 `utils` 或 `types` 模块。
-- **影响**: 模块职责不单一。
+- **问题描述**: [CamAnimation.tsx:317-321](src/components/animation/CamAnimation.tsx#L317-L321) 当 `max === 0` 时，`safeFrame >= max` 条件始终为真，帧在 0 和 1 之间无限循环。第 305 行的早期返回 `if (!data)` 应能阻止此情况，但在 `simulationData()` 存在但 `s.length === 0` 时存在时间窗口。
+- **问题位置**: [src/components/animation/CamAnimation.tsx:317-321](src/components/animation/CamAnimation.tsx#L317-L321)
+- **严重程度**: 低
+- **问题类别**: 代码质量
 
-#### LO-12: 测试容差不一致
+#### ⬜ LO-12: `compute_rotated_cam` 执行两次数组遍历
 
-- **类别**: 测试
-- **位置**: `crates/camforge-core/src/motion.rs:240-265`
-- **描述**: `test_rise_boundary_values` 对 `s[0]` 使用 `1e-10` 容差，对 `s[99]` 使用 `1e-6`。端点累积可解释较宽松容差，但应文档化。
-- **影响**: 测试行为不透明。
+- **问题描述**: [profile.rs:419-430](crates/camforge-core/src/profile.rs#L419-L430) 对 `x_static`/`y_static` 进行两次独立的 `.map().collect()` 遍历以分别计算 `x_rot` 和 `y_rot`，每次都重复计算 `cos_a` 和 `sin_a`。由于 N ≤ 720，性能影响微小，但可合并为单次遍历生成两个结果向量。
+- **问题位置**: [crates/camforge-core/src/profile.rs:419-430](crates/camforge-core/src/profile.rs#L419-L430)
+- **严重程度**: 低
+- **问题类别**: 性能
 
-#### LO-13: `types.rs` 测试覆盖薄弱
+#### ⬜ LO-13: 非滚子从动件路径存在冗余 `rho.clone()`
 
-- **类别**: 测试
-- **位置**: `crates/camforge-core/src/types.rs:253-278`
-- **描述**: 仅 3 个测试。缺少：`n_points` 边界值（36 和 720）、`r_r` 负值、NaN/Infinity 字段、`e` 等于 `r_0` 的边界。
-- **影响**: 参数验证边界情况未覆盖。
+- **问题描述**: [routes/simulation.rs:137](crates/camforge-server/src/routes/simulation.rs#L137) 和 [commands/simulation.rs:149](src-tauri/src/commands/simulation.rs#L149) 当 `params.r_r <= 0.0` 时执行 `rho.clone()` 然后赋值 `rho_actual = rho`。此时 `rho` 后续不再被使用，直接移动（`rho_actual = rho`）即可避免复制。但编译器优化可能已消除此开销。
+- **问题位置**:
+  - [crates/camforge-server/src/routes/simulation.rs:137](crates/camforge-server/src/routes/simulation.rs#L137)
+  - [src-tauri/src/commands/simulation.rs:149](src-tauri/src/commands/simulation.rs#L149)
+- **严重程度**: 低
+- **问题类别**: 性能
 
-#### LO-14: `compute_full_motion` 仅 2 个测试
+#### ⬜ LO-14: 缺少性能基准测试
 
-- **类别**: 测试
-- **位置**: `crates/camforge-core/src/full_motion.rs:227-260`
-- **描述**: 最复杂模块仅 2 个测试。缺少：各运动规律单独测试、`delta_01 = 0` 边界、相位边界连续性、不同运动规律的回程。
-- **影响**: 复杂逻辑测试覆盖严重不足。
+- **问题描述**: 项目无性能分析方法论、无基准测试套件、无性能基线数据。`docs/ARCHITECTURE.md` 提到了并行计算、Canvas HDPI、防抖等优化目标，但未提供量化的性能指标或测试方法。
+- **问题位置**: 项目整体
+- **严重程度**: 低
+- **问题类别**: 性能、文档
 
-#### LO-15: `data.x_actual.len() > 0` 应为 `!is_empty()`
+#### ⬜ LO-15: `.editorconfig` 文件缺失
 
-- **类别**: 代码质量
-- **位置**: `src-tauri/src/commands/export.rs:170`
-- **描述**: Clippy 会标记 `clippy::len_zero`。
-- **影响**: 代码风格不符合 Rust 惯用写法。
+- **问题描述**: `CONTRIBUTING.md` 规定了 2 空格缩进、分号、尾逗号等代码风格，但缺少 `.editorconfig` 文件来在编辑器层面自动强制执行这些规则。不同编辑器用户可能无意中引入风格不一致的代码。
+- **问题位置**: 项目根目录
+- **严重程度**: 低
+- **问题类别**: 代码质量
 
-#### LO-16: Glob 重导出污染命名空间
+#### ⬜ LO-16: `xlsx`（SheetJS）包曾有已知 CVE
 
-- **类别**: 架构设计
-- **位置**: `src-tauri/src/commands/mod.rs:8-9`
-- **描述**: `pub use simulation::*` 和 `pub use export::*` 使命名空间不清晰。应使用显式重导出。
-- **影响**: 公开 API 表面不明确。
+- **问题描述**: `xlsx` 社区版（v0.18.5）有过安全漏洞历史记录，包括 CVE-2023-30533（原型污染）。版本 0.18.5 可能受影响。该库在 [src/exporters/excel.ts](src/exporters/excel.ts) 中用于生成 Excel 导出。
+- **问题位置**: [package.json:36](package.json#L36)
+- **严重程度**: 低
+- **问题类别**: 安全、依赖管理
 
-#### LO-17: `src-tauri` 未使用的依赖
+#### ⬜ LO-17: `gif.js` 版本较旧且无积极维护
 
-- **类别**: 依赖管理
-- **位置**: `src-tauri/Cargo.toml:28-31`
-- **描述**: `serde_json`、`num-traits`、`anyhow` 声明为依赖但未在 `src-tauri/src/*.rs` 中直接使用。
-- **影响**: 不必要的编译时间。
+- **问题描述**: `gif.js` v0.2.0 相对老旧，上游已无积极开发活动。当前功能正常实现 GIF 动画导出，但应长期关注替代方案。
+- **问题位置**: [package.json:33](package.json#L33)
+- **严重程度**: 低
+- **问题类别**: 依赖管理
 
-#### LO-18: `expect()` 消息不具描述性
+#### ⬜ LO-18: `tauri-action@v0` 未锁定具体版本
 
-- **类别**: 代码质量
-- **位置**: `src-tauri/src/lib.rs:23`
-- **描述**: `.expect("error while running tauri application")` 在启动失败时仅显示通用消息。
-- **影响**: 启动失败时用户获得无用的错误信息。
+- **问题描述**: [release.yml:79](.github/workflows/release.yml#L79) 使用 `tauri-apps/tauri-action@v0`，这会追踪最新的 v0.x 预生产版本，可能在不经意间引入破坏性变更。应固定到具体的发行版本。
+- **问题位置**: [.github/workflows/release.yml:79](.github/workflows/release.yml#L79)
+- **严重程度**: 低
+- **问题类别**: 依赖管理、兼容性
 
-#### LO-19: 错误类型全为 `String`
+#### ⬜ LO-19: 项目无 GitHub README 徽章
 
-- **类别**: 架构设计
-- **位置**: `src-tauri/src/commands/simulation.rs:39`、`src-tauri/src/commands/export.rs:96, 209`
-- **描述**: 所有 Tauri 命令返回 `Result<T, String>`，丢失结构化错误信息。`thiserror` 已在依赖中但未在 `src-tauri` 中使用。
-- **影响**: 前端无法区分错误类别（验证、计算、I/O）。
+- **问题描述**: 根目录 `README.md` 缺乏 CI 状态、测试覆盖率、最新版本等常见项目徽章，这些徽章能帮助用户快速评估项目健康度和活跃度。
+- **问题位置**: [README.md](README.md)
+- **严重程度**: 低
+- **问题类别**: 文档
 
-#### LO-20: 中英文错误消息混用
+#### ⬜ LO-20: 架构文档中无 SVG/PNG 架构图
 
-- **类别**: 兼容性
-- **位置**: `crates/camforge-core/src/types.rs:71-114`（中文）、`crates/camforge-core/src/full_motion.rs:183-223`（英文）
-- **描述**: `CamParams::validate()` 返回中文错误，`validate_motion_params` 返回英文错误。若呈现给用户，不一致令人困惑。
-- **影响**: 用户看到混合语言的错误消息。
+- **问题描述**: `docs/ARCHITECTURE.md` 和 `docs/REFACTORING_PLAN.md` 中的 ASCII 艺术图功能可用但可读性较差。缺少 SVG/PNG 架构图使得数据流和模块关系的可视化打折扣。
+- **问题位置**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)、[docs/REFACTORING_PLAN.md](docs/REFACTORING_PLAN.md)
+- **严重程度**: 低
+- **问题类别**: 文档
 
-#### LO-21: `lang` 参数未验证
+#### ⬜ LO-21: `FrameData` 结构体为直动从动件填充无意义 `0.0` 值
 
-- **类别**: 代码质量
-- **位置**: `src-tauri/src/commands/export.rs:224`
-- **描述**: `lang` 字符串参数接受任意值。虽仅影响标头文本，但应验证或文档化。
-- **影响**: 非预期输入不报错。
+- **问题描述**: [types.rs:366-398](crates/camforge-core/src/types.rs#L366-L398) `FrameData` 中的 `pivot_x`、`pivot_y`、`arm_angle` 字段对于直动从动件设为 `0.0`。统一类型虽有便利性，但向 API 消费者暴露了无关的内部实现细节。
+- **问题位置**: [crates/camforge-core/src/types.rs:366-398](crates/camforge-core/src/types.rs#L366-L398)
+- **严重程度**: 低
+- **问题类别**: 架构设计
 
-#### LO-22: 冗余的 `..` 路径检查
+#### ⬜ LO-22: `simulate` API 响应包裹在冗余的 `data` 键中
 
-- **类别**: 代码质量
-- **位置**: `src-tauri/src/commands/export.rs:27-29 vs 41-54`
-- **描述**: 字符串级 `..` 检查与 `Component::ParentDir` 检查冗余。组件检查是规范方式。
-- **影响**: 代码冗余但无功能影响。
+- **问题描述**: [routes/simulation.rs:19-21](crates/camforge-server/src/routes/simulation.rs#L19-L21) 中 API 响应将 `SimulationData` 包装在 `{ data: SimulationData }` 对象中。这强制前端所有消费方都需进行 `response.data` 解包，却未提供任何额外信息（如分页、元数据等）来证明包装的必要性。
+- **问题位置**: [crates/camforge-server/src/routes/simulation.rs:19-21](crates/camforge-server/src/routes/simulation.rs#L19-L21)
+- **严重程度**: 低
+- **问题类别**: 架构设计
 
-#### LO-23: `thiserror` v1 已过时
+#### ⬜ LO-23: Rust 入口点使用通用 `expect` 消息
 
-- **类别**: 依赖管理
-- **位置**: `Cargo.toml:20`
-- **描述**: `thiserror = "1.0"`，v2.x 已发布并有显著改进。
-- **影响**: 缺少新版本改进。
+- **问题描述**: [lib.rs:23](src-tauri/src/lib.rs#L23) 使用 `.expect("error while running tauri application")` 处理 Tauri 应用启动错误。调试时通用消息提供的信息不够。可使用 `if let Err(e) = ...` 记录链式错误原因后再退出。
+- **问题位置**: [src-tauri/src/lib.rs:23](src-tauri/src/lib.rs#L23)
+- **严重程度**: 低
+- **问题类别**: 代码质量
 
-#### LO-24: 导出路径验证无符号链接保护
+#### ⬜ LO-24: CSP 设置 `from_str` 失败时静默跳过
 
-- **类别**: 安全
-- **位置**: `src-tauri/src/commands/export.rs:22-88`
-- **描述**: 路径验证不检查符号链接。名为 `output.dxf` 的符号链接可指向敏感文件。
-- **影响**: 潜在的符号链接攻击。
+- **问题描述**: [main.rs:112-113](crates/camforge-server/src/main.rs#L112-L113) 中 CSP 头设置使用 `if let Ok(csp_value) = HeaderValue::from_str(&csp)`，如果 `from_str` 因编码问题或意外边缘情况失败，则 CSP 头在无任何日志的情况下被静默丢弃。应至少添加 `eprintln!` 或 `tracing::warn!`。
+- **问题位置**: [crates/camforge-server/src/main.rs:112-113](crates/camforge-server/src/main.rs#L112-L113)
+- **严重程度**: 低
+- **问题类别**: 安全
 
-#### LO-25: 不一致的命名：`params` vs `p` 别名
+#### ⬜ LO-25: 服务器绑定到 `0.0.0.0`
 
-- **类别**: 代码质量
-- **位置**: 多个文件
-- **描述**: 部分组件将 `params()` 解构为 `const p = params()`（如 `CamAnimation.tsx`），其他直接使用。单字母别名降低可读性。
-- **影响**: 代码风格不一致。
+- **问题描述**: [main.rs:183](crates/camforge-server/src/main.rs#L183) 服务器绑定到所有网络接口。虽然 Docker Compose 通过 `ports: "3000:3000"` 暴露，但在 Docker 外部运行时绑定 `0.0.0.0` 扩大了攻击面。
+- **问题位置**: [crates/camforge-server/src/main.rs:183](crates/camforge-server/src/main.rs#L183)
+- **严重程度**: 低
+- **问题类别**: 安全
 
-#### LO-26: SVG/DXF 导出标签未本地化
+#### ⬜ LO-26: CSP 中 `connect-src` 允许 Google Fonts 域名可能不必要
 
-- **类别**: 兼容性
-- **位置**: `src/components/layout/MainCanvas.tsx:748-749`
-- **描述**: `<ExportButton label="SVG" />` 和 `<ExportButton label="DXF" />` 使用硬编码字符串而非 `t().export.items.*` 键。
-- **影响**: 英文模式下导出按钮标签始终为英文。
+- **问题描述**: [main.rs:73-74](crates/camforge-server/src/main.rs#L73-L74) 中 CSP 的 `connect-src` 包含了 `https://fonts.googleapis.com` 和 `https://fonts.gstatic.com`。字体通过 `<link>` 标签加载（`default-src` 覆盖），`connect-src` 中的字体域名放宽了 XSS 数据外泄的约束面。
+- **问题位置**: [crates/camforge-server/src/main.rs:73-74](crates/camforge-server/src/main.rs#L73-L74)
+- **严重程度**: 低
+- **问题类别**: 安全
 
-#### LO-27: `index.tsx` 强制类型转换无空检查
+#### ⬜ LO-27: 导出路径部分文件写入无清理机制
 
-- **类别**: 代码质量
-- **位置**: `src/index.tsx:6`
-- **描述**: `document.getElementById("root") as HTMLElement` 若 `#root` 元素缺失将运行时抛出。
-- **影响**: HTML 结构异常时应用崩溃。
+- **问题描述**: [commands/export.rs:170](src-tauri/src/commands/export.rs#L170) 如果 `writeln!` 调用在 DXF/CSV 文件写入中途失败，会留下损坏的部分文件在用户文件系统中，无重试或清理回滚机制。
+- **问题位置**: [src-tauri/src/commands/export.rs:170](src-tauri/src/commands/export.rs#L170)
+- **严重程度**: 低
+- **问题类别**: 代码质量
 
-#### LO-28: `index.html` 硬编码 `lang="zh-CN"`
+#### ⬜ LO-28: `CamParams::initial_angle` 默认值 0 导致摆动从动件压力角奇点
 
-- **类别**: 兼容性
-- **位置**: `index.html:2`
-- **描述**: HTML lang 属性硬编码为中文。用户切换英文模式后 lang 属性仍为 `zh-CN`，影响屏幕阅读器、搜索引擎和浏览器翻译功能。
-- **影响**: 无障碍访问和 SEO 问题。
+- **问题描述**: [types.rs:130-131](crates/camforge-core/src/types.rs#L130-L131) `initial_angle` 默认值为 `0.0`（`#[serde(default)]`）。当摆动从动件的 `initial_angle + psi == 0` 时，`compute_oscillating_pressure_angle` 的分母 `pivot_distance * sin(0) = 0`，压力角被强制为 90 度，这在物理上可能不正确。验证器应添加对零初始角度的警告（针对摆动从动件）或施加适当约束。
+- **问题位置**: [crates/camforge-core/src/types.rs:130-131](crates/camforge-core/src/types.rs#L130-L131)
+- **严重程度**: 低
+- **问题类别**: 架构设计
 
-#### LO-29: `index.html` 禁用用户缩放（无障碍）
+#### ⬜ LO-29: `camforge-core` 声明了可能不必要的 `serde_json` 直接依赖
 
-- **类别**: 兼容性
-- **位置**: `index.html:5`
-- **描述**: `maximum-scale=1, user-scalable=no` 违反 WCAG 2.1 SC 1.4.4。低视力用户无法缩放页面。
-- **影响**: 无障碍访问不合规。
+- **问题描述**: [camforge-core/Cargo.toml:12](crates/camforge-core/Cargo.toml#L12) 声明了 `serde_json` 直接依赖，但核心 crate 本身不执行 JSON 序列化/反序列化操作（仅通过 `#[derive(Serialize, Deserialize)]` 使用 `serde` derive 宏）。下游消费者（server、tauri）独立声明了 `serde_json`。
+- **问题位置**: [crates/camforge-core/Cargo.toml:12](crates/camforge-core/Cargo.toml#L12)
+- **严重程度**: 低
+- **问题类别**: 依赖管理
 
-#### LO-30: ARIA 标签硬编码中文未国际化
+#### ⬜ LO-30: `CONTRIBUTING.md` 规定的代码规范未在代码库中一致执行
 
-- **类别**: 兼容性
-- **位置**: `src/App.tsx:69, 80, 88, 96, 104, 112`
-- **描述**: ARIA 标签如 `"打开菜单"`、`"撤销"` 等硬编码中文，未使用 `t()` 翻译函数。
-- **影响**: 英文模式下屏幕阅读器仍读中文。
+- **问题描述**: `CONTRIBUTING.md` 中规定了 JSDoc 格式、命名规范和代码组织标准，但这些规范在代码库中的执行不一致——例如 JSDoc 覆盖率仅约 17%、中英文注释混用等。
+- **问题位置**: [CONTRIBUTING.md](CONTRIBUTING.md) vs 实际代码库
+- **严重程度**: 低
+- **问题类别**: 文档、代码质量
 
-#### LO-31: SVG `key` 属性缺失
+#### ⬜ LO-31: `CHANGELOG.md` 底部比较链接可能不完整
 
-- **类别**: 代码质量
-- **位置**: `src/components/animation/CamAnimation.tsx:425-435, 588-600, 608-624, 652-663`
-- **描述**: 通过 `.map()` 渲染 SVG 元素数组时未提供 `key` 属性，可能导致不正确的 reconciliation。
-- **影响**: 列表渲染时可能产生不必要的 DOM 更新。
+- **问题描述**: CHANGELOG.md 的底部比较链接列表在 v0.4.5 版本标注"已修复"但可能未完全更新——需确认链接定义与实际发布版本的对应关系。
+- **问题位置**: [CHANGELOG.md](CHANGELOG.md)（底部链接部分）
+- **严重程度**: 低
+- **问题类别**: 文档
 
-#### LO-32: `encodeCanvasToTIFF` 同步版本阻塞主线程
+#### ⬜ LO-32: 缺少用户操作手册
 
-- **类别**: 性能
-- **位置**: `src/exporters/tiff.ts:86-112`
-- **描述**: 同步版本为向后兼容保留，但大图像时阻塞主线程。
-- **影响**: 大图像导出时 UI 卡顿。
-
-#### LO-33: `gifEncoder.ts` 进度报告魔法数字
-
-- **类别**: 代码质量
-- **位置**: `src/services/gifEncoder.ts:103, 139`
-- **描述**: 进度分割硬编码为 `0.3`（帧生成）和 `0.7`（编码）。应提取为命名常量。
-- **影响**: 进度条行为不透明。
-
-#### LO-34: `randomizeParams()` 未加入撤销历史
-
-- **类别**: 代码质量
-- **位置**: `src/stores/simulation.ts:1228-1285`
-- **描述**: 函数直接设置参数并运行模拟，未通过历史系统的 `push()`。随机化参数不加入撤销历史。
-- **影响**: 用户无法撤销随机化操作。
-
-#### LO-35: `handleCustomExport` 函数过长
-
-- **类别**: 架构设计
-- **位置**: `src/components/layout/MainCanvas.tsx:258-409`
-- **描述**: 约 150 行的顺序 if 块，难以测试和维护。
-- **影响**: 代码可读性和可测试性差。
-
-#### LO-36: `Select` 组件的 `onValidate` 返回值未使用
-
-- **类别**: 代码质量
-- **位置**: `src/components/controls/Select.tsx:22-24`
-- **描述**: `props.onValidate(newValue)` 的返回值被忽略。
-- **影响**: 验证结果不被使用。
-
-#### LO-37: 缺少 `.editorconfig`
-
-- **类别**: 文档
-- **位置**: 项目根目录（文件不存在）
-- **描述**: 无 `.editorconfig` 文件强制跨编辑器的一致格式化。
-- **影响**: 不同编辑器可能使用不同格式。
-
-#### LO-38: 缺少 `SECURITY.md`
-
-- **类别**: 文档
-- **位置**: 项目根目录（文件不存在）
-- **描述**: 无安全策略或漏洞报告说明。对于有文件系统访问和 Web 服务器组件的桌面应用，安全策略很重要。
-- **影响**: 漏洞报告流程不明确。
-
-#### LO-39: CHANGELOG 缺少 v0.4.3 和 v0.4.4 比较链接
-
-- **类别**: 文档
-- **位置**: `CHANGELOG.md:744-759`
-- **描述**: 文件底部有到 v0.4.2 的比较链接，缺少 `[0.4.4]` 和 `[0.4.3]`。
-- **影响**: 版本比较导航不完整。
+- **问题描述**: 项目无面向最终用户的使用指南文档。`README.md` 仅提供参数参考和键盘快捷键列表，但不是结构化的用户手册。`TODO.md` Phase 6 第 6.1 项"API docs, user manual"标记为未完成。
+- **问题位置**: 项目整体
+- **严重程度**: 低
+- **问题类别**: 文档
 
 ---
 
 ## 4. 优先级建议
 
-### 第一优先级：立即修复（阻断性 / 严重安全漏洞）
+### 4.1 严重问题（必须立即处理）
 
-| 编号 | 问题 | 建议措施 |
-|:----:|------|----------|
-| CR-01 | 压力角 `atan()` vs `atan2()` | 改用 `atan2()` 并添加零分母防护 |
-| CR-02 | 导出路径拒绝绝对路径 | 接受绝对路径但验证允许目录 |
-| CR-03 | `n_points` 无上限验证 | 在 Tauri 命令中调用 `CamParams::validate()` |
-| CR-04 | FS scope 绕过 | 使用 Tauri FS API 替代 `std::fs` |
-| CR-05 | `$HOME/**` 权限过大 | 缩小到 `$DOWNLOAD/**` 和 `$DOCUMENT/**` |
-| CR-06 | CSP 包含 localhost | 移除生产环境的 localhost 地址 |
-| CR-07 | 密钥文件在磁盘 | 从磁盘删除，显式添加到 `.gitignore` |
-| CR-08 | 生成代码在 Git 中 | 添加 `src-tauri/gen/` 到 `.gitignore` |
-| CR-15 | 服务器无请求体限制 | 添加 `RequestBodyLimitLayer` |
+| 优先级 | 问题编号 | 建议措施 | 预估工作量 |
+|:------:|:--------|:---------|:----------:|
+| P0 | CR-01 | 立即从仓库中移除 `camforge-next.keystore`；将 `*.keystore`、`*.jks` 添加至 `.gitignore`；若密钥库密码曾在 CI 日志中出现，轮换密钥 | 0.5h |
+| P0 | CR-02 | 在 `computeSimulationLocally` 添加 `hasError` 状态标志或返回 `Result<SimulationData, Error>`；下游消费者检查错误状态并显示用户可见的错误提示 | 2h |
+| P0 | CR-03 | 将 `randomize.ts` 第 110 行改为 `await runSimulation()`；添加单元测试验证 retry 循环行为 | 1h |
 
-### 第二优先级：版本发布前修复（重要功能影响）
+### 4.2 高优先级问题（建议 v0.4.8 解决）
 
-| 编号 | 问题 | 建议措施 |
-|:----:|------|----------|
-| CR-09/10 | 重复定义（MotionLaw、isTauriEnv） | 合并为单一来源 |
-| CR-11/12/13 | 输入验证缺陷 | 添加 CSV 转义、JSON 验证、验证优先于赋值 |
-| CR-14 | 缺少 LICENSE 文件 | 添加 MIT LICENSE 文件 |
-| HI-01~06 | 服务器 panic、NaN 安全、互斥锁 | 替换 unwrap、添加 NaN 验证、修复锁恢复 |
-| HI-07~08 | CI 配置错误 | 修正测试命令和工作区范围 |
-| HI-09 | 服务器零测试 | 添加集成测试 |
-| HI-10~11 | Tailwind 配置问题 | 迁移到 v4 配置或验证 `@config` |
-| HI-12 | ErrorBoundary 不完整 | 使用 SolidJS 内置 `<ErrorBoundary>` |
-| HI-14~15 | 图表响应式和安全工具 | 使用 `useWindowSize` 和 `arrayMax` |
-| HI-20 | NaN/Infinity 验证缺失 | 添加 `is_finite()` 检查 |
+| 优先级 | 问题编号 | 建议措施 | 预估工作量 |
+|:------:|:--------|:---------|:----------:|
+| P1 | HI-01 | 在 `camforge-core` 中添加 `compute_full_simulation(params) -> SimulationData` 公共函数，统一 Tauri 命令和 Axum 路由的计算逻辑；同步 DXF 生成逻辑 | 8h |
+| P1 | HI-02 | 重构三个图表组件以使用 `useChartInteraction` 和 `useChartPadding` Hook；提取共享的提示框渲染和图表背景绘制工具函数 | 6h |
+| P1 | HI-03 | 替换所有图表绘制函数中的硬编码颜色为 `chartColors.ts` 常量引用 | 2h |
+| P1 | HI-08 | 在 CSP nonce 替换中间件中添加 Content-Type 检查，仅对 `text/html` 响应执行缓冲替换 | 1h |
+| P1 | HI-10 | 使用 `tower::limit::RateLimitLayer` 实现实际速率限制，或将代码中的误导性速率限制日志移除 | 2h |
+| P1 | HI-11 | 统一 Tauri CSV 导出逻辑：添加 `rho_actual` 列、实现 CSV 公式注入转义函数 | 1.5h |
+| P1 | HI-12 | 删除 `package-lock.json`，在 `.gitignore` 中添加排除规则；在 `CONTRIBUTING.md` 中明确仅使用 pnpm | 0.5h |
+| P1 | HI-13 | 在锁获取位置上方添加文档注释说明锁序契约；考虑使用基于作用域的 RAII 守卫来强制锁序 | 1h |
+| P1 | HI-17 | 将 Google Fonts 字体文件本地打包或在构建时下载，从 Tauri CSP 中移除外部字体 CDN 域名 | 2h |
 
-### 第三优先级：持续改进（局部影响）
+### 4.3 中优先级问题（建议 v0.4.9 或后续版本处理）
 
-| 类别 | 问题数 | 建议措施 |
-|------|:------:|----------|
-| 代码重复 | ~10 项 | 提取共享工具函数、hooks、常量 |
-| 性能优化 | ~6 项 | 异步命令、缓存旋转结果、避免克隆 |
-| 测试覆盖 | ~8 项 | 添加组件测试、API 测试、覆盖阈值 |
-| 兼容性 | ~5 项 | 移动端触摸支持、国际化完善 |
+- **架构重构**（ME-06, ME-07, ME-25, ME-35）: 拆分 `Sidebar.tsx` 各面板为独立组件；拆分 `exports.ts` 各导出格式为独立模块；将元组返回值改为命名结构体；参数化重复的 `generateRhoPath` 函数。预估总工作量约 10h。
+- **安全加固**（ME-19, ME-20, ME-21, ME-22, ME-23, ME-33, ME-34）: 添加 HSTS 头、添加 `.dockerignore`、Docker 非 root 用户、CI 依赖扫描、完善路径验证。预估总工作量约 6h。
+- **测试补充**（ME-01, ME-02, ME-03, ME-04, ME-05）: 优先为 API 适配层、Tauri 命令和关键 UI 组件添加测试。E2E 测试框架（Playwright）为中长期目标。预估总工作量约 16h（分阶段）。
+- **依赖清理**（ME-15, ME-16, ME-17, ME-18）: 移除 `anyhow`、`thiserror`、`num-traits`、`@types/react`、`@types/react-dom` 等未使用依赖。预估工作量 1h。
+- **文档完善**（ME-30, ME-31, ME-32）: 补全 `WEB_OPTIMIZATION.md`、编写 ADR、添加测试策略文档。预估工作量约 6h。
 
-### 第四优先级：代码质量提升（优化建议）
+### 4.4 低优先级问题（持续改进）
 
-| 类别 | 问题数 | 建议措施 |
-|------|:------:|----------|
-| 代码风格 | ~8 项 | 添加 ESLint + Prettier + `.editorconfig` |
-| 文档完善 | ~5 项 | 添加 SECURITY.md、API 文档、LICENSE |
-| 依赖清理 | ~5 项 | 移除未使用依赖、更新过时版本 |
-| 架构优化 | ~4 项 | 模块职责单一化、工具函数归类 |
+低优先级的 32 个问题主要涉及代码风格的统一化（LO-01 至 LO-11）、微性能优化（LO-12 至 LO-14）、边缘情况处理改进（LO-24 至 LO-28）和文档细节完善（LO-19 至 LO-20、LO-30 至 LO-32）。建议在日常开发中采用"童子军规则"（每次修改代码时顺手清理所在文件的低优问题），而非集中突击。
 
 ---
 
-## 附录：审查方法论
+## 附录 A: 文件引用索引
 
-本次审查采用以下方法：
+为便于快速定位，以下是审查中引用的关键文件路径汇总：
 
-1. **全量源码阅读**: 逐文件阅读所有前端（65 个 TypeScript/TSX 文件）、后端（6 个 Rust 文件）、核心库（13 个 Rust 文件）源代码
-2. **多维度并行分析**: 4 个独立审查代理分别负责前端代码质量、后端代码质量、核心库算法正确性、配置/文档/测试覆盖
-3. **交叉验证**: 合并去重不同代理发现的重叠问题，确保每个问题仅记录一次
-4. **严重程度评估标准**:
-   - **严重**: 导致核心功能不可用、系统崩溃或存在严重安全漏洞
-   - **高**: 影响主要业务流程、存在较大安全隐患或重要功能缺失
-   - **中**: 影响非核心功能、特定场景下的问题或代码质量问题
-   - **低**: 优化建议、风格问题或文档完善
+### 前端核心文件（TypeScript/SolidJS）
 
-> 本报告基于 v0.4.4 版本代码静态分析，未包含运行时测试。部分性能问题的实际影响需通过 profiling 确认。
+| 文件 | 说明 |
+|------|------|
+| [src/App.tsx](src/App.tsx) | 应用根组件 |
+| [src/stores/simulation/core.ts](src/stores/simulation/core.ts) | 核心仿真状态管理 |
+| [src/stores/simulation/compute.ts](src/stores/simulation/compute.ts) | 前端仿真计算（Rust 镜像） |
+| [src/stores/simulation/exports.ts](src/stores/simulation/exports.ts) | 多格式导出编排 |
+| [src/stores/simulation/randomize.ts](src/stores/simulation/randomize.ts) | 随机参数生成 |
+| [src/stores/simulation/presets.ts](src/stores/simulation/presets.ts) | 预设管理 |
+| [src/components/animation/CamAnimation.tsx](src/components/animation/CamAnimation.tsx) | 凸轮动画组件 |
+| [src/components/charts/MotionCurves.tsx](src/components/charts/MotionCurves.tsx) | 运动曲线图表 |
+| [src/components/charts/GeometryChart.tsx](src/components/charts/GeometryChart.tsx) | 压力角图表（命名不当） |
+| [src/components/charts/CurvatureChart.tsx](src/components/charts/CurvatureChart.tsx) | 曲率半径图表 |
+| [src/components/layout/MainCanvas.tsx](src/components/layout/MainCanvas.tsx) | 主画布区域 |
+| [src/components/layout/Sidebar.tsx](src/components/layout/Sidebar.tsx) | 侧边栏参数面板 |
+| [src/constants/chartColors.ts](src/constants/chartColors.ts) | 图表颜色常量（未被引用） |
+| [src/io/storage.ts](src/io/storage.ts) | 存储抽象层（未被引用） |
+| [src/hooks/useChartInteraction.ts](src/hooks/useChartInteraction.ts) | 图表交互 Hook（未被引用） |
+| [src/api/index.ts](src/api/index.ts) | API 适配器接口 |
+
+### Rust 后端核心文件
+
+| 文件 | 说明 |
+|------|------|
+| [crates/camforge-core/src/types.rs](crates/camforge-core/src/types.rs) | 共享类型与参数验证 |
+| [crates/camforge-core/src/profile.rs](crates/camforge-core/src/profile.rs) | 凸轮轮廓计算 |
+| [crates/camforge-core/src/motion.rs](crates/camforge-core/src/motion.rs) | 运动规律计算 |
+| [crates/camforge-core/src/full_motion.rs](crates/camforge-core/src/full_motion.rs) | 完整周期运动计算 |
+| [crates/camforge-server/src/main.rs](crates/camforge-server/src/main.rs) | Axum HTTP 服务器入口 |
+| [crates/camforge-server/src/routes/simulation.rs](crates/camforge-server/src/routes/simulation.rs) | 仿真 API 端点 |
+| [crates/camforge-server/src/routes/export.rs](crates/camforge-server/src/routes/export.rs) | 导出 API 端点 |
+| [src-tauri/src/commands/simulation.rs](src-tauri/src/commands/simulation.rs) | Tauri 仿真 IPC 命令 |
+| [src-tauri/src/commands/export.rs](src-tauri/src/commands/export.rs) | Tauri 导出 IPC 命令 |
+
+### 配置文件
+
+| 文件 | 说明 |
+|------|------|
+| [Cargo.toml](Cargo.toml) | Rust 工作区根清单 |
+| [package.json](package.json) | Node.js 包清单 |
+| [tsconfig.json](tsconfig.json) | TypeScript 配置 |
+| [vite.config.ts](vite.config.ts) | Vite 构建配置 |
+| [tauri.conf.json](src-tauri/tauri.conf.json) | Tauri 应用 + CSP 配置 |
+| [Dockerfile](Dockerfile) | Docker 多阶段构建 |
+| [eslint.config.js](eslint.config.js) | ESLint 配置 |
+
+---
+
+*审查完成时间: 2026-05-01 | 审查工具版本: Claude Code (deepseek-v4-pro) | 下一审查目标版本: v0.4.8*

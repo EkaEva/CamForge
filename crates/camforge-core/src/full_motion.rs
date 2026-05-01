@@ -1,7 +1,9 @@
 //! 完整运动循环计算模块
 //!
 //! 计算凸轮一整圈运动的位移、速度、加速度
+//! 委托至 `motion::compute_rise_point` 作为单一权威实现
 
+use crate::motion::compute_rise_point;
 use crate::types::{CamParams, MotionLaw};
 
 /// 常量：度转弧度
@@ -65,7 +67,7 @@ pub fn compute_full_motion(params: &CamParams) -> Result<FullMotionResult, Strin
         if delta_deg_i <= rise_end_deg && delta0_deg > 0.0 {
             // 推程阶段
             let t = delta_rad / delta_0;
-            let (si, vi, ai) = compute_motion_point(t, params.h, params.omega, delta_0, tc_law);
+            let (si, vi, ai) = compute_rise_point(t, params.h, params.omega, delta_0, tc_law);
             s[i] = si;
             v[i] = vi;
             a[i] = ai;
@@ -75,9 +77,9 @@ pub fn compute_full_motion(params: &CamParams) -> Result<FullMotionResult, Strin
             v[i] = 0.0;
             a[i] = 0.0;
         } else if delta_deg_i <= return_end_deg && delta_ret_deg > 0.0 {
-            // 回程阶段
+            // 回程阶段：委托至 compute_rise_point 并变换
             let t = (delta_rad - outer_dwell_end_deg * DEG2RAD) / delta_ret;
-            let (si, vi, ai) = compute_motion_point(t, params.h, params.omega, delta_ret, hc_law);
+            let (si, vi, ai) = compute_rise_point(t, params.h, params.omega, delta_ret, hc_law);
             s[i] = params.h - si;
             v[i] = -vi;
             a[i] = -ai;
@@ -108,120 +110,9 @@ pub fn compute_full_motion(params: &CamParams) -> Result<FullMotionResult, Strin
     })
 }
 
-/// 计算单个点的运动值（归一化时间 t: 0-1）
-fn compute_motion_point(
-    t: f64,
-    h: f64,
-    omega: f64,
-    delta_rad: f64,
-    law: MotionLaw,
-) -> (f64, f64, f64) {
-    match law {
-        MotionLaw::Uniform => {
-            let s = h * t;
-            let v = h * omega / delta_rad;
-            let a = 0.0;
-            (s, v, a)
-        }
-        MotionLaw::ConstantAcceleration => {
-            if t < 0.5 {
-                let s = 2.0 * h * t * t;
-                let v = 4.0 * h * omega * t / delta_rad;
-                let a = 4.0 * h * omega * omega / (delta_rad * delta_rad);
-                (s, v, a)
-            } else {
-                let s = h * (1.0 - 2.0 * (1.0 - t) * (1.0 - t));
-                let v = 4.0 * h * omega * (1.0 - t) / delta_rad;
-                let a = -4.0 * h * omega * omega / (delta_rad * delta_rad);
-                (s, v, a)
-            }
-        }
-        MotionLaw::SimpleHarmonic => {
-            let s = h * (1.0 - (std::f64::consts::PI * t).cos()) / 2.0;
-            let v = h * omega * std::f64::consts::PI * (std::f64::consts::PI * t).sin() / (2.0 * delta_rad);
-            let a = h * omega * omega * std::f64::consts::PI * std::f64::consts::PI
-                * (std::f64::consts::PI * t).cos() / (2.0 * delta_rad * delta_rad);
-            (s, v, a)
-        }
-        MotionLaw::Cycloidal => {
-            let s = h * (t - (2.0 * std::f64::consts::PI * t).sin() / (2.0 * std::f64::consts::PI));
-            let v = h * omega * (1.0 - (2.0 * std::f64::consts::PI * t).cos()) / delta_rad;
-            let a = h * omega * omega * 2.0 * std::f64::consts::PI * (2.0 * std::f64::consts::PI * t).sin()
-                / (delta_rad * delta_rad);
-            (s, v, a)
-        }
-        MotionLaw::QuinticPolynomial => {
-            let t2 = t * t;
-            let t3 = t2 * t;
-            let t4 = t3 * t;
-            let t5 = t4 * t;
-            let s = h * (10.0 * t3 - 15.0 * t4 + 6.0 * t5);
-            let v = h * omega * (30.0 * t2 - 60.0 * t3 + 30.0 * t4) / delta_rad;
-            let a = h * omega * omega * (60.0 * t - 180.0 * t2 + 120.0 * t3) / (delta_rad * delta_rad);
-            (s, v, a)
-        }
-        MotionLaw::SepticPolynomial => {
-            let t2 = t * t;
-            let t3 = t2 * t;
-            let t4 = t3 * t;
-            let t5 = t4 * t;
-            let t6 = t5 * t;
-            let t7 = t6 * t;
-            let s = h * (35.0 * t4 - 84.0 * t5 + 70.0 * t6 - 20.0 * t7);
-            let v = h * omega * (140.0 * t3 - 420.0 * t4 + 420.0 * t5 - 140.0 * t6) / delta_rad;
-            let a = h * omega * omega * (420.0 * t2 - 1680.0 * t3 + 2100.0 * t4 - 840.0 * t5)
-                / (delta_rad * delta_rad);
-            (s, v, a)
-        }
-    }
-}
-
-/// 验证运动参数
+/// 验证运动参数（委托至 CamParams::validate）
 fn validate_motion_params(params: &CamParams) -> Result<(), String> {
-    // 角度必须为正
-    if params.delta_0 <= 0.0 {
-        return Err(format!("delta_0 must be > 0, got {}", params.delta_0));
-    }
-    if params.delta_01 < 0.0 {
-        return Err(format!("delta_01 must be >= 0, got {}", params.delta_01));
-    }
-    if params.delta_ret <= 0.0 {
-        return Err(format!("delta_ret must be > 0, got {}", params.delta_ret));
-    }
-    if params.delta_02 < 0.0 {
-        return Err(format!("delta_02 must be >= 0, got {}", params.delta_02));
-    }
-
-    // 四角之和必须为 360 度
-    let sum = params.delta_0 + params.delta_01 + params.delta_ret + params.delta_02;
-    if (sum - 360.0).abs() > 0.01 {
-        return Err(format!(
-            "Four angles must sum to 360°, got {:.2}",
-            sum
-        ));
-    }
-
-    // 其他参数验证
-    if params.h <= 0.0 {
-        return Err(format!("h must be > 0, got {}", params.h));
-    }
-    if params.r_0 <= 0.0 {
-        return Err(format!("r_0 must be > 0, got {}", params.r_0));
-    }
-    if params.e.abs() >= params.r_0 {
-        return Err(format!(
-            "|e| must be < r_0, got e={}, r_0={}",
-            params.e, params.r_0
-        ));
-    }
-    if params.omega <= 0.0 {
-        return Err(format!("omega must be > 0, got {}", params.omega));
-    }
-    if params.n_points < 36 {
-        return Err(format!("n_points must be >= 36, got {}", params.n_points));
-    }
-
-    Ok(())
+    params.validate()
 }
 
 #[cfg(test)]
@@ -255,6 +146,51 @@ mod tests {
         params.delta_ret = 100.0;
         params.delta_02 = 100.0; // Sum = 400, not 360
 
+        let result = compute_full_motion(&params);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_full_motion_phase_continuity() {
+        let params = CamParams::default();
+        let data = compute_full_motion(&params).unwrap();
+
+        // 推程终点位移应接近 h
+        let rise_end_idx = (params.delta_0 / 360.0 * params.n_points as f64) as usize;
+        assert!(
+            (data.s[rise_end_idx.min(data.s.len() - 1)] - params.h).abs() < 0.1,
+            "Rise end displacement should be close to h"
+        );
+
+        // 远休止期间位移应保持 h
+        let outer_dwell_start = rise_end_idx;
+        let outer_dwell_end =
+            ((params.delta_0 + params.delta_01) / 360.0 * params.n_points as f64) as usize;
+        let mid_dwell = (outer_dwell_start + outer_dwell_end) / 2;
+        if mid_dwell < data.s.len() {
+            assert!(
+                (data.s[mid_dwell] - params.h).abs() < 0.1,
+                "Outer dwell displacement should be h"
+            );
+        }
+    }
+
+    #[test]
+    fn test_full_motion_start_end_zero() {
+        let params = CamParams::default();
+        let data = compute_full_motion(&params).unwrap();
+
+        // 起点位移为 0
+        assert!((data.s[0] - 0.0).abs() < 1e-10);
+        // 终点位移接近 0（近休止结束）
+        assert!((data.s[data.s.len() - 1] - 0.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_full_motion_delta_0_zero_rejected() {
+        let mut params = CamParams::default();
+        params.delta_0 = 0.0;
+        params.delta_02 = 180.0; // 调整使总和仍为 360
         let result = compute_full_motion(&params);
         assert!(result.is_err());
     }

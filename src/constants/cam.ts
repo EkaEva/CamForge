@@ -1,4 +1,5 @@
 import type { CamParams } from '../types';
+import { FollowerType } from '../types';
 
 /// 默认凸轮设计参数
 export const defaultParams: CamParams = {
@@ -17,4 +18,10 @@ export const defaultParams: CamParams = {
   hc_law: 6,  // 回程运动规律 (Returning Cam law) - 4-5-6-7 多项式
   sn: -1,     // 旋向: 1=顺时针, -1=逆时针 (Spin direction)
   pz: -1,     // 偏距方向: 1=正偏距, -1=负偏距 (offset direction)
+  follower_type: FollowerType.TranslatingRoller,
+  arm_length: 80.0,   // 摆动从动件臂长 (mm)
+  pivot_distance: 120.0, // 摆动从动件枢轴距离 (mm)
+  initial_angle: 0.0, // 摆动从动件初始臂角 (度)
+  gamma: 0,              // 安装偏角 (度), 0=枢轴在凸轮正左方
+  flat_face_offset: 0,   // 平底偏置量 (mm)
 };

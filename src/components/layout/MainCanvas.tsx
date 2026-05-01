@@ -1,5 +1,6 @@
 import { createSignal, Show, Switch, Match, createEffect, onCleanup, JSX, createMemo } from 'solid-js';
 import { simulationData, isLoading, lastRunTime, validationErrors, params, generateDXF, generateCSV, generateSVG, generateHighResPNG, generateRealTIFF, generateGIF, generatePresetJSON, generateExcel, saveFile, getCurrentLang, getExportFilename, exportStatus, setExportStatus, paramsUpdated, setParamsUpdated, curveVisible, setCurveVisible, cursorFrame } from '../../stores/simulation';
+import { FollowerType } from '../../types';
 import { t } from '../../i18n';
 import { CamAnimation } from '../animation';
 import { MotionCurves, GeometryChart, CurvatureChart } from '../charts';
@@ -415,6 +416,25 @@ export function MainCanvas(props: MainCanvasProps) {
     return data.max_alpha > p.alpha_threshold;
   };
 
+  const isFlatFacedInterference = createMemo(() => {
+    const data = simulationData();
+    const p = params();
+    if (!data) return false;
+    const isFlatFaced = p.follower_type === FollowerType.TranslatingFlatFaced
+      || p.follower_type === FollowerType.OscillatingFlatFaced;
+    if (!isFlatFaced) return false;
+    const { s } = data;
+    const n = s.length;
+    const dDeltaSq = (2 * Math.PI / n) ** 2;
+    for (let i = 0; i < n; i++) {
+      const iPrev = i === 0 ? n - 1 : i - 1;
+      const iNext = i === n - 1 ? 0 : i + 1;
+      const d2s = (s[iNext] - 2 * s[i] + s[iPrev]) / dDeltaSq;
+      if (p.r_0 + s[i] + d2s < 0) return true;
+    }
+    return false;
+  });
+
   // 状态文字
   const getStatus = () => {
     const currentT = t();
@@ -423,10 +443,10 @@ export function MainCanvas(props: MainCanvasProps) {
     return currentT.status.ready;
   };
 
-  // 状态颜色：红色=参数错误，绿色=正常/计算中，黄色=压力角超限
+  // 状态颜色：红色=参数错误，绿色=正常/计算中，黄色=压力角超限/干涉
   const getStatusColor = () => {
     if (validationErrors().length > 0) return 'text-error';
-    if (isPressureAngleExceeded()) return 'text-warning';
+    if (isPressureAngleExceeded() || isFlatFacedInterference()) return 'text-warning';
     return 'text-success';
   };
 
@@ -559,6 +579,12 @@ export function MainCanvas(props: MainCanvasProps) {
               {t().status.pressureAngleExceeded}
             </span>
           </Show>
+          <Show when={isFlatFacedInterference()}>
+            <span class="flex items-center gap-1.5 text-warning flex-shrink-0">
+              <Icon name="warning" size={14} class="text-warning" />
+              {t().status.flatFacedInterference}
+            </span>
+          </Show>
           <Show when={exportStatus().type !== 'idle'}>
             <span
               class="truncate max-w-[500px]"
@@ -595,6 +621,12 @@ export function MainCanvas(props: MainCanvasProps) {
             <span class="flex items-center gap-1 text-warning whitespace-nowrap">
               <Icon name="warning" size={12} class="text-warning" />
               {t().status.pressureAngleExceeded}
+            </span>
+          </Show>
+          <Show when={isFlatFacedInterference()}>
+            <span class="flex items-center gap-1 text-warning whitespace-nowrap">
+              <Icon name="warning" size={12} class="text-warning" />
+              {t().status.flatFacedInterference}
             </span>
           </Show>
           <Show when={exportStatus().type !== 'idle'}>

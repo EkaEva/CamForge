@@ -1,6 +1,6 @@
 {
   "name": "camforge",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "description": "Cam mechanism kinematics simulator - Tauri v2 + SolidJS desktop application with mobile support",
   "type": "module",
   "scripts": {
@@ -10,6 +10,11 @@
     "serve": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
+    "lint": "eslint .",
+    "lint:strict": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,json,css}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,json,css}\"",
     "tauri": "tauri",
     "splash:preview": "npx remotion studio src/splash/index.ts",
     "splash:render": "npx tsx src/splash/render.ts"
@@ -31,6 +36,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@remotion/bundler": "^4.0.452",
     "@remotion/cli": "^4.0.452",
     "@remotion/renderer": "^4.0.452",
@@ -42,13 +48,18 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.5.0",
+    "eslint": "^10.2.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-solid": "^0.14.5",
     "jsdom": "^29.0.2",
     "postcss": "^8.5.10",
+    "prettier": "^3.8.3",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "remotion": "^4.0.452",
     "tailwindcss": "^4.2.3",
-    "typescript": "~5.6.2",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.59.1",
     "vite": "^6.0.3",
     "vite-plugin-solid": "^2.11.0",
     "vitest": "^4.1.4"

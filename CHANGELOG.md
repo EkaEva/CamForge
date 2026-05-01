@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.8] - 2026-05-01
+
+### Fixed
+
+- **CR-01 密钥库文件清理**：从项目目录移除 `camforge-next.keystore`
+- **CR-02 NaN/Infinity 静默传播修复**：`SimulationData` 添加 `computationError` 字段，前端 `simulationError` 信号 + Rust `computation_error` 字段，全链路错误状态可观测
+- **CR-03 randomizeParams 竞态条件修复**：平底从动件重试循环中的 `runSimulation()` 调用添加 `await`，函数改为 `async`
+- **Tauri CSV 导出完善**：添加 `rho_actual`（实际轮廓曲率半径）列，与服务器端 CSV 一致；实现 `csv_escape()` 函数防止 Excel 公式注入（`=`、`+`、`-`、`@` 前缀转义）
+- **速率限制日志修正**：`RATE_LIMIT` 变量标注为待实现（enforcement pending），避免误导性日志
+- **锁序契约文档化**：`SimState` 结构体添加 Lock ordering contract 注释（data → params）
+- **双锁文件冲突**：删除 `package-lock.json`，统一使用 `pnpm-lock.yaml`
+
+### Changed
+
+- **HI-03 图表颜色常量化**：4 个 chartDrawing 工具文件（motionCurves, curvature, pressureAngle, camProfile）全部替换硬编码颜色为 `chartColors.ts` 常量引用，同步更新颜色值以匹配实际使用
+- **依赖清理**：移除未使用的 Rust 依赖 `anyhow`、`thiserror`、`num-traits`
+- **dead_code 标注移除**：`csv_escape` 函数实际被调用，移除误导性的 `#[allow(dead_code)]`
+- **版本号更新**：v0.4.7 → v0.4.8（package.json, Cargo.toml, tauri.conf.json, README.md, index.html）
+
+### Security
+
+- **CSV 公式注入防护**：Tauri 桌面端 CSV 导出实现与服务器端一致的 `csv_escape()` 安全转义
+
+---
+
 ## [0.4.7] - 2026-04-30
 
 ### Fixed
@@ -795,6 +820,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[0.4.8]: https://github.com/EkaEva/CamForge/compare/v0.4.7...v0.4.8
 [0.4.7]: https://github.com/EkaEva/CamForge/compare/v0.4.6...v0.4.7
 [0.4.6]: https://github.com/EkaEva/CamForge/compare/v0.4.5...v0.4.6
 [0.4.5]: https://github.com/EkaEva/CamForge/compare/v0.4.4...v0.4.5

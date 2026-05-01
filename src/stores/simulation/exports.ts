@@ -1,418 +1,16 @@
-import { createSignal } from 'solid-js';
-import type { CamParams, SimulationData, DisplayOptions } from '../types';
-import { defaultParams, defaultDisplayOptions } from '../constants';
-import { drawMotionCurves, drawPressureAngleChart, drawCurvatureChart, drawCamProfileChart } from '../utils/chartDrawing';
-import type { ChartDrawOptions } from '../utils/chartDrawing';
-import { computeMotion } from '../services/motion';
-import { arrayMax, arrayMin, arrayMaxBy, arrayMinBy, filterFinite, findIndex } from '../utils/array';
-import { isTauriEnv, invokeTauri } from '../utils/tauri';
-import { isMobilePlatform } from '../utils/platform';
-import { generateGifAsync, terminateGifWorker } from '../services/gifEncoder';
-import { createHistory, type HistoryActions } from './history';
-import { generateDXF as generateDXFCore, generateCSV as generateCSVCore, generateExcel as generateExcelCore, generateTIFFBlob } from '../exporters';
-import { getApi } from '../api';
-import { getDownloadDir, getDefaultDpi } from './settings';
-import { t, language } from '../i18n';
+import { drawMotionCurves, drawPressureAngleChart, drawCurvatureChart, drawCamProfileChart } from '../../utils/chartDrawing';
+import type { ChartDrawOptions } from '../../utils/chartDrawing';
+import { isTauriEnv } from '../../utils/tauri';
+import { isMobilePlatform } from '../../utils/platform';
+import { generateGifAsync, terminateGifWorker } from '../../services/gifEncoder';
+import { generateDXF as generateDXFCore, generateCSV as generateCSVCore, generateExcel as generateExcelCore, generateTIFFBlob } from '../../exporters';
+import { getDownloadDir, getDefaultDpi } from '../settings';
+import { t, language } from '../../i18n';
+import { arrayMax, arrayMin, arrayMaxBy, filterFinite } from '../../utils/array';
+import { simulationData, params, displayOptions } from './core';
 
 // 检查是否在 Tauri 环境中
 const isTauri = isTauriEnv();
-
-// 参数历史管理（撤销/重做）
-const paramsHistory: HistoryActions<CamParams> = createHistory(defaultParams);
-
-// 参数状态
-export const [params, setParams] = createSignal<CamParams>(defaultParams);
-
-// 撤销/重做操作
-export const canUndo = () => paramsHistory.canUndo();
-export const canRedo = () => paramsHistory.canRedo();
-
-export function undoParams(): boolean {
-  if (paramsHistory.undo()) {
-    setParams(() => paramsHistory.state());
-    setParamsChanged(true);
-    setParamsUpdated(true);
-    runSimulation();
-    return true;
-  }
-  return false;
-}
-
-export function redoParams(): boolean {
-  if (paramsHistory.redo()) {
-    setParams(() => paramsHistory.state());
-    setParamsChanged(true);
-    setParamsUpdated(true);
-    runSimulation();
-    return true;
-  }
-  return false;
-}
-
-// 显示选项状态
-export const [displayOptions, setDisplayOptions] = createSignal<DisplayOptions>(defaultDisplayOptions);
-
-// 模拟数据状态
-export const [simulationData, setSimulationData] = createSignal<SimulationData | null>(null);
-
-// 加载状态
-export const [isLoading, setIsLoading] = createSignal(false);
-
-// 最后运行时间
-export const [lastRunTime, setLastRunTime] = createSignal<Date | null>(null);
-
-// 参数是否已更新（需要重新运行）
-export const [paramsChanged, setParamsChanged] = createSignal(false);
-
-// 参数更新提示（用于状态栏显示）
-export const [paramsUpdated, setParamsUpdated] = createSignal(false);
-
-// 导出状态
-export const [exportStatus, setExportStatus] = createSignal<{
-  type: 'idle' | 'exporting' | 'success' | 'error';
-  message: string;
-  files?: string[];
-}>({ type: 'idle', message: '' });
-
-// 共享游标帧索引（图表拖动 ↔ 机构动画同步）
-export const [cursorFrame, setCursorFrame] = createSignal(0);
-
-// 曲线可见性（图例点击切换）
-export const [curveVisible, setCurveVisible] = createSignal({ s: true, v: true, a: true });
-
-// 保存上次运行的参数哈希
-let lastRunParamsHash = '';
-
-// 生成模拟数据
-// Fallback: mirrors camforge-core::compute_full_motion. Keep formulas in sync with Rust.
-function computeSimulationLocally(p: CamParams): SimulationData {
-  const n = p.n_points;
-  const delta_deg: number[] = [];
-  const s: number[] = [];
-  const v: number[] = [];
-  const a: number[] = [];
-  const ds_ddelta: number[] = [];
-
-  // 各相位角度（弧度）
-  const delta0_rad = (p.delta_0 * Math.PI) / 180;
-  const delta01_rad = (p.delta_01 * Math.PI) / 180;
-  const deltaRet_rad = (p.delta_ret * Math.PI) / 180;
-
-  // 相位边界（弧度）
-  const riseEnd = delta0_rad;
-  const outerDwellEnd = riseEnd + delta01_rad;
-  const returnEnd = outerDwellEnd + deltaRet_rad;
-
-  for (let i = 0; i < n; i++) {
-    const delta = (2 * Math.PI * i) / n;
-    delta_deg.push((delta * 180) / Math.PI);
-
-    let si = 0, vi = 0, ai = 0;
-
-    if (delta <= riseEnd && delta0_rad > 0) {
-      // 推程阶段
-      const t = delta / delta0_rad;
-      [si, vi, ai] = computeMotion(p.tc_law, t, p.h, p.omega, delta0_rad);
-    } else if (delta <= outerDwellEnd) {
-      // 远休止阶段
-      si = p.h;
-      vi = 0;
-      ai = 0;
-    } else if (delta <= returnEnd && deltaRet_rad > 0) {
-      // 回程阶段
-      const t = (delta - outerDwellEnd) / deltaRet_rad;
-      [si, vi, ai] = computeMotion(p.hc_law, t, p.h, p.omega, deltaRet_rad);
-      si = p.h - si;
-      vi = -vi;
-      ai = -ai;
-    } else {
-      // 近休止阶段
-      si = 0;
-      vi = 0;
-      ai = 0;
-    }
-
-    s.push(si);
-    v.push(vi);
-    a.push(ai);
-    ds_ddelta.push(vi / p.omega);
-  }
-
-  const s_0 = Math.sqrt(p.r_0 * p.r_0 - p.e * p.e);
-  const x: number[] = [];
-  const y: number[] = [];
-
-  for (let i = 0; i < n; i++) {
-    const delta = (2 * Math.PI * i) / n;
-    const sp = s_0 + s[i];
-    // 凸轮廓形方程
-    let xi = sp * Math.sin(delta) + p.pz * p.e * Math.cos(delta);
-    let yi = sp * Math.cos(delta) - p.pz * p.e * Math.sin(delta);
-    // 旋向翻转
-    xi = -p.sn * xi;
-    x.push(xi);
-    y.push(yi);
-  }
-
-  // 计算滚子从动件实际廓形
-  let x_actual: number[] = [...x];
-  let y_actual: number[] = [...y];
-
-  if (p.r_r > 0) {
-    x_actual = [];
-    y_actual = [];
-    for (let i = 0; i < n; i++) {
-      // 中心差分求切线方向
-      const iPrev = (i - 1 + n) % n;
-      const iNext = (i + 1) % n;
-      const dx = x[iNext] - x[iPrev];
-      const dy = y[iNext] - y[iPrev];
-      const lenT = Math.hypot(dx, dy);
-
-      if (lenT < 1e-12) {
-        x_actual.push(x[i]);
-        y_actual.push(y[i]);
-        continue;
-      }
-
-      const tx = dx / lenT;
-      const ty = dy / lenT;
-
-      // 内法线方向
-      let nx: number, ny: number;
-      if (p.sn === 1) {
-        nx = ty;
-        ny = -tx;
-      } else {
-        nx = -ty;
-        ny = tx;
-      }
-
-      // 确保法线指向凸轮中心
-      const dot = -x[i] * nx + -y[i] * ny;
-      if (dot < 0) {
-        nx = -nx;
-        ny = -ny;
-      }
-
-      x_actual.push(x[i] + p.r_r * nx);
-      y_actual.push(y[i] + p.r_r * ny);
-    }
-  }
-
-  // 计算压力角
-  // 压力角公式: α = arctan((ds/dδ - pz·e) / (s₀ + s))
-  const alpha_all: number[] = [];
-  for (let i = 0; i < n; i++) {
-    const sp = s_0 + s[i];
-    const dsd = ds_ddelta[i];
-    // 压力角计算
-    const tanAlpha = (dsd - p.pz * p.e) / sp;
-    const alpha = Math.atan(tanAlpha) * 180 / Math.PI;
-    alpha_all.push(Math.abs(alpha));
-  }
-
-  const r_max = arrayMaxBy(x, (xi, i) => Math.sqrt(xi * xi + y[i] * y[i]));
-  const max_alpha = arrayMax(alpha_all);
-
-  // 计算曲率半径
-  // 使用参数曲线曲率公式: ρ = ((x'^2 + y'^2)^(3/2)) / (x'y'' - y'x'')
-  const rho: number[] = [];
-  for (let i = 0; i < n; i++) {
-    const iPrev = (i - 1 + n) % n;
-    const iNext = (i + 1) % n;
-
-    // 中心差分求一阶导数
-    const dx = (x[iNext] - x[iPrev]) / 2.0;
-    const dy = (y[iNext] - y[iPrev]) / 2.0;
-
-    // 中心差分求二阶导数
-    const ddx = x[iNext] - 2 * x[i] + x[iPrev];
-    const ddy = y[iNext] - 2 * y[i] + y[iPrev];
-
-    // 曲率 κ = (x'y'' - y'x'') / (x'^2 + y'^2)^(3/2)
-    const cross = dx * ddy - dy * ddx;
-    const speedCubed = Math.pow(dx * dx + dy * dy, 1.5);
-
-    // 避免除零
-    if (speedCubed > 1e-12 && Math.abs(cross) > 1e-12) {
-      rho.push(speedCubed / cross);
-    } else {
-      rho.push(Infinity);
-    }
-  }
-
-  // 计算实际轮廓曲率半径（滚子从动件）
-  // ρ_a = ρ - r_r (外凸部分，ρ > 0)
-  // ρ_a = ρ + r_r (内凹部分，ρ < 0，实际为 |ρ| + r_r)
-  // 简化公式: ρ_a = ρ - sign(ρ) * r_r
-  let rho_actual: number[] = [];
-  if (p.r_r > 0) {
-    for (let i = 0; i < n; i++) {
-      if (isFinite(rho[i])) {
-        // 理论轮廓曲率半径决定内外凸
-        // 外凸 (ρ > 0): 实际轮廓向内收缩，ρ_a = ρ - r_r
-        // 内凹 (ρ < 0): 实际轮廓向外扩展，ρ_a = ρ + r_r (更负)
-        rho_actual.push(rho[i] - Math.sign(rho[i]) * p.r_r);
-      } else {
-        rho_actual.push(Infinity);
-      }
-    }
-  } else {
-    // 尖底从动件，实际轮廓即理论轮廓
-    rho_actual = [...rho];
-  }
-
-  // 计算最小曲率半径（理论轮廓）
-  const rhoFinite = filterFinite(rho);
-  let min_rho: number | null = null;
-  let min_rho_idx = 0;
-  if (rhoFinite.length > 0) {
-    min_rho = arrayMinBy(rhoFinite, Math.abs);
-    min_rho_idx = findIndex(rho, r => isFinite(r) && Math.abs(r) === min_rho);
-    if (min_rho_idx < 0) min_rho_idx = 0;
-  }
-
-  // 计算最小曲率半径（实际轮廓）
-  const rhoActualFinite = filterFinite(rho_actual);
-  let min_rho_actual: number | null = null;
-  let min_rho_actual_idx = 0;
-  if (rhoActualFinite.length > 0) {
-    min_rho_actual = arrayMinBy(rhoActualFinite, Math.abs);
-    min_rho_actual_idx = findIndex(rho_actual, r => isFinite(r) && Math.abs(r) === min_rho_actual);
-    if (min_rho_actual_idx < 0) min_rho_actual_idx = 0;
-  }
-
-  // NaN 检测
-  if (s.some(val => !Number.isFinite(val)) || x.some(val => !Number.isFinite(val)) || y.some(val => !Number.isFinite(val))) {
-    console.warn('Simulation produced non-finite values');
-  }
-
-  return {
-    delta_deg,
-    s, v, a, ds_ddelta,
-    phase_bounds: [0, p.delta_0, p.delta_0 + p.delta_01, p.delta_0 + p.delta_01 + p.delta_ret, 360],
-    x, y,
-    x_actual,
-    y_actual,
-    rho,
-    rho_actual,
-    alpha_all,
-    s_0,
-    r_max,
-    max_alpha,
-    min_rho,
-    min_rho_idx,
-    min_rho_actual,
-    min_rho_actual_idx,
-    h: p.h,
-  };
-}
-
-// 计算参数哈希
-function getParamsHash(p: CamParams): string {
-  return JSON.stringify(p);
-}
-
-// 运行模拟
-export async function runSimulation() {
-  const currentParams = params();
-  setIsLoading(true);
-
-  try {
-    if (isTauri) {
-      // Tauri 环境：使用 IPC 调用 Rust 后端
-      const data = await invokeTauri<SimulationData>('run_simulation', { params: currentParams });
-      setSimulationData(data);
-    } else {
-      // Web 环境：尝试使用 HTTP API，失败则使用前端计算
-      try {
-        const api = await getApi();
-        const data = await api.runSimulation(currentParams);
-        setSimulationData(data);
-      } catch (apiError) {
-        console.warn('HTTP API unavailable, using frontend calculation:', apiError);
-        await new Promise(resolve => setTimeout(resolve, 100));
-        const data = computeSimulationLocally(currentParams);
-        setSimulationData(() => data);
-      }
-    }
-    // 更新状态
-    setLastRunTime(new Date());
-    lastRunParamsHash = getParamsHash(currentParams);
-    setParamsChanged(false);
-  } catch (e) {
-    console.error('Simulation error:', e);
-    // 错误时使用前端计算作为 fallback
-    const data = computeSimulationLocally(params());
-    setSimulationData(() => data);
-  } finally {
-    setIsLoading(false);
-  }
-}
-
-export function updateParam<K extends keyof CamParams>(key: K, value: CamParams[K]) {
-  setParams((prev) => {
-    const newParams = { ...prev, [key]: value };
-    // 记录到历史
-    paramsHistory.push(newParams);
-    // 检查参数是否与上次运行不同
-    if (lastRunParamsHash && getParamsHash(newParams) !== lastRunParamsHash) {
-      setParamsChanged(true);
-    }
-    return newParams;
-  });
-}
-
-export function updateDisplayOption<K extends keyof DisplayOptions>(key: K, value: DisplayOptions[K]) {
-  setDisplayOptions((o) => ({ ...o, [key]: value }));
-}
-
-// 保存配置到 localStorage
-export function savePreset(name: string) {
-  const preset = {
-    params: params(),
-    displayOptions: displayOptions(),
-    savedAt: new Date().toISOString(),
-  };
-  localStorage.setItem(`camforge-preset-${name}`, JSON.stringify(preset));
-}
-
-// 加载配置从 localStorage
-export function loadPreset(name: string): boolean {
-  const stored = localStorage.getItem(`camforge-preset-${name}`);
-  if (stored) {
-    try {
-      const preset = JSON.parse(stored);
-      setParams(preset.params);
-      setDisplayOptions(preset.displayOptions);
-      setParamsChanged(true);
-      setParamsUpdated(true);
-      runSimulation();
-      return true;
-    } catch {
-      return false;
-    }
-  }
-  return false;
-}
-
-// 获取所有保存的配置名称
-export function getSavedPresets(): string[] {
-  const presets: string[] = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key?.startsWith('camforge-preset-')) {
-      presets.push(key.replace('camforge-preset-', ''));
-    }
-  }
-  return presets;
-}
-
-// 删除配置
-export function deletePreset(name: string) {
-  localStorage.removeItem(`camforge-preset-${name}`);
-}
 
 // 生成 DXF 内容
 export function generateDXF(includeActual: boolean): string {
@@ -538,6 +136,16 @@ export function getExportFilename(type: string, lang: string): string {
   return names[type]?.[lang] || names[type]?.zh || type;
 }
 
+// SVG XML 转义
+function xmlEscape(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
 // 生成 SVG 内容（运动曲线 + 压力角 + 曲率半径 + 凸轮轮廓）
 export function generateSVG(): string {
   const data = simulationData();
@@ -555,22 +163,22 @@ export function generateSVG(): string {
 
   const padding = { top: 50, right: 70, bottom: 50, left: 60 };
 
-  // 标签
+  // 标签（XML 安全）
   const labels = {
-    delta: lang === 'zh' ? '转角 δ (°)' : 'Angle δ (°)',
-    s: lang === 'zh' ? '位移 s (mm)' : 'Displacement s (mm)',
-    v: lang === 'zh' ? '速度 v (mm/s)' : 'Velocity v (mm/s)',
-    a: lang === 'zh' ? '加速度 a (mm/s²)' : 'Acceleration a (mm/s²)',
-    alpha: lang === 'zh' ? '压力角 α (°)' : 'Pressure Angle α (°)',
-    rho: lang === 'zh' ? '曲率半径 ρ (mm)' : 'Curvature ρ (mm)',
-    motion: lang === 'zh' ? '推杆运动线图' : 'Follower Motion Curves',
-    pressure: lang === 'zh' ? '压力角曲线' : 'Pressure Angle Curve',
-    curvature: lang === 'zh' ? '曲率半径曲线' : 'Curvature Radius Curve',
-    profile: lang === 'zh' ? '凸轮廓形' : 'Cam Profile',
-    theory: lang === 'zh' ? '理论廓形' : 'Theory Profile',
-    actual: lang === 'zh' ? '实际廓形' : 'Actual Profile',
-    baseCircle: lang === 'zh' ? '基圆' : 'Base Circle',
-    threshold: lang === 'zh' ? '阈值' : 'Threshold',
+    delta: xmlEscape(lang === 'zh' ? '转角 δ (°)' : 'Angle δ (°)'),
+    s: xmlEscape(lang === 'zh' ? '位移 s (mm)' : 'Displacement s (mm)'),
+    v: xmlEscape(lang === 'zh' ? '速度 v (mm/s)' : 'Velocity v (mm/s)'),
+    a: xmlEscape(lang === 'zh' ? '加速度 a (mm/s²)' : 'Acceleration a (mm/s²)'),
+    alpha: xmlEscape(lang === 'zh' ? '压力角 α (°)' : 'Pressure Angle α (°)'),
+    rho: xmlEscape(lang === 'zh' ? '曲率半径 ρ (mm)' : 'Curvature ρ (mm)'),
+    motion: xmlEscape(lang === 'zh' ? '推杆运动线图' : 'Follower Motion Curves'),
+    pressure: xmlEscape(lang === 'zh' ? '压力角曲线' : 'Pressure Angle Curve'),
+    curvature: xmlEscape(lang === 'zh' ? '曲率半径曲线' : 'Curvature Radius Curve'),
+    profile: xmlEscape(lang === 'zh' ? '凸轮廓形' : 'Cam Profile'),
+    theory: xmlEscape(lang === 'zh' ? '理论廓形' : 'Theory Profile'),
+    actual: xmlEscape(lang === 'zh' ? '实际廓形' : 'Actual Profile'),
+    baseCircle: xmlEscape(lang === 'zh' ? '基圆' : 'Base Circle'),
+    threshold: xmlEscape(lang === 'zh' ? '阈值' : 'Threshold'),
   };
 
   // 计算范围
@@ -1013,7 +621,8 @@ export async function generateRealTIFF(
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Failed to get 2D context');
 
   const options: ChartDrawOptions = {
     width,
@@ -1087,189 +696,4 @@ export function generateExcel(lang: string): Blob {
   const p = params();
   if (!data) return new Blob();
   return generateExcelCore(data, p, lang);
-}
-
-// 导出当前配置为 JSON
-export function generatePresetJSON(): string {
-  const currentParams = params();
-  const currentDisplay = displayOptions();
-  const preset = {
-    params: currentParams,
-    displayOptions: currentDisplay,
-    savedAt: new Date().toISOString(),
-    version: '1.0.0'
-  };
-  return JSON.stringify(preset, null, 2);
-}
-
-// 从 JSON 字符串加载配置
-export function loadPresetFromJSON(jsonString: string): { success: boolean; error?: string } {
-  try {
-    const preset = JSON.parse(jsonString);
-
-    // 验证必要字段存在
-    if (!preset.params) {
-      return { success: false, error: '配置文件缺少 params 字段' };
-    }
-
-    // 验证 params 包含必要的参数
-    const requiredKeys = ['delta_0', 'delta_01', 'delta_ret', 'delta_02', 'h', 'r_0', 'e', 'omega', 'r_r', 'n_points', 'alpha_threshold', 'tc_law', 'hc_law', 'sn', 'pz'];
-    for (const key of requiredKeys) {
-      if (!(key in preset.params)) {
-        return { success: false, error: `配置文件缺少必要参数: ${key}` };
-      }
-    }
-
-    // 应用参数
-    setParams(preset.params);
-
-    // 如果有显示选项，也应用
-    if (preset.displayOptions) {
-      setDisplayOptions(preset.displayOptions);
-    }
-
-    setParamsChanged(true);
-    setParamsUpdated(true);
-    runSimulation();
-    return { success: true };
-  } catch (e) {
-    return { success: false, error: `JSON 解析失败: ${e}` };
-  }
-}
-
-// 参数校验
-export function validateParams(p: CamParams): { valid: boolean; errors: string[] } {
-  const errors: string[] = [];
-
-  // 四角之和必须等于 360°
-  const sum = p.delta_0 + p.delta_01 + p.delta_ret + p.delta_02;
-  if (Math.abs(sum - 360) > 0.01) {
-    errors.push(`四角之和必须等于 360°（当前: ${sum}°）`);
-  }
-
-  // 基圆半径必须大于偏距
-  if (p.r_0 <= Math.abs(p.e)) {
-    errors.push('基圆半径必须大于偏距的绝对值');
-  }
-
-  // 行程必须为正
-  if (p.h <= 0) {
-    errors.push('行程必须为正数');
-  }
-
-  // 角速度必须为正
-  if (p.omega <= 0) {
-    errors.push('角速度必须为正数');
-  }
-
-  // 离散点数范围验证
-  if (p.n_points < 36) {
-    errors.push('离散点数不能小于 36');
-  }
-  if (p.n_points > 720) {
-    errors.push('离散点数不能大于 720');
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-  };
-}
-
-// 获取当前参数校验错误（响应式）
-export function validationErrors(): string[] {
-  return validateParams(params()).errors;
-}
-
-// 获取哪些参数有校验错误（响应式，用于输入框高亮）
-export function invalidParams(): Set<keyof CamParams> {
-  const p = params();
-  const invalid = new Set<keyof CamParams>();
-
-  const sum = p.delta_0 + p.delta_01 + p.delta_ret + p.delta_02;
-  if (Math.abs(sum - 360) > 0.01) {
-    invalid.add('delta_0');
-    invalid.add('delta_01');
-    invalid.add('delta_ret');
-    invalid.add('delta_02');
-  }
-
-  if (p.r_0 <= Math.abs(p.e)) {
-    invalid.add('r_0');
-    invalid.add('e');
-  }
-
-  if (p.h <= 0) {
-    invalid.add('h');
-  }
-
-  if (p.omega <= 0) {
-    invalid.add('omega');
-  }
-
-  if (p.n_points < 36 || p.n_points > 720) {
-    invalid.add('n_points');
-  }
-
-  return invalid;
-}
-
-// 随机生成可运行的参数（仅运动参数和几何参数，仿真设置保持不变）
-export function randomizeParams(): CamParams {
-  const currentParams = params();
-
-  // 随机生成四角（确保和为360°且每个角至少15°）
-  const minAngle = 15;
-
-  let delta_0 = Math.floor(Math.random() * 100) + minAngle; // 15-115
-  let delta_01 = Math.floor(Math.random() * 80) + minAngle; // 15-95
-  let delta_ret = Math.floor(Math.random() * 100) + minAngle; // 15-115
-
-  let delta_02 = 360 - delta_0 - delta_01 - delta_ret;
-
-  if (delta_02 < minAngle) {
-    const excess = minAngle - delta_02;
-    delta_0 = Math.max(minAngle, delta_0 - Math.ceil(excess / 3));
-    delta_01 = Math.max(minAngle, delta_01 - Math.ceil(excess / 3));
-    delta_ret = Math.max(minAngle, delta_ret - Math.ceil(excess / 3));
-    delta_02 = 360 - delta_0 - delta_01 - delta_ret;
-  }
-
-  // 随机几何参数
-  const e = Math.round((Math.random() * 16 - 8) * 10) / 10; // -8 到 8
-  const r_0 = Math.floor(Math.random() * 30) + Math.abs(e) + 25;
-  const h = Math.round((Math.random() * 15 + 5) * 10) / 10; // 5-20
-  const r_r = Math.round((Math.random() * 5 + 3) * 10) / 10; // 3-8
-
-  // 随机运动规律 (1-6)
-  const tc_law = Math.floor(Math.random() * 6) + 1;
-  const hc_law = Math.floor(Math.random() * 6) + 1;
-
-  // 随机旋向和偏距方向
-  const sn = Math.random() > 0.5 ? 1 : -1;
-  const pz = Math.random() > 0.5 ? 1 : -1;
-
-  const newParams: CamParams = {
-    delta_0,
-    delta_01,
-    delta_ret,
-    delta_02,
-    h,
-    r_0,
-    e,
-    omega: currentParams.omega, // 保持不变
-    r_r,
-    n_points: currentParams.n_points, // 保持不变
-    alpha_threshold: currentParams.alpha_threshold, // 保持不变
-    tc_law,
-    hc_law,
-    sn,
-    pz,
-  };
-
-  setParams(newParams);
-  setParamsChanged(true);
-  setParamsUpdated(true);
-  runSimulation();
-  return newParams;
 }
