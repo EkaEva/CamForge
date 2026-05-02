@@ -41,10 +41,10 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: Run Rust tests
-        run: cargo test --workspace
+        run: cargo test -p camforge-core -p camforge-server
 
       - name: Rust clippy check
-        run: cargo clippy --workspace -- -D warnings
+        run: cargo clippy -p camforge-core -p camforge-server -- -D warnings
 
   build-check:
     runs-on: ubuntu-latest

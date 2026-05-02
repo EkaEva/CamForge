@@ -59,7 +59,7 @@ export function drawCamProfileChart(
   }
 
   // 理论廓形
-  ctx.strokeStyle = '#DC2626';
+  ctx.strokeStyle = CAM_PROFILE_COLORS.theoryProfile;
   ctx.lineWidth = Math.round(2 * dpiScale);
   ctx.beginPath();
   let profileStarted = false;
@@ -75,7 +75,7 @@ export function drawCamProfileChart(
 
   // 实际廓形（如果有滚子）
   if (params.r_r > 0 && x_actual.length > 0) {
-    ctx.strokeStyle = '#2563EB';
+    ctx.strokeStyle = CAM_PROFILE_COLORS.actualProfile;
     ctx.lineWidth = Math.round(2 * dpiScale);
     ctx.beginPath();
     profileStarted = false;
@@ -96,7 +96,7 @@ export function drawCamProfileChart(
   ctx.font = `${Math.round(12 * dpiScale)}px -apple-system, sans-serif`;
 
   // 理论廓形
-  ctx.strokeStyle = '#DC2626';
+  ctx.strokeStyle = CAM_PROFILE_COLORS.theoryProfile;
   ctx.lineWidth = Math.round(2 * dpiScale);
   ctx.beginPath();
   ctx.moveTo(legendX, legendY);
@@ -109,7 +109,7 @@ export function drawCamProfileChart(
   // 实际廓形
   if (params.r_r > 0) {
     legendY += Math.round(20 * dpiScale);
-    ctx.strokeStyle = '#2563EB';
+    ctx.strokeStyle = CAM_PROFILE_COLORS.actualProfile;
     ctx.beginPath();
     ctx.moveTo(legendX, legendY);
     ctx.lineTo(legendX + Math.round(30 * dpiScale), legendY);
