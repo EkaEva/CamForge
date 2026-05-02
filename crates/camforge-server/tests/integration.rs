@@ -66,20 +66,19 @@ async fn test_simulate_default_params() {
 
     assert_eq!(status, StatusCode::OK);
     let json: serde_json::Value = serde_json::from_str(&body).unwrap();
-    let data = json.get("data").unwrap();
 
-    // 验证返回数据结构完整
-    assert!(data.get("delta_deg").is_some());
-    assert!(data.get("s").is_some());
-    assert!(data.get("v").is_some());
-    assert!(data.get("a").is_some());
-    assert!(data.get("x").is_some());
-    assert!(data.get("y").is_some());
-    assert!(data.get("alpha_all").is_some());
+    // 验证返回数据结构完整（v0.4.11 移除了冗余的 data 包装键）
+    assert!(json.get("delta_deg").is_some());
+    assert!(json.get("s").is_some());
+    assert!(json.get("v").is_some());
+    assert!(json.get("a").is_some());
+    assert!(json.get("x").is_some());
+    assert!(json.get("y").is_some());
+    assert!(json.get("alpha_all").is_some());
 
     // 验证数组长度一致
-    let s = data.get("s").unwrap().as_array().unwrap();
-    let x = data.get("x").unwrap().as_array().unwrap();
+    let s = json.get("s").unwrap().as_array().unwrap();
+    let x = json.get("x").unwrap().as_array().unwrap();
     assert_eq!(s.len(), 360);
     assert_eq!(x.len(), 360);
 }

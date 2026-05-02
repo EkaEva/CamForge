@@ -71,7 +71,9 @@ export async function generateTIFFBlob(canvas: HTMLCanvasElement, dpi: number = 
     return await encodeCanvasToTIFFAsync(canvas, dpi);
   } catch (e) {
     console.error('TIFF encoding error:', e);
-    throw new Error('TIFF encoding failed — please try PNG or SVG export instead');
+    const err = new Error('TIFF encoding failed — please try PNG or SVG export instead');
+    err.cause = e;
+    throw err;
   }
 }
 
