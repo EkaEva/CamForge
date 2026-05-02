@@ -42,6 +42,7 @@ export default tseslint.config(
       'node_modules/**',
       'src-tauri/**',
       'crates/**',
+      'target/**',
       '.output/**',
       'public/**',
       'src/stores/simulation/index.ts',

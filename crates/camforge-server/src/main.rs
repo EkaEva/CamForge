@@ -79,7 +79,7 @@ fn build_csp(nonce: &str) -> String {
     // frame-ancestors 'none' prevents clickjacking (equivalent to X-Frame-Options: DENY)
     let frame_ancestors = "frame-ancestors 'none'";
 
-    vec![
+    [
         default_src,
         &script_src,
         &style_src,

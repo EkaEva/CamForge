@@ -1,7 +1,7 @@
 //! 导出 API 路由
 
 use crate::error::ApiError;
-use crate::routes::simulation::{compute_profile_for_type, ProfileCoords};
+use crate::routes::simulation::ProfileCoords;
 use axum::{
     body::Body,
     http::{header, Response, StatusCode},
@@ -133,11 +133,11 @@ pub async fn export_csv(Json(req): Json<ExportRequest>) -> Result<Response<Body>
             params.pivot_distance,
             params.initial_angle,
         )
-        .map_err(|e| ApiError::CalculationError(e))?,
+        .map_err(ApiError::CalculationError)?,
         _ => {
             let s_0 = (params.r_0.powi(2) - params.e.powi(2)).sqrt();
             compute_pressure_angle(&motion.s, &motion.ds_ddelta, s_0, params.e, params.pz)
-                .map_err(|e| ApiError::CalculationError(e))?
+                .map_err(ApiError::CalculationError)?
         }
     };
 
@@ -262,41 +262,39 @@ fn generate_dxf_content(
     y_actual: &[f64],
     include_actual: bool,
 ) -> String {
-    let mut lines: Vec<String> = Vec::new();
-
-    // DXF Header
-    lines.push("0".to_string());
-    lines.push("SECTION".to_string());
-    lines.push("2".to_string());
-    lines.push("HEADER".to_string());
-    lines.push("9".to_string());
-    lines.push("$INSUNITS".to_string());
-    lines.push("70".to_string());
-    lines.push("4".to_string());
-    lines.push("0".to_string());
-    lines.push("ENDSEC".to_string());
-
-    // Tables Section
-    lines.push("0".to_string());
-    lines.push("SECTION".to_string());
-    lines.push("2".to_string());
-    lines.push("TABLES".to_string());
-    lines.push("0".to_string());
-    lines.push("TABLE".to_string());
-    lines.push("2".to_string());
-    lines.push("LAYER".to_string());
-    lines.push("70".to_string());
-    lines.push("2".to_string());
-
-    // Theory layer
-    lines.push("0".to_string());
-    lines.push("LAYER".to_string());
-    lines.push("2".to_string());
-    lines.push("CAM_THEORY".to_string());
-    lines.push("70".to_string());
-    lines.push("0".to_string());
-    lines.push("62".to_string());
-    lines.push("1".to_string());
+    let mut lines: Vec<String> = vec![
+        // DXF Header
+        "0".to_string(),
+        "SECTION".to_string(),
+        "2".to_string(),
+        "HEADER".to_string(),
+        "9".to_string(),
+        "$INSUNITS".to_string(),
+        "70".to_string(),
+        "4".to_string(),
+        "0".to_string(),
+        "ENDSEC".to_string(),
+        // Tables Section
+        "0".to_string(),
+        "SECTION".to_string(),
+        "2".to_string(),
+        "TABLES".to_string(),
+        "0".to_string(),
+        "TABLE".to_string(),
+        "2".to_string(),
+        "LAYER".to_string(),
+        "70".to_string(),
+        "2".to_string(),
+        // Theory layer
+        "0".to_string(),
+        "LAYER".to_string(),
+        "2".to_string(),
+        "CAM_THEORY".to_string(),
+        "70".to_string(),
+        "0".to_string(),
+        "62".to_string(),
+        "1".to_string(),
+    ];
 
     // Actual layer
     if include_actual {
