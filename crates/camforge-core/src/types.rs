@@ -5,11 +5,12 @@
 use serde::{Deserialize, Serialize};
 
 /// 从动件类型枚举
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FollowerType {
     /// 直动尖底从动件
     TranslatingKnifeEdge = 1,
     /// 直动滚子从动件
+    #[default]
     TranslatingRoller = 2,
     /// 直动平底从动件
     TranslatingFlatFaced = 3,
@@ -17,12 +18,6 @@ pub enum FollowerType {
     OscillatingRoller = 4,
     /// 摆动平底从动件
     OscillatingFlatFaced = 5,
-}
-
-impl Default for FollowerType {
-    fn default() -> Self {
-        Self::TranslatingRoller
-    }
 }
 
 impl TryFrom<i32> for FollowerType {

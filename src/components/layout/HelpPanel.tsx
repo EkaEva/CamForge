@@ -100,7 +100,7 @@ export function HelpPanel(props: HelpPanelProps) {
           </div>
           <button
             type="button"
-            onClick={props.onClose}
+            onClick={() => props.onClose?.()}
             class="w-7 h-7 flex items-center justify-center rounded hover:bg-chrome-surface-hover text-chrome-text transition-colors"
           >
             <Icon name="close" size={18} />

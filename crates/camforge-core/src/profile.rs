@@ -2,6 +2,9 @@
 //!
 //! 计算理论廓形和滚子从动件实际廓形
 
+type RollerProfile = (Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>, f64);
+type OscFlatProfile = (Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>);
+
 /// 凸轮轮廓计算结果
 pub struct ProfileResult {
     /// 理论廓形 X 坐标
@@ -66,7 +69,7 @@ pub fn compute_cam_profile(
         y[i] = sp * cos_d - pz_f * e * sin_d;
 
         // 转向处理
-        x[i] = -sn_f * x[i];
+        x[i] *= -sn_f;
     }
 
     Ok(ProfileResult { x, y, s_0 })
@@ -168,7 +171,7 @@ pub fn compute_flat_faced_profile(
     sn: i32,
     pz: i32,
     flat_face_offset: f64,
-) -> Result<(Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>, f64), String> {
+) -> Result<RollerProfile, String> {
     if r_0 <= 0.0 {
         return Err(format!("r_0 must be > 0, got {}", r_0));
     }
@@ -306,7 +309,7 @@ pub fn compute_oscillating_flat_faced_profile(
     initial_angle: f64,
     sn: i32,
     flat_face_offset: f64,
-) -> Result<(Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>), String> {
+) -> Result<OscFlatProfile, String> {
     if s.len() != ds_ddelta.len() {
         return Err(format!(
             "s and ds_ddelta must have same length, got {} and {}",

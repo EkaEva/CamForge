@@ -1,3 +1,4 @@
+import { For } from 'solid-js';
 import { language } from '../../i18n';
 
 interface SelectOption {
@@ -42,11 +43,13 @@ export function Select(props: SelectProps) {
         aria-labelledby={`${props.label}-label`}
         class="w-full px-2 py-1.5 text-sm bg-surface-container border border-outline-variant rounded-md hover:border-on-surface-variant focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-on-surface font-display appearance-none cursor-pointer transition-colors"
       >
-        {props.options.map((option) => (
-          <option value={option.value} class="bg-surface-container-lowest">
-            {getOptionLabel(option)}
-          </option>
-        ))}
+        <For each={props.options}>
+          {(option) => (
+            <option value={option.value} class="bg-surface-container-lowest">
+              {getOptionLabel(option)}
+            </option>
+          )}
+        </For>
       </select>
     </div>
   );
