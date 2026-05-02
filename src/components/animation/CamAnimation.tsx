@@ -419,25 +419,20 @@ export function CamAnimation(props: CamAnimationProps) {
   const data = simulationData();
   const p = params();
 
-  if (!data) {
-    return (
+  return (
+    <Show when={data} fallback={
       <div class="w-full h-full flex items-center justify-center text-on-surface-variant text-sm bg-surface-container-lowest rounded-lg font-display">
         {t().mainCanvas.clickToStart}
       </div>
-    );
-  }
-
-  const { s_0 } = data;
-
-  return (
-    <div
-      class="relative w-full h-full bg-surface-container-lowest drafting-grid rounded-lg overflow-hidden touch-manipulation"
-      role="img"
-      aria-label={t().tabs.camProfile}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onWheel={handleWheel}
-    >
+    }>
+      <div
+        class="relative w-full h-full bg-surface-container-lowest drafting-grid rounded-lg overflow-hidden touch-manipulation"
+        role="img"
+        aria-label={t().tabs.camProfile}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onWheel={handleWheel}
+      >
       <svg viewBox={viewBoxData().viewBox} class="w-full h-full" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
         {/* Coordinate axes and tick marks */}
         <Show when={displayOptions().showCenterLine}>
@@ -469,7 +464,7 @@ export function CamAnimation(props: CamAnimationProps) {
         </Show>
         {/* 基圆 */}
         <Show when={displayOptions().showBaseCircle}>
-          <circle cx="0" cy="0" r={s_0 * zoom()} fill="none" stroke="var(--outline-variant)" stroke-width={0.5 * zoom()} stroke-dasharray="2,2" />
+          <circle cx="0" cy="0" r={data!.s_0 * zoom()} fill="none" stroke="var(--outline-variant)" stroke-width={0.5 * zoom()} stroke-dasharray="2,2" />
         </Show>
 
         {/* 偏距圆 */}
@@ -494,36 +489,27 @@ export function CamAnimation(props: CamAnimationProps) {
           const cxSvg = fd.contactX * z;
           const cySvg = -fd.contactY * z;
 
-          if (p2.follower_type === FollowerType.TranslatingFlatFaced) {
-            // 平底直动从动件：水平线段 + 竖直杆身
-            // 平底半宽：使用最小半宽 + 30% 余量，确保覆盖所有接触点
-            const minHalfW = data ? data.flat_face_min_half_width : 0;
-            const faceHalfW = (minHalfW > 0 ? minHalfW * 1.3 : r_0 * 0.3) * z;
-            // 平底以从动件轴线为中心，接触点在 cxSvg（含 ds/ddelta 偏置）
-            const followerXSvg = (fd.followerX + p2.flat_face_offset) * z;
-            return (
-              <>
-                {/* 平底线段（以从动件轴线为中心） */}
-                <line
-                  x1={followerXSvg - faceHalfW} y1={cySvg}
-                  x2={followerXSvg + faceHalfW} y2={cySvg}
-                  stroke="var(--on-surface)" stroke-width={1.2 * z}
-                />
-                {/* 竖直杆身（从动件轴线） */}
-                <line
-                  x1={followerXSvg} y1={cySvg}
-                  x2={followerXSvg} y2={cySvg - viewBoxData().r_max * 0.3 * z}
-                  stroke="var(--on-surface)" stroke-width={0.8 * z}
-                />
-                {/* 实际接触点标记（在平底上偏置 ds/ddelta） */}
-                <circle cx={cxSvg} cy={cySvg} r={r_0 * 0.025 * z}
-                  fill="var(--primary)" />
-              </>
-            );
-          }
+          const flatFacedFollower = (
+            <>
+              {/* 平底线段（以从动件轴线为中心） */}
+              <line
+                x1={(fd.followerX + p2.flat_face_offset) * z - (data ? data.flat_face_min_half_width > 0 ? data.flat_face_min_half_width * 1.3 : r_0 * 0.3 : r_0 * 0.3) * z} y1={cySvg}
+                x2={(fd.followerX + p2.flat_face_offset) * z + (data ? data.flat_face_min_half_width > 0 ? data.flat_face_min_half_width * 1.3 : r_0 * 0.3 : r_0 * 0.3) * z} y2={cySvg}
+                stroke="var(--on-surface)" stroke-width={1.2 * z}
+              />
+              {/* 竖直杆身（从动件轴线） */}
+              <line
+                x1={(fd.followerX + p2.flat_face_offset) * z} y1={cySvg}
+                x2={(fd.followerX + p2.flat_face_offset) * z} y2={cySvg - viewBoxData().r_max * 0.3 * z}
+                stroke="var(--on-surface)" stroke-width={0.8 * z}
+              />
+              {/* 实际接触点标记（在平底上偏置 ds/ddelta） */}
+              <circle cx={cxSvg} cy={cySvg} r={r_0 * 0.025 * z}
+                fill="var(--primary)" />
+            </>
+          );
 
-          if (p2.follower_type === FollowerType.OscillatingRoller || p2.follower_type === FollowerType.OscillatingFlatFaced) {
-            // 摆动从动件：臂 + 滚子/平底 + 固定铰支座
+          const oscillatingFollower = (() => {
             const pxSvg = fd.pivotX * z;
             const pySvg = -fd.pivotY * z;
             const armLen = Math.hypot(cxSvg - pxSvg, cySvg - pySvg);
@@ -532,7 +518,6 @@ export function CamAnimation(props: CamAnimationProps) {
             const faceCenterX = cxSvg + p2.flat_face_offset * z * sinA;
             const faceCenterY = cySvg - p2.flat_face_offset * z * cosA;
 
-            // 铰支座参数（沿凸轮中心→枢轴方向）
             const pivDist = Math.hypot(pxSvg, pySvg);
             const supCos = pivDist > EPSILON ? pxSvg / pivDist : 0;
             const supSin = pivDist > EPSILON ? pySvg / pivDist : 1;
@@ -544,12 +529,10 @@ export function CamAnimation(props: CamAnimationProps) {
             const hatchLen = sz * 0.5;
             const nHatch = 5;
 
-            // 三角形顶点（沿支撑方向）
             const triTopX = pxSvg + supCos * triBase;
             const triTopY = pySvg + supSin * triBase;
             const triBotX = pxSvg + supCos * triHeight;
             const triBotY = pySvg + supSin * triHeight;
-            // 垂直于支撑方向的分量
             const perpX2 = -supSin;
             const perpY2 = supCos;
 
@@ -603,36 +586,32 @@ export function CamAnimation(props: CamAnimationProps) {
                 })}
               </>
             );
-          }
+          })();
 
-          // 直动滚子从动件
-          if (p2.r_r > 0) {
-            return (
-              <>
-                {/* 滚子外圈 */}
-                <circle
-                  cx={cxSvg} cy={cySvg}
-                  r={p2.r_r * z}
-                  fill="none" stroke="var(--on-surface)" stroke-width={0.8 * z}
-                />
-                {/* 滚子中心点 */}
-                <circle
-                  cx={cxSvg} cy={cySvg}
-                  r={r_0 * 0.02 * z}
-                  fill="var(--on-surface)"
-                />
-                {/* 推杆杆身 */}
-                <line
-                  x1={cxSvg} y1={cySvg}
-                  x2={cxSvg} y2={cySvg - viewBoxData().r_max * 0.3 * z}
-                  stroke="var(--on-surface)" stroke-width={0.8 * z}
-                />
-              </>
-            );
-          }
+          const rollerFollower = (
+            <>
+              {/* 滚子外圈 */}
+              <circle
+                cx={cxSvg} cy={cySvg}
+                r={p2.r_r * z}
+                fill="none" stroke="var(--on-surface)" stroke-width={0.8 * z}
+              />
+              {/* 滚子中心点 */}
+              <circle
+                cx={cxSvg} cy={cySvg}
+                r={r_0 * 0.02 * z}
+                fill="var(--on-surface)"
+              />
+              {/* 推杆杆身 */}
+              <line
+                x1={cxSvg} y1={cySvg}
+                x2={cxSvg} y2={cySvg - viewBoxData().r_max * 0.3 * z}
+                stroke="var(--on-surface)" stroke-width={0.8 * z}
+              />
+            </>
+          );
 
-          // 尖底从动件
-          return (
+          const knifeEdgeFollower = (
             <>
               <polygon
                 points={`${cxSvg - r_0 * 0.075 * z},${cySvg - r_0 * 0.1 * z} ${cxSvg},${cySvg - 0.4 * z} ${cxSvg + r_0 * 0.075 * z},${cySvg - r_0 * 0.1 * z}`}
@@ -647,6 +626,11 @@ export function CamAnimation(props: CamAnimationProps) {
               />
             </>
           );
+
+          return p2.follower_type === FollowerType.TranslatingFlatFaced ? flatFacedFollower
+            : p2.follower_type === FollowerType.OscillatingRoller || p2.follower_type === FollowerType.OscillatingFlatFaced ? oscillatingFollower
+            : p2.r_r > 0 ? rollerFollower
+            : knifeEdgeFollower;
         })()}
 
         {/* 切线 */}
@@ -873,5 +857,6 @@ export function CamAnimation(props: CamAnimationProps) {
       </div>
 
     </div>
+    </Show>
   );
 }

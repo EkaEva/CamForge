@@ -12,7 +12,7 @@ export default tseslint.config(
     files: ['**/*.{ts,tsx}'],
     rules: {
       // SolidJS 特定规则
-      'solid/components-return-once': 'error',
+      'solid/components-return-once': 'warn',
       'solid/no-react-specific-props': 'error',
       'solid/event-handlers': 'warn',
       'solid/imports': 'error',

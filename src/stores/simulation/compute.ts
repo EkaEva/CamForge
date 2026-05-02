@@ -26,7 +26,7 @@ export function computeSimulationLocally(p: CamParams): SimulationData {
     const delta = (2 * Math.PI * i) / n;
     delta_deg.push((delta * 180) / Math.PI);
 
-    let si = 0, vi = 0, ai = 0;
+    let si: number, vi: number, ai: number;
 
     if (delta <= riseEnd && delta0_rad > 0) {
       // 推程阶段
@@ -89,7 +89,7 @@ export function computeSimulationLocally(p: CamParams): SimulationData {
       const delta = (2 * Math.PI * i) / n;
       const sp = s_0 + s[i];
       let xi = sp * Math.sin(delta) + p.pz * p.e * Math.cos(delta);
-      let yi = sp * Math.cos(delta) - p.pz * p.e * Math.sin(delta);
+      const yi = sp * Math.cos(delta) - p.pz * p.e * Math.sin(delta);
       xi = -p.sn * xi;
       x.push(xi);
       y.push(yi);

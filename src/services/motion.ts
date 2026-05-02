@@ -78,7 +78,7 @@ export function computeMotion(
         (deltaRad * deltaRad);
       break;
 
-    case MotionLaw.Polynomial4567: // 4-5-6-7 多项式
+    case MotionLaw.Polynomial4567: { // 4-5-6-7 多项式
       const t2 = t * t;
       const t3 = t2 * t;
       const t4 = t3 * t;
@@ -92,6 +92,7 @@ export function computeMotion(
         (h * omega * omega * (420 * t2 - 1680 * t3 + 2100 * t4 - 840 * t5)) /
         (deltaRad * deltaRad);
       break;
+    }
 
     default:
       // 默认使用简谐运动

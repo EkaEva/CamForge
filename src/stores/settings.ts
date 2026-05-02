@@ -21,7 +21,7 @@ const [exportSettings, setExportSettings] = createSignal<ExportSettings>({
 // 更新暗色模式状态
 function updateDarkMode() {
   const currentTheme = theme();
-  let dark = false;
+  let dark: boolean;
 
   if (currentTheme === 'dark') {
     dark = true;

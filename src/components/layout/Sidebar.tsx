@@ -41,6 +41,7 @@ export function Sidebar(props: SidebarProps) {
   const [presets, setPresets] = createSignal<string[]>([]);
   const [presetName, setPresetName] = createSignal('');
   const [loadError, setLoadError] = createSignal<string | null>(null);
+  // eslint-disable-next-line no-unassigned-vars
   let fileInputRef: HTMLInputElement | undefined;
 
   const [expanded, setExpanded] = createSignal<Record<string, boolean>>({

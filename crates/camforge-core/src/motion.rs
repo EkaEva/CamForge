@@ -424,8 +424,8 @@ mod tests {
         for law in 1..=6 {
             let law = MotionLaw::try_from(law).unwrap();
             let delta_arr = linspace(0.0, delta_0, 100, true);
-            let (s_rise, v_rise, a_rise) = compute_rise(&delta_arr, delta_0, h, omega, law);
-            let (s_ret, v_ret, a_ret) = compute_return(&delta_arr, delta_0, h, omega, law);
+            let (_s_rise, v_rise, _a_rise) = compute_rise(&delta_arr, delta_0, h, omega, law);
+            let (s_ret, v_ret, _a_ret) = compute_return(&delta_arr, delta_0, h, omega, law);
 
             // 回程起点 = 推程终点 = h
             assert!(

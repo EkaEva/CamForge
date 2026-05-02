@@ -113,57 +113,58 @@ export function TitleBar(props: TitleBarProps) {
     </div>
   );
 
-  // Mobile: no title bar
-  if (isMobile) {
-    return null;
-  }
-
   // Tauri desktop: drag region + action buttons + window controls
-  if (isTauriEnv) {
-    return (
-      <div
-        class="h-8 flex items-center justify-end px-3 bg-chrome-bg border-b border-chrome-border select-none"
-        data-tauri-drag-region
-      >
-        <div class="flex-1 h-full" data-tauri-drag-region />
-        {actionButtons}
-        <div class="border-l border-chrome-border mx-1 h-5" />
-        <div class="flex items-center gap-1" onMouseDown={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            onClick={handleMinimize}
-            class="w-10 h-7 flex items-center justify-center hover:bg-chrome-surface-hover text-chrome-text transition-colors rounded"
-          >
-            <Icon name="remove" size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={handleMaximize}
-            class="w-10 h-7 flex items-center justify-center hover:bg-chrome-surface-hover text-chrome-text transition-colors rounded"
-          >
-            <Show when={maximized()} fallback={
-              <Icon name="crop_square" size={16} />
-            }>
-              <Icon name="filter_none" size={16} />
-            </Show>
-          </button>
-          <button
-            type="button"
-            onClick={handleClose}
-            class="w-10 h-7 flex items-center justify-center hover:bg-red-500 hover:text-white text-chrome-text transition-colors rounded"
-          >
-            <Icon name="close" size={16} />
-          </button>
-        </div>
+  const tauriTitleBar = (
+    <div
+      class="h-8 flex items-center justify-end px-3 bg-chrome-bg border-b border-chrome-border select-none"
+      data-tauri-drag-region
+    >
+      <div class="flex-1 h-full" data-tauri-drag-region />
+      {actionButtons}
+      <div class="border-l border-chrome-border mx-1 h-5" />
+      <div class="flex items-center gap-1" onMouseDown={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          onClick={handleMinimize}
+          class="w-10 h-7 flex items-center justify-center hover:bg-chrome-surface-hover text-chrome-text transition-colors rounded"
+        >
+          <Icon name="remove" size={16} />
+        </button>
+        <button
+          type="button"
+          onClick={handleMaximize}
+          class="w-10 h-7 flex items-center justify-center hover:bg-chrome-surface-hover text-chrome-text transition-colors rounded"
+        >
+          <Show when={maximized()} fallback={
+            <Icon name="crop_square" size={16} />
+          }>
+            <Icon name="filter_none" size={16} />
+          </Show>
+        </button>
+        <button
+          type="button"
+          onClick={handleClose}
+          class="w-10 h-7 flex items-center justify-center hover:bg-red-500 hover:text-white text-chrome-text transition-colors rounded"
+        >
+          <Icon name="close" size={16} />
+        </button>
       </div>
-    );
-  }
+    </div>
+  );
 
-  // Web: lightweight header bar with app name + action buttons (hidden on mobile, mobile header in App.tsx handles it)
-  return (
+  // Web: lightweight header bar with app name + action buttons
+  const webTitleBar = (
     <div class="h-8 hidden md:flex items-center justify-between px-4 bg-chrome-bg border-b border-chrome-border select-none">
       <span class="font-display text-sm font-semibold text-chrome-text-active tracking-tight">CamForge</span>
       {actionButtons}
     </div>
+  );
+
+  return (
+    <Show when={!isMobile} fallback={null}>
+      <Show when={isTauriEnv} fallback={webTitleBar}>
+        {tauriTitleBar}
+      </Show>
+    </Show>
   );
 }
