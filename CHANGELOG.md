@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.10] - 2026-05-02
+
+### Fixed
+
+- **HI-08**: CSP nonce 替换中间件添加 Content-Type 检查，仅对 `text/html` 响应执行替换
+- **HI-17**: 字体本地化 — Material Symbols Outlined 替换为可变 WOFF2 字体，移除 Google Fonts CDN 依赖
+- **LO-03**: 合并 `App.tsx` 中两个 `onMount` 调用为单个
+- **LO-26**: CSP `connect-src` 移除 Google Fonts 域名，仅保留 `'self'`
+- Material Symbols 图标字体添加 `font-family` 声明，修复图标显示为文字的问题
+- 修复 `CollapsibleSection` 图标镜像问题（`expand_less` + `rotate(180deg)` → `expand_more` + 旋转）
+- 修复启动画面卡死问题（添加 `splash.remove()` 回退 + CSP nonce 注入外部脚本）
+- `CamParams` 添加 `#[serde(alias)]` 兼容前端字段名（`delta_rise`/`delta_far`/`delta_fall`/`delta_near`）
+- `CamParams` 添加 `#[serde(default)]` 兼容缺失字段（`omega`、`alpha_threshold` 等）
+- `FollowerType` 自定义序列化：整数 ↔ 字符串双向兼容
+- Vite CSP nonce 注入覆盖所有 `<script>` 标签（含外部脚本）
+
+### Changed
+
+- **版本号更新**：v0.4.9 → v0.4.10（package.json, Cargo.toml, tauri.conf.json, README.md, index.html, CamForgeSplash.tsx）
+
+---
+
 ## [0.4.9] - 2026-05-02
 
 ### Security
@@ -838,6 +860,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[0.4.10]: https://github.com/EkaEva/CamForge/compare/v0.4.9...v0.4.10
 [0.4.9]: https://github.com/EkaEva/CamForge/compare/v0.4.8...v0.4.9
 [0.4.8]: https://github.com/EkaEva/CamForge/compare/v0.4.7...v0.4.8
 [0.4.7]: https://github.com/EkaEva/CamForge/compare/v0.4.6...v0.4.7

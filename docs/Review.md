@@ -1,4 +1,4 @@
-# CamForge v0.4.8 系统性审查报告
+# CamForge v0.4.10 系统性审查报告
 
 ## 1. 审查概述
 
@@ -8,7 +8,7 @@
 | **审查方法** | 静态代码分析 + 架构审查 + 安全扫描 + 配置审计 + 测试覆盖率评估，采用多代理并行分治策略，分别对前端代码质量、Rust 后端代码质量、测试与文档完整性、依赖管理与安全性 4 个维度进行深度审查后合并去重 |
 | **审查时间** | 2026-05-01 |
 | **审查环境** | Windows 11 Home China 10.0.26200, Node.js 20, Rust 2021 edition, Tauri v2 + SolidJS 1.9 + Tailwind CSS 4.2 + Axum 0.7 |
-| **项目版本** | v0.4.8（package.json / Cargo.toml 当前版本），审查目标为 v0.4.9 优化方向 |
+| **项目版本** | v0.4.10（package.json / Cargo.toml 当前版本），审查目标为 v0.4.10 优化方向 |
 
 ### 项目技术栈
 
@@ -23,15 +23,15 @@
 
 ## 修复进度跟踪
 
-> 最后更新: 2026-05-01 | 修复目标版本: v0.4.8
+> 最后更新: 2026-05-02 | 修复目标版本: v0.4.10
 
 | 严重程度 | 总数 | 已修复 | 未修复 | 完成率 |
 |:--------:|:----:|:------:|:------:|:------:|
 | 严重 | 3 | 3 | 0 | 100% |
-| 高 | 18 | 5 | 13 | 28% |
-| 中 | 35 | 3 | 32 | 9% |
-| 低 | 32 | 0 | 32 | 0% |
-| **合计** | **88** | **11** | **77** | **13%** |
+| 高 | 18 | 7 | 11 | 39% |
+| 中 | 35 | 4 | 31 | 11% |
+| 低 | 32 | 2 | 30 | 6% |
+| **合计** | **88** | **16** | **72** | **18%** |
 
 状态标记: ✅ 已修复 | ⬜ 未修复 | ⚠️ 已验证无需修复
 
@@ -171,13 +171,14 @@
 - **问题类别**: 代码质量
 - **影响范围**: 代码导航混淆，新开发者需要额外时间理解组件映射
 
-#### ⚠️ HI-08: Axum 安全中间件对每个响应完整缓冲 1MB 请求体
+#### ✅ HI-08: Axum 安全中间件对每个响应完整缓冲 1MB 请求体
 
 - **问题描述**: CSP nonce 替换中间件（[main.rs:143-150](crates/camforge-server/src/main.rs#L143-L150)）对每个 HTTP 响应执行 `axum::body::to_bytes(body, 1024 * 1024).await`，将整个响应体读入内存以替换 `__CSP_NONCE__` 占位符。此操作对所有响应执行——包括不包含 HTML 的 JSON API 响应和二进制导出数据——因为内容类型检查在缓冲之后才执行。对于主要返回 JSON/二进制的 API 服务器而言，这是不必要的性能开销。
 - **问题位置**: [crates/camforge-server/src/main.rs:143-150](crates/camforge-server/src/main.rs#L143-L150)
 - **严重程度**: 高
 - **问题类别**: 性能、架构设计
 - **影响范围**: 每个 API 响应均增加不必要的内存分配和延迟
+- **v0.4.10 修复**: Content-Type 检查已移至缓冲之前，仅对 `text/html` 响应执行 nonce 替换和缓冲
 
 #### ⬜ HI-09: Axum API 服务器完全无身份验证机制
 
@@ -245,13 +246,14 @@
 - **问题类别**: 文档
 - **影响范围**: 新开发者上手困难，IDE 智能提示信息缺失
 
-#### ⬜ HI-17: Tauri 桌面模式下 CSP 允许加载 Google Fonts CDN 外部资源
+#### ✅ HI-17: Tauri 桌面模式下 CSP 允许加载 Google Fonts CDN 外部资源
 
 - **问题描述**: [tauri.conf.json:27](src-tauri/tauri.conf.json#L27) 的 CSP 策略中 `style-src`、`font-src`、`connect-src` 均允许 `https://fonts.googleapis.com` 和 `https://fonts.gstatic.com`。对于桌面应用程序（Tauri 模式），没有理由从外部 CDN 加载字体——字体应当本地打包或随应用分发。允许外部字体 CDN 连接增加了不必要的网络依赖和潜在的内容篡改风险。
 - **问题位置**: [src-tauri/tauri.conf.json:27](src-tauri/tauri.conf.json#L27)
 - **严重程度**: 高
 - **问题类别**: 安全、架构设计
 - **影响范围**: 桌面应用在离线环境下字体加载失败，外部 CDN 依赖增加攻击面
+- **v0.4.10 修复**: 字体已完全本地化（`public/fonts/`），CSP 中 Google Fonts 域名已移除
 
 #### ⬜ HI-18: Tauri 桌面端命令零测试覆盖
 
@@ -540,12 +542,13 @@
 - **严重程度**: 低
 - **问题类别**: 代码质量
 
-#### ⬜ LO-03: `App.tsx` 中存在两个 `onMount` 调用
+#### ✅ LO-03: `App.tsx` 中存在两个 `onMount` 调用
 
 - **问题描述**: [App.tsx:40-45](src/App.tsx#L40-L45) 和 [App.tsx:55-57](src/App.tsx#L55-L57) 分别注册了 `onMount` 回调。SolidJS 中这虽然合法（按注册顺序执行），但两个独立的 `onMount` 调用不利于代码理解和维护，建议合并。
 - **问题位置**: [src/App.tsx:40-57](src/App.tsx#L40-L57)
 - **严重程度**: 低
 - **问题类别**: 代码质量
+- **v0.4.10 修复**: 合并为单个 `onMount` 调用
 
 #### ⬜ LO-04: `debounce.ts` 使用 `any[]` 参数类型
 
@@ -708,12 +711,13 @@
 - **严重程度**: 低
 - **问题类别**: 安全
 
-#### ⬜ LO-26: CSP 中 `connect-src` 允许 Google Fonts 域名可能不必要
+#### ✅ LO-26: CSP 中 `connect-src` 允许 Google Fonts 域名可能不必要
 
 - **问题描述**: [main.rs:73-74](crates/camforge-server/src/main.rs#L73-L74) 中 CSP 的 `connect-src` 包含了 `https://fonts.googleapis.com` 和 `https://fonts.gstatic.com`。字体通过 `<link>` 标签加载（`default-src` 覆盖），`connect-src` 中的字体域名放宽了 XSS 数据外泄的约束面。
 - **问题位置**: [crates/camforge-server/src/main.rs:73-74](crates/camforge-server/src/main.rs#L73-L74)
 - **严重程度**: 低
 - **问题类别**: 安全
+- **v0.4.10 修复**: 字体已本地化，`connect-src` 中 Google Fonts 域名已移除，仅保留 `'self'`
 
 #### ⬜ LO-27: 导出路径部分文件写入无清理机制
 
@@ -769,19 +773,19 @@
 | P0 | CR-02 | 在 `computeSimulationLocally` 添加 `hasError` 状态标志或返回 `Result<SimulationData, Error>`；下游消费者检查错误状态并显示用户可见的错误提示 | 2h |
 | P0 | CR-03 | 将 `randomize.ts` 第 110 行改为 `await runSimulation()`；添加单元测试验证 retry 循环行为 | 1h |
 
-### 4.2 高优先级问题（建议 v0.4.8 解决）
+### 4.2 高优先级问题（建议 v0.4.10 解决）
 
-| 优先级 | 问题编号 | 建议措施 | 预估工作量 |
-|:------:|:--------|:---------|:----------:|
-| P1 | HI-01 | 在 `camforge-core` 中添加 `compute_full_simulation(params) -> SimulationData` 公共函数，统一 Tauri 命令和 Axum 路由的计算逻辑；同步 DXF 生成逻辑 | 8h |
-| P1 | HI-02 | 重构三个图表组件以使用 `useChartInteraction` 和 `useChartPadding` Hook；提取共享的提示框渲染和图表背景绘制工具函数 | 6h |
-| P1 | HI-03 | 替换所有图表绘制函数中的硬编码颜色为 `chartColors.ts` 常量引用 | 2h |
-| P1 | HI-08 | 在 CSP nonce 替换中间件中添加 Content-Type 检查，仅对 `text/html` 响应执行缓冲替换 | 1h |
-| P1 | HI-10 | 使用 `tower::limit::RateLimitLayer` 实现实际速率限制，或将代码中的误导性速率限制日志移除 | 2h |
-| P1 | HI-11 | 统一 Tauri CSV 导出逻辑：添加 `rho_actual` 列、实现 CSV 公式注入转义函数 | 1.5h |
-| P1 | HI-12 | 删除 `package-lock.json`，在 `.gitignore` 中添加排除规则；在 `CONTRIBUTING.md` 中明确仅使用 pnpm | 0.5h |
-| P1 | HI-13 | 在锁获取位置上方添加文档注释说明锁序契约；考虑使用基于作用域的 RAII 守卫来强制锁序 | 1h |
-| P1 | HI-17 | 将 Google Fonts 字体文件本地打包或在构建时下载，从 Tauri CSP 中移除外部字体 CDN 域名 | 2h |
+| 优先级 | 问题编号 | 建议措施 | 预估工作量 | 状态 |
+|:------:|:--------|:---------|:----------:|:----:|
+| P1 | HI-01 | 在 `camforge-core` 中添加 `compute_full_simulation(params) -> SimulationData` 公共函数，统一 Tauri 命令和 Axum 路由的计算逻辑；同步 DXF 生成逻辑 | 8h | ⬜ |
+| P1 | HI-02 | 重构三个图表组件以使用 `useChartInteraction` 和 `useChartPadding` Hook；提取共享的提示框渲染和图表背景绘制工具函数 | 6h | ⬜ |
+| P1 | HI-03 | 替换所有图表绘制函数中的硬编码颜色为 `chartColors.ts` 常量引用 | 2h | ✅ |
+| P1 | HI-08 | 在 CSP nonce 替换中间件中添加 Content-Type 检查，仅对 `text/html` 响应执行缓冲替换 | 1h | ✅ |
+| P1 | HI-10 | 使用 `tower::limit::RateLimitLayer` 实现实际速率限制，或将代码中的误导性速率限制日志移除 | 2h | ✅ |
+| P1 | HI-11 | 统一 Tauri CSV 导出逻辑：添加 `rho_actual` 列、实现 CSV 公式注入转义函数 | 1.5h | ✅ |
+| P1 | HI-12 | 删除 `package-lock.json`，在 `.gitignore` 中添加排除规则；在 `CONTRIBUTING.md` 中明确仅使用 pnpm | 0.5h | ✅ |
+| P1 | HI-13 | 在锁获取位置上方添加文档注释说明锁序契约；考虑使用基于作用域的 RAII 守卫来强制锁序 | 1h | ✅ |
+| P1 | HI-17 | 将 Google Fonts 字体文件本地打包或在构建时下载，从 Tauri CSP 中移除外部字体 CDN 域名 | 2h | ✅ |
 
 ### 4.3 中优先级问题（建议 v0.4.9 或后续版本处理）
 
@@ -850,4 +854,4 @@
 
 ---
 
-*审查完成时间: 2026-05-01 | 审查工具版本: Claude Code (deepseek-v4-pro) | 下一审查目标版本: v0.4.8*
+*审查完成时间: 2026-05-01 | 审查工具版本: Claude Code (deepseek-v4-pro) | 当前修复版本: v0.4.10*

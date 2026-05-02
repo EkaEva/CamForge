@@ -2,10 +2,13 @@
 //!
 //! 定义凸轮参数、模拟数据等核心类型
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// 从动件类型枚举
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+///
+/// 序列化为整数（与前端 TypeScript enum 一致），
+/// 反序列化兼容整数和字符串两种格式
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum FollowerType {
     /// 直动尖底从动件
     TranslatingKnifeEdge = 1,
@@ -18,6 +21,49 @@ pub enum FollowerType {
     OscillatingRoller = 4,
     /// 摆动平底从动件
     OscillatingFlatFaced = 5,
+}
+
+impl Serialize for FollowerType {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_i32(*self as i32)
+    }
+}
+
+impl<'de> Deserialize<'de> for FollowerType {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        use serde::de::{self, Visitor};
+
+        struct FollowerTypeVisitor;
+
+        impl Visitor<'_> for FollowerTypeVisitor {
+            type Value = FollowerType;
+
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("an integer 1-5 or a follower type string")
+            }
+
+            fn visit_i64<E: de::Error>(self, v: i64) -> Result<Self::Value, E> {
+                FollowerType::try_from(v as i32).map_err(|_| E::custom(format!("invalid follower_type: {}", v)))
+            }
+
+            fn visit_u64<E: de::Error>(self, v: u64) -> Result<Self::Value, E> {
+                FollowerType::try_from(v as i32).map_err(|_| E::custom(format!("invalid follower_type: {}", v)))
+            }
+
+            fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                match v {
+                    "TranslatingKnifeEdge" => Ok(FollowerType::TranslatingKnifeEdge),
+                    "TranslatingRoller" => Ok(FollowerType::TranslatingRoller),
+                    "TranslatingFlatFaced" => Ok(FollowerType::TranslatingFlatFaced),
+                    "OscillatingRoller" => Ok(FollowerType::OscillatingRoller),
+                    "OscillatingFlatFaced" => Ok(FollowerType::OscillatingFlatFaced),
+                    other => Err(E::custom(format!("unknown follower_type: {}", other))),
+                }
+            }
+        }
+
+        deserializer.deserialize_any(FollowerTypeVisitor)
+    }
 }
 
 impl TryFrom<i32> for FollowerType {
@@ -83,12 +129,16 @@ impl FollowerType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CamParams {
     /// 推程运动角 (度)
+    #[serde(default, alias = "delta_rise")]
     pub delta_0: f64,
     /// 远休止角 (度)
+    #[serde(default, alias = "delta_far")]
     pub delta_01: f64,
     /// 回程运动角 (度)
+    #[serde(default, alias = "delta_fall")]
     pub delta_ret: f64,
     /// 近休止角 (度)
+    #[serde(default, alias = "delta_near")]
     pub delta_02: f64,
     /// 推杆最大位移 (mm)
     pub h: f64,
@@ -97,16 +147,21 @@ pub struct CamParams {
     /// 偏距 (mm)
     pub e: f64,
     /// 凸轮角速度 (rad/s)
+    #[serde(default)]
     pub omega: f64,
     /// 滚子半径 (mm), 0 = 尖底从动件
     pub r_r: f64,
     /// 离散点数
+    #[serde(default = "default_n_points")]
     pub n_points: usize,
     /// 压力角阈值 (度)
+    #[serde(default)]
     pub alpha_threshold: f64,
     /// 推程运动规律 (1-6)
+    #[serde(default)]
     pub tc_law: i32,
     /// 回程运动规律 (1-6)
+    #[serde(default)]
     pub hc_law: i32,
     /// 旋向符号 (+1 顺时针, -1 逆时针)
     pub sn: i32,
@@ -133,6 +188,9 @@ pub struct CamParams {
     pub flat_face_offset: f64,
 }
 
+fn default_n_points() -> usize {
+    360
+}
 fn default_arm_length() -> f64 {
     80.0
 }
@@ -465,12 +523,21 @@ mod tests {
     }
 
     #[test]
+    fn test_deserialize_with_aliases() {
+        let json = r#"{
+            "delta_rise": 90, "delta_far": 60, "delta_fall": 120, "delta_near": 90,
+            "h": 10, "r_0": 40, "e": 5, "r_r": 10, "sn": 1, "pz": 1
+        }"#;
+        let params: CamParams = serde_json::from_str(json).unwrap();
+        assert_eq!(params.delta_0, 90.0);
+        assert_eq!(params.delta_01, 60.0);
+        assert_eq!(params.delta_ret, 120.0);
+        assert_eq!(params.delta_02, 90.0);
+    }
+
+    #[test]
     fn test_invalid_angle_sum() {
-        let mut params = CamParams::default();
-        params.delta_0 = 100.0;
-        params.delta_01 = 100.0;
-        params.delta_ret = 100.0;
-        params.delta_02 = 100.0; // Sum = 400
+        let params = CamParams { delta_0: 100.0, delta_01: 100.0, delta_ret: 100.0, delta_02: 100.0, ..CamParams::default() };
         assert!(params.validate().is_err());
     }
 

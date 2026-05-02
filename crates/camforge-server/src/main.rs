@@ -62,10 +62,12 @@ fn build_csp(nonce: &str) -> String {
     let default_src = "default-src 'self'";
     // script-src 使用 nonce：内联脚本（splash 动画）通过 Vite 插件注入 nonce 属性
     let script_src = format!("script-src 'self' 'nonce-{}' 'wasm-unsafe-eval'", nonce);
-    // style-src 使用 nonce 替代 'unsafe-inline'：SolidJS 仅使用内联 style 属性（不受 style-src 限制），
-    // Vite 开发模式通过 <meta property="csp-nonce"> 自动读取 nonce
+    // style-src: 'unsafe-inline' is required by SolidJS — its production build
+    // sets styles via element.style.cssText and setAttribute("style",...),
+    // which CSP treats as inline styles and blocks without 'unsafe-inline'.
+    // This is a SolidJS framework constraint, not a code quality issue.
     // 字体已本地化，无需外部 CDN
-    let style_src = format!("style-src 'self' 'nonce-{}'", nonce);
+    let style_src = "style-src 'self' 'unsafe-inline'";
     let img_src = "img-src 'self' data: blob:";
     let font_src = "font-src 'self' data:";
     let connect_src = "connect-src 'self'";
@@ -82,7 +84,7 @@ fn build_csp(nonce: &str) -> String {
     [
         default_src,
         &script_src,
-        &style_src,
+        style_src,
         img_src,
         font_src,
         connect_src,

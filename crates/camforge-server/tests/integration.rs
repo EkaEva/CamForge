@@ -87,8 +87,7 @@ async fn test_simulate_default_params() {
 #[tokio::test]
 async fn test_simulate_invalid_params() {
     let app = build_app();
-    let mut params = CamParams::default();
-    params.delta_0 = -10.0; // 无效：推程角必须为正
+    let params = CamParams { delta_0: -10.0, ..CamParams::default() };
     let body = serde_json::json!({ "params": params }).to_string();
 
     let (status, _) = send_request(app, "POST", "/api/simulate", Some(body)).await;

@@ -232,7 +232,7 @@ pub fn export_dxf(
     write_polyline(&mut file, &data.x, &data.y, "CAM_THEORY")?;
 
     // Actual profile polyline (if roller follower)
-    if include_actual && data.x_actual.len() > 0 {
+    if include_actual && !data.x_actual.is_empty() {
         write_polyline(&mut file, &data.x_actual, &data.y_actual, "CAM_ACTUAL")?;
     }
 

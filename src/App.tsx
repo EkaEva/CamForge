@@ -38,10 +38,13 @@ function App() {
   };
 
   onMount(() => {
+    const splash = document.getElementById('splash');
+    if (splash) splash.remove();
     initTheme();
     checkMobile();
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('resize', checkMobile);
+    runSimulation();
   });
 
   onCleanup(() => {
@@ -51,10 +54,6 @@ function App() {
 
   const handleOpenSettings = () => setShowSettings(true);
   const handleOpenHelp = () => setShowHelp(true);
-
-  onMount(() => {
-    runSimulation();
-  });
 
   return (
     <ErrorBoundary>

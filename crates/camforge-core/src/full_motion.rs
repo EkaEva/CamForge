@@ -140,11 +140,7 @@ mod tests {
 
     #[test]
     fn test_full_motion_invalid_angles() {
-        let mut params = CamParams::default();
-        params.delta_0 = 100.0;
-        params.delta_01 = 100.0;
-        params.delta_ret = 100.0;
-        params.delta_02 = 100.0; // Sum = 400, not 360
+        let params = CamParams { delta_0: 100.0, delta_01: 100.0, delta_ret: 100.0, delta_02: 100.0, ..CamParams::default() };
 
         let result = compute_full_motion(&params);
         assert!(result.is_err());
@@ -188,9 +184,7 @@ mod tests {
 
     #[test]
     fn test_full_motion_delta_0_zero_rejected() {
-        let mut params = CamParams::default();
-        params.delta_0 = 0.0;
-        params.delta_02 = 180.0; // 调整使总和仍为 360
+        let params = CamParams { delta_0: 0.0, delta_02: 180.0, ..CamParams::default() };
         let result = compute_full_motion(&params);
         assert!(result.is_err());
     }

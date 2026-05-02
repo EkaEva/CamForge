@@ -25,12 +25,16 @@ function cspNoncePlugin(): Plugin {
     name: "csp-nonce-inject",
     enforce: "post",
 
-    // Dev mode: replace __CSP_NONCE__ in index.html with static nonce
+    // Dev mode only: replace __CSP_NONCE__ in index.html with static nonce
     // so Vite HMR client reads it from <meta property="csp-nonce">
+    // In production builds, __CSP_NONCE__ must be preserved so the Rust server
+    // can replace it with a per-request nonce at serve time
     transformIndexHtml: {
       order: "post",
-      handler(html) {
-        return html.replace(/__CSP_NONCE__/g, TAURI_NONCE);
+      handler(html, ctx) {
+        if (ctx.server) {
+          return html.replace(/__CSP_NONCE__/g, TAURI_NONCE);
+        }
       },
     },
 
@@ -47,9 +51,9 @@ function cspNoncePlugin(): Plugin {
             /<style>/g,
             `<style nonce="${nonceValue}">`
           );
-          // Add nonce to inline <script> tags (not <script src="..."> or <script type="application/ld+json">)
+          // Add nonce to all <script> tags (except application/ld+json)
           chunk.source = chunk.source.replace(
-            /<script(?![^>]*\bsrc=)(?![^>]*type="application\/ld\+json")([^>]*)>/g,
+            /<script(?![^>]*type="application\/ld\+json")([^>]*)>/g,
             `<script nonce="${nonceValue}"$1>`
           );
           // Also replace the csp-nonce meta tag placeholder for Tauri

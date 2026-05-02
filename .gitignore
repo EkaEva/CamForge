@@ -4,6 +4,7 @@ package-lock.json
 
 # Build outputs
 dist/
+static/
 src-tauri/target/
 
 # IDE
