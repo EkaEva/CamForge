@@ -262,7 +262,7 @@ mod tests {
 
     #[test]
     fn test_rise_point_uniform() {
-        let (s, v, a) = compute_rise_point(
+        let (s, _v, a) = compute_rise_point(
             0.5,
             10.0,
             1.0,
@@ -377,12 +377,12 @@ mod tests {
     fn test_rise_point_constant_acceleration() {
         let h = 10.0;
         let delta_0 = std::f64::consts::FRAC_PI_2;
-        let (s_half, v_half, a_half) =
+        let (s_half, _v_half, _a_half) =
             compute_rise_point(0.5, h, 1.0, delta_0, MotionLaw::ConstantAcceleration);
         // t=0.5 时位移应为 h/2（对称）
         assert!((s_half - h / 2.0).abs() < 1e-6);
         // 加速度在 t<0.5 为正，t>0.5 为负
-        let (s_first, _, a_first) =
+        let (_s_first, _, a_first) =
             compute_rise_point(0.25, h, 1.0, delta_0, MotionLaw::ConstantAcceleration);
         let (_, _, a_second) =
             compute_rise_point(0.75, h, 1.0, delta_0, MotionLaw::ConstantAcceleration);

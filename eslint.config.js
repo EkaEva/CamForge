@@ -43,6 +43,7 @@ export default tseslint.config(
       'src-tauri/**',
       'crates/**',
       '.output/**',
+      'public/**',
       'src/stores/simulation/index.ts',
       'src/utils/chartDrawing/index.ts',
     ],
