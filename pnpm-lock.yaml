@@ -75,12 +75,6 @@ importers:
       '@types/node':
         specifier: ^25.6.0
         version: 25.6.0
-      '@types/react':
-        specifier: ^19.2.14
-        version: 19.2.14
-      '@types/react-dom':
-        specifier: ^19.2.3
-        version: 19.2.3(@types/react@19.2.14)
       autoprefixer:
         specifier: ^10.5.0
         version: 10.5.0(postcss@8.5.10)
@@ -1393,14 +1387,6 @@ packages:
 
   '@types/node@25.6.0':
     resolution: {integrity: sha512-+qIYRKdNYJwY3vRCZMdJbPLJAtGjQBudzZzdzwQYkEPQd+PJGixUL5QfvCLDaULoLv+RhT3LDkwEfKaAkgSmNQ==}
-
-  '@types/react-dom@19.2.3':
-    resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
-    peerDependencies:
-      '@types/react': ^19.2.0
-
-  '@types/react@19.2.14':
-    resolution: {integrity: sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w==}
 
   '@types/yauzl@2.10.3':
     resolution: {integrity: sha512-oJoftv0LSuaDZE3Le4DbKX+KS9G36NzOeSap90UIK0yMA/NhKJhqlSGtNDORNRaIbQfzjXDrQa0ytJ6mNRGz/Q==}
@@ -3941,14 +3927,6 @@ snapshots:
   '@types/node@25.6.0':
     dependencies:
       undici-types: 7.19.2
-
-  '@types/react-dom@19.2.3(@types/react@19.2.14)':
-    dependencies:
-      '@types/react': 19.2.14
-
-  '@types/react@19.2.14':
-    dependencies:
-      csstype: 3.2.3
 
   '@types/yauzl@2.10.3':
     dependencies:
