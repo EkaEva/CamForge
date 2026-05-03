@@ -303,12 +303,12 @@ export function CamAnimation(props: CamAnimationProps) {
 
     // 如果组件不可用，暂停动画循环；如果不在 cam profile 标签页，跳过绘制但保持循环运行
     if (!data || max === 0) {
-      animationId = requestAnimationFrame(animate);
-      return;
+      animationId = undefined;
+      return; // Stop loop — will be restarted by createEffect when data becomes available
     }
     if (!props.isActive) {
-      animationId = requestAnimationFrame(animate);
-      return;
+      animationId = undefined;
+      return; // Stop loop — will be restarted by createEffect when tab becomes active
     }
 
     const frameElapsed = timestamp - lastTime;
@@ -351,6 +351,17 @@ export function CamAnimation(props: CamAnimationProps) {
         break;
     }
   };
+
+  // Restart animation loop when data becomes available or tab becomes active
+  createEffect(() => {
+    const data = simulationData();
+    const active = props.isActive;
+    if (data && active && animationId === undefined) {
+      lastTime = performance.now();
+      lastFrameTime = performance.now();
+      animationId = requestAnimationFrame(animate);
+    }
+  });
 
   onMount(() => {
     lastTime = performance.now();

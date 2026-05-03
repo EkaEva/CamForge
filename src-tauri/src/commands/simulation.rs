@@ -253,21 +253,31 @@ pub fn run_simulation(params: CamParams, state: State<SimState>) -> Result<Simul
 /// 而非从旋转后的轮廓上取点（反转法轮廓不能简单旋转得到正确的滚子中心位置）。
 #[tauri::command]
 pub fn get_frame_data(frame_idx: usize, state: State<SimState>) -> Result<FrameData, String> {
-    let data_guard = state
-        .data
-        .lock()
-        .map_err(|e| format!("State lock poisoned: {}", e))?;
-    let params_guard = state
-        .params
-        .lock()
-        .map_err(|e| format!("State lock poisoned: {}", e))?;
+    // Clone data under lock, then release before computing.
+    // This avoids holding both Mutex locks during expensive calculations
+    // (profile rotation, oscillating geometry, tangent/normal computation).
+    let (data, params) = {
+        let data_guard = state
+            .data
+            .lock()
+            .map_err(|e| format!("State lock poisoned: {}", e))?;
+        let params_guard = state
+            .params
+            .lock()
+            .map_err(|e| format!("State lock poisoned: {}", e))?;
 
-    let data = data_guard
-        .as_ref()
-        .ok_or("No simulation data available. Run simulation first.")?;
-    let params = params_guard
-        .as_ref()
-        .ok_or("No parameters available. Run simulation first.")?;
+        let data = data_guard
+            .as_ref()
+            .ok_or("No simulation data available. Run simulation first.")?
+            .clone();
+        let params = params_guard
+            .as_ref()
+            .ok_or("No parameters available. Run simulation first.")?
+            .clone();
+
+        (data, params)
+        // Guards dropped here — locks released before computation begins
+    };
 
     if frame_idx >= data.s.len() {
         return Err(format!(

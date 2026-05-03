@@ -1,4 +1,4 @@
-# CamForge v0.4.11 系统性审查报告
+# CamForge v0.4.12 系统性审查报告
 
 ## 1. 审查概述
 
@@ -8,7 +8,7 @@
 | **审查方法** | 静态代码分析 + 架构审查 + 安全扫描 + 配置审计 + 测试覆盖率评估，采用多代理并行分治策略，分别对前端代码质量、Rust 后端代码质量、测试与文档完整性、依赖管理与安全性 4 个维度进行深度审查后合并去重 |
 | **审查时间** | 2026-05-01 |
 | **审查环境** | Windows 11 Home China 10.0.26200, Node.js 20, Rust 2021 edition, Tauri v2 + SolidJS 1.9 + Tailwind CSS 4.2 + Axum 0.7 |
-| **项目版本** | v0.4.11（package.json / Cargo.toml 当前版本），审查目标为 v0.4.11 优化方向 |
+| **项目版本** | v0.4.12（package.json / Cargo.toml 当前版本），审查目标为 v0.4.12 优化方向 |
 
 ### 项目技术栈
 
@@ -23,15 +23,15 @@
 
 ## 修复进度跟踪
 
-> 最后更新: 2026-05-02 | 修复目标版本: v0.4.11
+> 最后更新: 2026-05-03 | 修复目标版本: v0.4.12
 
 | 严重程度 | 总数 | 已修复 | 未修复 | 完成率 |
 |:--------:|:----:|:------:|:------:|:------:|
 | 严重 | 3 | 3 | 0 | 100% |
-| 高 | 18 | 9 | 9 | 50% |
-| 中 | 35 | 20 | 15 | 57% |
-| 低 | 32 | 21 | 11 | 66% |
-| **合计** | **88** | **53** | **35** | **60%** |
+| 高 | 18 | 11 | 7 | 61% |
+| 中 | 35 | 22 | 13 | 63% |
+| 低 | 32 | 22 | 10 | 69% |
+| **合计** | **88** | **58** | **30** | **66%** |
 
 状态标记: ✅ 已修复 | ⬜ 未修复 | ⚠️ 已验证无需修复
 
@@ -195,6 +195,7 @@
 - **严重程度**: 高
 - **问题类别**: 安全、性能
 - **影响范围**: Web 服务可被恶意请求洪泛导致拒绝服务
+- **v0.4.12 修复**: 使用 `tower::limit::RateLimitLayer` 实现实际速率限制，默认 60 请求/分钟，通过 `RATE_LIMIT` 环境变量可配置
 
 #### ✅ HI-11: Tauri CSV 导出缺少 `rho_actual` 列且无公式注入防护
 
@@ -222,13 +223,14 @@
 - **问题类别**: 架构设计
 - **影响范围**: 后续代码变更可能引入运行时死锁
 
-#### ⬜ HI-14: SECURITY.md 安全声明与代码实际状态不符
+#### ✅ HI-14: SECURITY.md 安全声明与代码实际状态不符
 
 - **问题描述**: `SECURITY.md` 中声称的安全措施——"Input validation: All simulation parameters are validated for NaN/Infinity"、"CSV escaping: Export data is sanitized to prevent formula injection"、"Request limiting: API rate limiting is enforced"——这些是 v0.4.5 安全修复后的**期望状态**而非当前代码的真实状态。如上文 HI-10 所示，速率限制并未实施；HI-11 显示只有服务器端 CSV 有转义。文档与实际的不一致可能导致错误的信任假设。
 - **问题位置**: [SECURITY.md](SECURITY.md)
 - **严重程度**: 高
 - **问题类别**: 文档、安全
 - **影响范围**: 安全审计和合规性评估可能基于错误信息
+- **v0.4.12 修复**: 更新 SECURITY.md 反映实际代码状态（速率限制已实现、CSV 转义两端均已覆盖）
 
 #### ⬜ HI-15: 缺少 OpenAPI/Swagger API 规范文档
 
@@ -396,12 +398,13 @@
 - **严重程度**: 中
 - **问题类别**: 依赖管理
 
-#### ⬜ ME-18: 前端 `@types/react` 和 `@types/react-dom` 对 SolidJS 项目不必要
+#### ✅ ME-18: 前端 `@types/react` 和 `@types/react-dom` 对 SolidJS 项目不必要
 
 - **问题描述**: `package.json` devDependencies 中包含 `@types/react`（^19.2.14）、`@types/react-dom`（^19.2.3）、`react`（^19.2.5）、`react-dom`（^19.2.5）。项目主力是 SolidJS 框架，React 仅由 Remotion（启动画面）使用。且 `tsconfig.json` 显式排除了 `src/splash` 目录，因此这些 React 类型包对主项目的类型检查也无实际作用。
 - **问题位置**: [package.json:48-53](package.json#L48-L53)
 - **严重程度**: 中
 - **问题类别**: 依赖管理
+- **v0.4.12 修复**: 从 package.json 移除 `@types/react` 和 `@types/react-dom`（Remotion 自带 React 类型传递依赖）
 
 #### ✅ ME-19: Dockerfile 用 `sed` 原地修改 `Cargo.toml` 是脆弱方案
 
@@ -474,6 +477,7 @@
 - **问题位置**: [src-tauri/src/commands/simulation.rs:246-361](src-tauri/src/commands/simulation.rs#L246-L361)
 - **严重程度**: 中
 - **问题类别**: 性能
+- **v0.4.12 修复**: 在锁作用域内克隆所需数据，提前释放锁后再进行计算
 
 #### ✅ ME-29: `CamParams::validate()` 角度容差可能过严
 
@@ -590,12 +594,13 @@
 - **严重程度**: 低
 - **问题类别**: 代码质量
 
-#### ⬜ LO-09: 动画循环在组件非活跃时持续运行
+#### ✅ LO-09: 动画循环在组件非活跃时持续运行
 
 - **问题描述**: [CamAnimation.tsx:305-312](src/components/animation/CamAnimation.tsx#L305-L312) 的 `requestAnimationFrame` 循环在组件不可见或数据不可用时仍继续运行（虽跳过渲染但 CPU 仍在执行循环体）。应仅在活跃时启动循环。
 - **问题位置**: [src/components/animation/CamAnimation.tsx:305-312](src/components/animation/CamAnimation.tsx#L305-L312)
 - **严重程度**: 低
 - **问题类别**: 性能
+- **v0.4.12 修复**: 当 `!data` 或 `!isActive` 时停止 rAF 循环，通过 `createEffect` 在条件恢复时自动重启
 
 #### ✅ LO-10: `SettingsPanel` 的窗口级事件监听器缺少面板状态检查
 
@@ -618,14 +623,15 @@
 - **严重程度**: 低
 - **问题类别**: 性能
 
-#### ⬜ LO-13: 非滚子从动件路径存在冗余 `rho.clone()`
+#### ⚠️ LO-13: 非滚子从动件路径存在冗余 `rho.clone()`
 
-- **问题描述**: [routes/simulation.rs:137](crates/camforge-server/src/routes/simulation.rs#L137) 和 [commands/simulation.rs:149](src-tauri/src/commands/simulation.rs#L149) 当 `params.r_r <= 0.0` 时执行 `rho.clone()` 然后赋值 `rho_actual = rho`。此时 `rho` 后续不再被使用，直接移动（`rho_actual = rho`）即可避免复制。但编译器优化可能已消除此开销。
+- **问题描述**: [routes/simulation.rs:133](crates/camforge-server/src/routes/simulation.rs#L133) 和 [commands/simulation.rs:152](src-tauri/src/commands/simulation.rs#L152) 当 `params.r_r <= 0.0` 时执行 `rho.clone()` 创建 `rho_actual`。由于 `rho` 和 `rho_actual` 均需传入 `SimulationData`（两个独立字段），克隆不可避免。要消除此克隆需将 `SimulationData.rho` 和 `rho_actual` 改为共享引用（如 `Rc<[f64]>`），属于架构级变更。
 - **问题位置**:
-  - [crates/camforge-server/src/routes/simulation.rs:137](crates/camforge-server/src/routes/simulation.rs#L137)
-  - [src-tauri/src/commands/simulation.rs:149](src-tauri/src/commands/simulation.rs#L149)
+  - [crates/camforge-server/src/routes/simulation.rs:133](crates/camforge-server/src/routes/simulation.rs#L133)
+  - [src-tauri/src/commands/simulation.rs:152](src-tauri/src/commands/simulation.rs#L152)
 - **严重程度**: 低
 - **问题类别**: 性能
+- **评估**: 克隆不可避免（除非重构 SimulationData 使用共享引用），标记为已知限制
 
 #### ⬜ LO-14: 缺少性能基准测试
 

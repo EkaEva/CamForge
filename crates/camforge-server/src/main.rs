@@ -5,7 +5,7 @@
 use axum::{
     body::Body,
     extract::Request,
-    http::{header::CONTENT_TYPE, HeaderValue, Method},
+    http::{header::CONTENT_TYPE, HeaderValue, Method, StatusCode},
     middleware,
     response::Response,
     routing::{get, post},
@@ -13,7 +13,11 @@ use axum::{
 };
 use base64::Engine;
 use rand::Rng;
+use std::collections::HashMap;
 use std::env;
+use std::sync::Arc;
+use std::time::Instant;
+use tokio::sync::Mutex;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::services::ServeDir;
@@ -185,10 +189,84 @@ async fn security_headers(request: Request, next: middleware::Next) -> Response<
     response
 }
 
+/// Per-IP 速率限制条目
+struct RateLimitEntry {
+    count: u64,
+    window_start: Instant,
+}
+
+/// 全局速率限制状态（通过 axum State 共享）
+struct RateLimitState {
+    max_requests: u64,
+    window_secs: u64,
+    ips: Mutex<HashMap<String, RateLimitEntry>>,
+}
+
+/// 基于 IP 的速率限制中间件
+///
+/// 使用固定窗口算法：每个 IP 在 `window` 时间内最多允许 `max_requests` 个请求。
+/// 超出限制返回 429 Too Many Requests。
+async fn rate_limit_middleware(
+    axum::extract::State(state): axum::extract::State<Arc<RateLimitState>>,
+    request: Request,
+    next: middleware::Next,
+) -> Response<Body> {
+    // 提取客户端 IP（优先 X-Forwarded-For，回退 unknown）
+    let ip = request
+        .headers()
+        .get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.split(',').next())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    let now = Instant::now();
+    let mut map = state.ips.lock().await;
+
+    let entry = map.entry(ip).or_insert(RateLimitEntry {
+        count: 0,
+        window_start: now,
+    });
+
+    // 如果窗口过期，重置计数
+    if now.duration_since(entry.window_start).as_secs() >= state.window_secs {
+        entry.count = 0;
+        entry.window_start = now;
+    }
+
+    entry.count += 1;
+
+    if entry.count > state.max_requests {
+        drop(map);
+        return Response::builder()
+            .status(StatusCode::TOO_MANY_REQUESTS)
+            .header("retry-after", state.window_secs.to_string())
+            .body(Body::from("429 Too Many Requests"))
+            .unwrap();
+    }
+
+    drop(map);
+    next.run(request).await
+}
+
 #[tokio::main]
 async fn main() {
     // CORS 配置，支持环境变量白名单
     let cors = build_cors_layer();
+
+    // 速率限制配置（每分钟最大请求数）
+    let rate_limit: u64 = env::var("RATE_LIMIT")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(60);
+    let rate_limit_window: u64 = 60; // seconds
+
+    // 共享速率限制状态
+    let rate_limit_state = Arc::new(RateLimitState {
+        max_requests: rate_limit,
+        window_secs: rate_limit_window,
+        ips: Mutex::new(HashMap::new()),
+    });
 
     // 构建路由
     let app = Router::new()
@@ -203,15 +281,13 @@ async fn main() {
         .layer(middleware::from_fn(security_headers))
         .layer(middleware::from_fn(cache_control))
         .layer(cors)
+        .layer(middleware::from_fn_with_state(
+            rate_limit_state,
+            rate_limit_middleware,
+        ))
         .layer(RequestBodyLimitLayer::new(1024 * 1024)); // 1MB limit
 
-    // 速率限制配置（每分钟最大请求数）
-    // TODO: Wire into tower::limit::RateLimitLayer for actual enforcement
-    let _rate_limit = env::var("RATE_LIMIT")
-        .ok()
-        .and_then(|v| v.parse::<usize>().ok())
-        .unwrap_or(60); // 默认 60 请求/分钟
-    println!("Rate limit configured: {} requests/minute per IP (enforcement pending)", _rate_limit);
+    println!("Rate limit: {} requests/{}s per IP", rate_limit, rate_limit_window);
 
     // 启动服务器
     let port = env::var("SERVER_PORT").unwrap_or_else(|_| "3000".to_string());
