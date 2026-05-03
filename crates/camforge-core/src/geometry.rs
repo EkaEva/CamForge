@@ -1,12 +1,14 @@
-//! 几何分析模块
+//! Geometric analysis module / 几何分析模块
 //!
+//! Computes pressure angle and curvature radius.
 //! 计算压力角和曲率半径
 
-/// 常量：弧度转度
+/// Constant: radians to degrees / 常量：弧度转度
 const RAD2DEG: f64 = 180.0 / std::f64::consts::PI;
 
-/// 计算压力角
+/// Compute pressure angle / 计算压力角
 ///
+/// Uses the analytical formula: α = arctan2(ds/dδ - pz·e, s_0 + s)
 /// 使用解析公式：α = arctan2(ds/dδ - pz·e, s_0 + s)
 ///
 /// # Arguments
@@ -51,10 +53,11 @@ pub fn compute_pressure_angle(
     Ok(alpha)
 }
 
-/// 计算平底从动件压力角
+/// Compute flat-faced follower pressure angle / 计算平底从动件压力角
 ///
-/// 平底从动件的接触力始终垂直于从动件平面，
-/// 因此压力角恒为 0。
+/// The contact force for flat-faced followers is always perpendicular to the
+/// follower face, so the pressure angle is always 0.
+/// 平底从动件的接触力始终垂直于从动件平面，因此压力角恒为 0。
 ///
 /// # Arguments
 /// * `n` - 数据点数
@@ -65,8 +68,9 @@ pub fn compute_flat_faced_pressure_angle(n: usize) -> Vec<f64> {
     vec![0.0; n]
 }
 
-/// 计算曲率半径
+/// Compute curvature radius / 计算曲率半径
 ///
+/// Uses the parametric curve curvature formula: ρ = ((x'² + y'²)^(3/2)) / |x'y'' - y'x''|
 /// 使用参数曲线曲率公式：ρ = ((x'² + y'²)^(3/2)) / |x'y'' - y'x''|
 ///
 /// # Arguments

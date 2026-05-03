@@ -1,18 +1,12 @@
 //! 导出 API 路由
 
 use crate::error::ApiError;
-use crate::routes::simulation::ProfileCoords;
 use axum::{
     body::Body,
     http::{header, Response, StatusCode},
     Json,
 };
-use camforge_core::{
-    compute_cam_profile, compute_curvature_radius, compute_flat_faced_pressure_angle,
-    compute_flat_faced_profile, compute_full_motion, compute_oscillating_flat_faced_profile,
-    compute_oscillating_pressure_angle, compute_oscillating_profile, compute_pressure_angle,
-    compute_roller_profile, compute_rotated_cam, CamParams, FollowerType, FullMotionResult,
-};
+use camforge_core::{compute_full_simulation, CamParams};
 
 /// 导出请求
 #[derive(serde::Deserialize)]
@@ -25,78 +19,12 @@ pub struct ExportRequest {
     include_actual: Option<bool>,
 }
 
-/// 根据从动件类型计算轮廓数据
-fn compute_profile_for_type(
-    params: &CamParams,
-    motion: &FullMotionResult,
-) -> Result<ProfileCoords, String> {
-    let (x, y, x_actual, y_actual) = match params.follower_type {
-        FollowerType::TranslatingKnifeEdge | FollowerType::TranslatingRoller => {
-            let profile =
-                compute_cam_profile(&motion.s, params.r_0, params.e, params.sn, params.pz)?;
-            let (xa, ya) = compute_roller_profile(&profile.x, &profile.y, params.r_r, params.sn)?;
-            (profile.x, profile.y, xa, ya)
-        }
-        FollowerType::TranslatingFlatFaced => {
-            let result = compute_flat_faced_profile(
-                &motion.s,
-                &motion.ds_ddelta,
-                params.r_0,
-                params.e,
-                params.sn,
-                params.pz,
-                params.flat_face_offset,
-            )?;
-            (result.x_theory, result.y_theory, result.x_actual, result.y_actual)
-        }
-        FollowerType::OscillatingRoller => {
-            let osc = compute_oscillating_profile(
-                &motion.s,
-                params.arm_length,
-                params.pivot_distance,
-                params.initial_angle,
-                params.sn,
-            )?;
-            let (xa, ya) = compute_roller_profile(&osc.x_theory, &osc.y_theory, params.r_r, params.sn)?;
-            (osc.x_theory, osc.y_theory, xa, ya)
-        }
-        FollowerType::OscillatingFlatFaced => {
-            let osc = compute_oscillating_flat_faced_profile(
-                &motion.s,
-                &motion.ds_ddelta,
-                params.arm_length,
-                params.pivot_distance,
-                params.initial_angle,
-                params.sn,
-                params.flat_face_offset,
-            )?;
-            (osc.x_theory, osc.y_theory, osc.x_actual, osc.y_actual)
-        }
-    };
-
-    if params.follower_type.is_oscillating() && params.gamma.abs() > 1e-10 {
-        let gamma_rad = params.gamma * std::f64::consts::PI / 180.0;
-        let (x, y) = compute_rotated_cam(&x, &y, gamma_rad);
-        let (x_actual, y_actual) = compute_rotated_cam(&x_actual, &y_actual, gamma_rad);
-        Ok((x, y, x_actual, y_actual))
-    } else {
-        Ok((x, y, x_actual, y_actual))
-    }
-}
-
-/// 导出 DXF 文件
+// ===== 辅助函数 =====
 pub async fn export_dxf(Json(req): Json<ExportRequest>) -> Result<Response<Body>, ApiError> {
-    let params = req.params;
-    params.validate().map_err(ApiError::BadRequest)?;
+    let data = compute_full_simulation(&req.params).map_err(ApiError::BadRequest)?;
 
-    // 计算数据
-    let motion = compute_full_motion(&params)?;
-    let (x, y, x_actual, y_actual) =
-        compute_profile_for_type(&params, &motion).map_err(ApiError::CalculationError)?;
-
-    // 生成 DXF
-    let include_actual = req.include_actual.unwrap_or(true) && params.r_r > 0.0;
-    let dxf = generate_dxf_content(&x, &y, &x_actual, &y_actual, include_actual);
+    let include_actual = req.include_actual.unwrap_or(true) && req.params.r_r > 0.0;
+    let dxf = generate_dxf_content(&data.x, &data.y, &data.x_actual, &data.y_actual, include_actual);
 
     Response::builder()
         .status(StatusCode::OK)
@@ -111,66 +39,25 @@ pub async fn export_dxf(Json(req): Json<ExportRequest>) -> Result<Response<Body>
 
 /// 导出 CSV 文件
 pub async fn export_csv(Json(req): Json<ExportRequest>) -> Result<Response<Body>, ApiError> {
-    let params = req.params;
-    params.validate().map_err(ApiError::BadRequest)?;
-
-    let lang = req.lang.unwrap_or_else(|| "zh".to_string());
+    let lang = req.lang.clone().unwrap_or_else(|| "zh".to_string());
     if lang != "zh" && lang != "en" {
         return Err(ApiError::BadRequest("lang must be 'zh' or 'en'".to_string()));
     }
 
-    // 计算数据
-    let motion = compute_full_motion(&params)?;
-    let (x, y, _, _) =
-        compute_profile_for_type(&params, &motion).map_err(ApiError::CalculationError)?;
-    let rho = compute_curvature_radius(&x, &y)?;
-
-    // 根据从动件类型计算压力角
-    let alpha_all = match params.follower_type {
-        FollowerType::TranslatingFlatFaced | FollowerType::OscillatingFlatFaced => {
-            compute_flat_faced_pressure_angle(motion.s.len())
-        }
-        FollowerType::OscillatingRoller => compute_oscillating_pressure_angle(
-            &motion.s,
-            &motion.ds_ddelta,
-            params.arm_length,
-            params.pivot_distance,
-            params.initial_angle,
-        )
-        .map_err(ApiError::CalculationError)?,
-        _ => {
-            let s_0 = (params.r_0.powi(2) - params.e.powi(2)).sqrt();
-            compute_pressure_angle(&motion.s, &motion.ds_ddelta, s_0, params.e, params.pz)
-                .map_err(ApiError::CalculationError)?
-        }
-    };
-
-    // 计算实际轮廓曲率半径
-    let rho_actual: Vec<f64> = if params.r_r > 0.0 {
-        rho.iter()
-            .map(|r| {
-                if r.is_finite() {
-                    r - r.signum() * params.r_r
-                } else {
-                    f64::INFINITY
-                }
-            })
-            .collect()
-    } else {
-        rho.clone()
-    };
+    let data = compute_full_simulation(&req.params).map_err(ApiError::BadRequest)?;
+    let params = &req.params;
 
     let csv = generate_csv_content(
-        &motion.delta_deg,
-        &x,
-        &y,
-        &motion.s,
-        &motion.v,
-        &motion.a,
-        &rho,
-        &rho_actual,
-        &alpha_all,
-        &params,
+        &data.delta_deg,
+        &data.x,
+        &data.y,
+        &data.s,
+        &data.v,
+        &data.a,
+        &data.rho,
+        &data.rho_actual,
+        &data.alpha_all,
+        params,
         &lang,
     );
 
@@ -235,16 +122,9 @@ fn generate_svg_content(x: &[f64], y: &[f64], r_0: f64) -> String {
 
 /// 导出 SVG 文件
 pub async fn export_svg(Json(req): Json<ExportRequest>) -> Result<Response<Body>, ApiError> {
-    let params = req.params;
-    params.validate().map_err(ApiError::BadRequest)?;
+    let data = compute_full_simulation(&req.params).map_err(ApiError::BadRequest)?;
 
-    // 计算数据
-    let motion = compute_full_motion(&params)?;
-    let (x, y, _, _) =
-        compute_profile_for_type(&params, &motion).map_err(ApiError::CalculationError)?;
-
-    // 生成 SVG
-    let svg = generate_svg_content(&x, &y, params.r_0);
+    let svg = generate_svg_content(&data.x, &data.y, req.params.r_0);
 
     Response::builder()
         .status(StatusCode::OK)

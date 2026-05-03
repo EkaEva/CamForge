@@ -1,52 +1,53 @@
-//! 凸轮轮廓计算模块
+//! Cam profile computation module / 凸轮轮廓计算模块
 //!
+//! Computes theoretical profiles and actual (offset) profiles for various follower types.
 //! 计算理论廓形和滚子从动件实际廓形
 
-/// 凸轮轮廓计算结果
+/// Cam profile computation result / 凸轮轮廓计算结果
 pub struct ProfileResult {
-    /// 理论廓形 X 坐标
+    /// Theoretical profile X coordinates / 理论廓形 X 坐标
     pub x: Vec<f64>,
-    /// 理论廓形 Y 坐标
+    /// Theoretical profile Y coordinates / 理论廓形 Y 坐标
     pub y: Vec<f64>,
-    /// 初始位移 sqrt(r_0² - e²)
+    /// Initial displacement sqrt(r_0² - e²) / 初始位移 sqrt(r_0² - e²)
     pub s_0: f64,
 }
 
-/// 平底从动件轮廓计算结果
+/// Flat-faced follower profile computation result / 平底从动件轮廓计算结果
 pub struct FlatFacedProfileResult {
-    /// 理论廓形 X 坐标
+    /// Theoretical profile X coordinates / 理论廓形 X 坐标
     pub x_theory: Vec<f64>,
-    /// 理论廓形 Y 坐标
+    /// Theoretical profile Y coordinates / 理论廓形 Y 坐标
     pub y_theory: Vec<f64>,
-    /// 实际廓形 X 坐标
+    /// Actual (envelope) profile X coordinates / 实际廓形 X 坐标
     pub x_actual: Vec<f64>,
-    /// 实际廓形 Y 坐标
+    /// Actual (envelope) profile Y coordinates / 实际廓形 Y 坐标
     pub y_actual: Vec<f64>,
-    /// 初始位移 sqrt(r_0² - e²)
+    /// Initial displacement sqrt(r_0² - e²) / 初始位移 sqrt(r_0² - e²)
     pub s_0: f64,
 }
 
-/// 摆动从动件轮廓计算结果
+/// Oscillating follower profile computation result / 摆动从动件轮廓计算结果
 pub struct OscillatingProfileResult {
-    /// 理论廓形 X 坐标
+    /// Theoretical profile X coordinates / 理论廓形 X 坐标
     pub x_theory: Vec<f64>,
-    /// 理论廓形 Y 坐标
+    /// Theoretical profile Y coordinates / 理论廓形 Y 坐标
     pub y_theory: Vec<f64>,
 }
 
-/// 摆动平底从动件轮廓计算结果
+/// Oscillating flat-faced follower profile computation result / 摆动平底从动件轮廓计算结果
 pub struct OscFlatProfileResult {
-    /// 理论廓形 X 坐标
+    /// Theoretical profile X coordinates / 理论廓形 X 坐标
     pub x_theory: Vec<f64>,
-    /// 理论廓形 Y 坐标
+    /// Theoretical profile Y coordinates / 理论廓形 Y 坐标
     pub y_theory: Vec<f64>,
-    /// 实际廓形 X 坐标
+    /// Actual (envelope) profile X coordinates / 实际廓形 X 坐标
     pub x_actual: Vec<f64>,
-    /// 实际廓形 Y 坐标
+    /// Actual (envelope) profile Y coordinates / 实际廓形 Y 坐标
     pub y_actual: Vec<f64>,
 }
 
-/// 计算凸轮理论廓形坐标
+/// Compute theoretical cam profile coordinates / 计算凸轮理论廓形坐标
 ///
 /// # Arguments
 /// * `s` - 位移数组
@@ -106,8 +107,9 @@ pub fn compute_cam_profile(
     Ok(ProfileResult { x, y, s_0 })
 }
 
-/// 计算滚子从动件实际廓形
+/// Compute roller-follower actual (offset) profile / 计算滚子从动件实际廓形
 ///
+/// Actual profile = theoretical profile offset inward by roller radius `r_r`.
 /// 实际廓形 = 理论廓形向内偏移滚子半径 r_r 的等距曲线
 ///
 /// # Arguments
@@ -173,8 +175,10 @@ pub fn compute_roller_profile(
     Ok((x_actual, y_actual))
 }
 
-/// 计算平底从动件实际廓形
+/// Compute flat-faced follower actual profile (envelope) / 计算平底从动件实际廓形
 ///
+/// The actual profile is the envelope of the follower-face position family,
+/// requiring the analytical derivative ds/dδ of displacement w.r.t. cam angle.
 /// 平底从动件的实际廓形是从动件平面位置族的包络线，
 /// 需要位移对转角的解析导数 ds/dδ 直接参与计算。
 ///
@@ -258,11 +262,13 @@ pub fn compute_flat_faced_profile(
     })
 }
 
-/// 计算摆动从动件凸轮理论廓形
+/// Compute oscillating follower theoretical cam profile / 计算摆动从动件凸轮理论廓形
 ///
+/// The follower pivot is fixed at distance `pivot_distance` from the cam center,
+/// with arm length `arm_length` and initial arm angle `initial_angle`.
+/// Displacement `s` is converted to angular displacement: ψ = s / arm_length.
 /// 摆动从动件的枢轴固定在距离凸轮中心 `pivot_distance` 处，
 /// 臂长为 `arm_length`，初始臂角为 `initial_angle`。
-///
 /// 将位移 `s` 转换为角位移：ψ = s / arm_length
 ///
 /// # Arguments
@@ -325,8 +331,10 @@ pub fn compute_oscillating_profile(
     })
 }
 
-/// 计算摆动平底从动件实际廓形
+/// Compute oscillating flat-faced follower actual profile / 计算摆动平底从动件实际廓形
 ///
+/// Actual profile = theoretical profile + ds/dδ offset along the arm normal direction
+/// (follower face is perpendicular to the arm; envelope computation).
 /// 实际廓形 = 理论廓形 + ds/dδ 沿臂法线方向偏移
 /// （从动件平面垂直于臂方向，包络线计算）
 ///
@@ -394,9 +402,9 @@ pub fn compute_oscillating_flat_faced_profile(
     })
 }
 
-/// 计算摆动从动件压力角
+/// Compute oscillating follower pressure angle / 计算摆动从动件压力角
 ///
-/// 使用公式：α = arctan(|L·(dψ/dδ)| / |a·sin(δ₀+ψ)|)
+/// Uses the formula: α = arctan(|L·(dψ/dδ)| / |a·sin(δ₀+ψ)|)
 ///
 /// # Arguments
 /// * `s` - 位移数组 (mm)
@@ -448,7 +456,7 @@ pub fn compute_oscillating_pressure_angle(
     Ok(alpha)
 }
 
-/// 旋转凸轮廓形
+/// Rotate cam profile coordinates by a given angle / 旋转凸轮廓形
 ///
 /// # Arguments
 /// * `x_static` - 静态廓形 X 坐标

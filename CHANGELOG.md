@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.15] - 2026-05-03
+
+### High Impact
+- **HI-01**: Added `compute_full_simulation` to camforge-core — unified simulation orchestration that eliminates duplicated logic in Tauri commands and Axum routes
+- **HI-05**: Split MainCanvas.tsx (983→414 lines) — extracted ExportPanel.tsx
+- **HI-06**: Split CamAnimation.tsx (877→685 lines) — extracted FollowerRenderer.tsx and AnimationControls.tsx
+- **HI-02**: Added shared tooltip rendering utilities to chartDrawing/tooltip.ts
+
+### Medium Impact
+- **ME-06**: Split Sidebar.tsx — extracted MotionParamsPanel.tsx and FollowerParamsPanel.tsx
+- **ME-07**: Split exports.ts (674→~180 lines) — extracted exportFormats.ts and exportSVG.ts
+- **ME-24/30/31**: Added Rust documentation — crate-level //! and public API /// doc comments
+- **ME-30**: Created ADR records (ADR-001, ADR-002, ADR-003)
+- **ME-31**: Completed WEB_OPTIMIZATION.md and created ADR directory
+- **ME-32**: Created TESTING.md
+
+### Low Impact
+- **LO-20**: Added Mermaid architecture diagram to ARCHITECTURE.md
+- **LO-30**: Updated CONTRIBUTING.md with code style enforcement
+- **LO-32**: Created USER_GUIDE.md
+
 ## [0.4.14] - 2026-05-03
 
 ### Changed
@@ -16,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **LO-27**: Implemented atomic file writes for Tauri export commands (`export_dxf`, `export_csv`) — data is first written to a `.tmp` file, then `fs::rename`d on success, preventing partial-file corruption on crash
 - **TIFF export failure**: Fixed `UTIF.encode()` incorrect API usage in `src/exporters/tiff.ts` and `src/workers/tiffWorker.ts` — replaced non-existent simplified array format with `UTIF.encodeImage(rgba, w, h, metadata)`, passing RGBA pixel data directly with proper DPI metadata (`t282`/`t283`/`t296` TIFF tags). Updated `src/types/utif2.d.ts` type declarations accordingly
+- **ME-28**: Fixed remaining lock contention in `export_dxf` and `export_csv` — data is now cloned under lock scope and released before file format generation and I/O, consistent with the `get_frame_data` fix from v0.4.12
 
 ### Added
 
@@ -973,6 +995,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[0.4.15]: https://github.com/EkaEva/CamForge/compare/v0.4.14...v0.4.15
 [0.4.14]: https://github.com/EkaEva/CamForge/compare/v0.4.13...v0.4.14
 [0.4.13]: https://github.com/EkaEva/CamForge/compare/v0.4.12...v0.4.13
 [0.4.12]: https://github.com/EkaEva/CamForge/compare/v0.4.11...v0.4.12

@@ -16,6 +16,17 @@ export {
   getScaleFactor,
 } from './common';
 
+// Tooltip rendering utilities
+export {
+  drawTooltipLine,
+  drawTooltipPoint,
+  drawTooltipBox,
+  drawChartBackground,
+  type TooltipLineConfig,
+  type TooltipPointConfig,
+  type TooltipBoxConfig,
+} from './tooltip';
+
 // Motion curves chart
 export { drawMotionCurves } from './motionCurves';
 

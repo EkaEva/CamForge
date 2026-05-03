@@ -1,31 +1,34 @@
-//! 完整运动循环计算模块
+//! Full motion cycle computation module / 完整运动循环计算模块
 //!
+//! Computes displacement, velocity, and acceleration for one full cam revolution.
+//! Delegates to `motion::compute_rise_point` as the single authoritative implementation.
 //! 计算凸轮一整圈运动的位移、速度、加速度
 //! 委托至 `motion::compute_rise_point` 作为单一权威实现
 
 use crate::motion::compute_rise_point;
 use crate::types::{CamParams, MotionLaw};
 
-/// 常量：度转弧度
+/// Constant: degrees to radians / 常量：度转弧度
 const DEG2RAD: f64 = std::f64::consts::PI / 180.0;
 
-/// 完整运动循环计算结果
+/// Full motion cycle computation result / 完整运动循环计算结果
 pub struct FullMotionResult {
-    /// 全程转角 (度)
+    /// Full-cycle cam angle (degrees) / 全程转角 (度)
     pub delta_deg: Vec<f64>,
-    /// 位移数组 (mm)
+    /// Displacement array (mm) / 位移数组 (mm)
     pub s: Vec<f64>,
-    /// 速度数组 (mm/s)
+    /// Velocity array (mm/s) / 速度数组 (mm/s)
     pub v: Vec<f64>,
-    /// 加速度数组 (mm/s²)
+    /// Acceleration array (mm/s²) / 加速度数组 (mm/s²)
     pub a: Vec<f64>,
-    /// 位移对转角的解析导数 ds/dδ
+    /// Analytical derivative ds/dδ / 位移对转角的解析导数 ds/dδ
     pub ds_ddelta: Vec<f64>,
-    /// 各阶段分界点 (度)
+    /// Phase boundary angles (degrees) / 各阶段分界点 (度)
     pub phase_bounds: Vec<f64>,
 }
 
-/// 计算凸轮一整圈运动的位移、速度、加速度
+/// Compute displacement, velocity, and acceleration for one full cam revolution
+/// / 计算凸轮一整圈运动的位移、速度、加速度
 ///
 /// # Arguments
 /// * `params` - 凸轮参数

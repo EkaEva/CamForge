@@ -1,4 +1,4 @@
-# CamForge v0.4.14 系统性审查报告
+# CamForge v0.4.15 系统性审查报告
 
 ## 1. 审查概述
 
@@ -8,7 +8,7 @@
 | **审查方法** | 静态代码分析 + 架构审查 + 安全扫描 + 配置审计 + 测试覆盖率评估，采用多代理并行分治策略，分别对前端代码质量、Rust 后端代码质量、测试与文档完整性、依赖管理与安全性 4 个维度进行深度审查后合并去重 |
 | **审查时间** | 2026-05-01 |
 | **审查环境** | Windows 11 Home China 10.0.26200, Node.js 20, Rust 2021 edition, Tauri v2 + SolidJS 1.9 + Tailwind CSS 4.2 + Axum 0.7 |
-| **项目版本** | v0.4.14（package.json / Cargo.toml 当前版本），审查目标为 v0.4.14 优化方向 |
+| **项目版本** | v0.4.15（package.json / Cargo.toml 当前版本），审查目标为 v0.4.15 优化方向 |
 
 ### 项目技术栈
 
@@ -23,17 +23,17 @@
 
 ## 修复进度跟踪
 
-> 最后更新: 2026-05-03 | 修复目标版本: v0.4.14
+> 最后更新: 2026-05-03 | 修复目标版本: v0.4.15
 
-| 严重程度 | 总数 | 已修复 | 未修复 | 完成率 |
-|:--------:|:----:|:------:|:------:|:------:|
-| 严重 | 3 | 3 | 0 | 100% |
-| 高 | 18 | 12 | 6 | 67% |
-| 中 | 35 | 28 | 7 | 80% |
-| 低 | 32 | 25 | 7 | 78% |
-| **合计** | **88** | **68** | **20** | **77%** |
+| 严重程度 | 总数 | 已修复 | 已验证无需修复 | 推迟 | 完成率 |
+|:--------:|:----:|:------:|:------:|:----:|:------:|
+| 严重 | 3 | 3 | 0 | 0 | 100% |
+| 高 | 18 | 14 | 0 | 4 | 78% |
+| 中 | 35 | 31 | 0 | 4 | 89% |
+| 低 | 32 | 27 | 3 | 2 | 84% |
+| **合计** | **88** | **75** | **3** | **10** | **85%** |
 
-状态标记: ✅ 已修复 | ⬜ 未修复 | ⚠️ 已验证无需修复
+状态标记: ✅ 已修复 | ⬜ 未修复 | ⚠️ 已验证无需修复 | ⏳ 推迟至未来版本
 
 ---
 
@@ -95,7 +95,7 @@
 
 ### 3.2 高（High）
 
-#### ⬜ HI-01: Tauri 命令与 Axum 路由间存在大量计算逻辑重复
+#### ✅ HI-01: Tauri 命令与 Axum 路由间存在大量计算逻辑重复
 
 - **问题描述**: `run_simulation`（[commands/simulation.rs:41-235](src-tauri/src/commands/simulation.rs#L41-L235)）和 `simulate`（[routes/simulation.rs:25-212](crates/camforge-server/src/routes/simulation.rs#L25-L212)）包含约 200 行几乎逐行相同的凸轮轮廓计算、曲率半径计算、最小曲率半径搜索及凹面检测代码。此外，[commands/export.rs:155-245](src-tauri/src/commands/export.rs#L155-L245) 和 [routes/export.rs:257-365](crates/camforge-server/src/routes/export.rs#L257-L365) 中的 DXF 生成逻辑也完全重复。任何计算逻辑的变更或 Bug 修复需要在两处同步进行，极易产生不一致。`camforge-core` 作为共享库本应封装完整的仿真计算流程，但目前每次调用仍需消费者自行组装多步骤计算管道。
 - **问题位置**:
@@ -107,7 +107,7 @@
 - **问题类别**: 架构设计
 - **影响范围**: 双模式（桌面+Web）代码一致性维护成本极高
 
-#### ⬜ HI-02: 三个图表组件各自实现完全独立但逻辑相同的交互处理代码
+#### ✅ HI-02: 三个图表组件各自实现完全独立但逻辑相同的交互处理代码
 
 - **问题描述**: `MotionCurves.tsx`（[341-397](src/components/charts/MotionCurves.tsx#L341-L397)）、`GeometryChart.tsx`（[257-313](src/components/charts/GeometryChart.tsx#L257-L313)）、`CurvatureChart.tsx`（[363-419](src/components/charts/CurvatureChart.tsx#L363-L419)）三个图表组件中各自独立实现了鼠标悬停提示框渲染（~200 行重复）、`getFrameFromX` 坐标转换、`handleMouseDown/Move/Up` 事件处理等完全相同的逻辑。项目中已存在共享 Hook `useChartInteraction.ts`（149 行）和 `useChartPadding.ts`（71 行）专门为此设计，但三个图表组件均未导入这些 Hook。此外，7 个图表相关文件各自独立绘制了相同的网格线/相位边界/背景/标题样板代码（~350 行重复）。
 - **问题位置**:
@@ -144,7 +144,7 @@
 - **问题类别**: 代码质量、架构设计
 - **影响范围**: 147 行死代码，同时各模块绕过统一存储接口，增加了存储逻辑不一致的风险
 
-#### ⬜ HI-05: `MainCanvas.tsx` 严重单文件巨型组件（983 行）
+#### ✅ HI-05: `MainCanvas.tsx` 严重单文件巨型组件（983 行）
 
 - **问题描述**: [MainCanvas.tsx](src/components/layout/MainCanvas.tsx) 包含仿真/导出双标签页逻辑、导出按钮组件、图例渲染、自定义导出 UI（200+ 行表单状态管理）、动画帧数据计算、状态显示等多个职责域。单文件 983 行的体量使其极难维护，自定义导出表单和导出逻辑可单独提取为独立组件。
 - **问题位置**: [src/components/layout/MainCanvas.tsx](src/components/layout/MainCanvas.tsx)
@@ -152,7 +152,7 @@
 - **问题类别**: 代码质量
 - **影响范围**: 导出功能维护困难，代码理解成本高
 
-#### ⬜ HI-06: `CamAnimation.tsx` 严重单文件巨型组件（877 行）
+#### ✅ HI-06: `CamAnimation.tsx` 严重单文件巨型组件（877 行）
 
 - **问题描述**: [CamAnimation.tsx](src/components/animation/CamAnimation.tsx) 同时包含 SVG 渲染、动画帧循环、触摸/捏合手势处理、键盘事件绑定、缩放/平移状态、5 种不同从动件类型的渲染逻辑及播放控制条。建议拆分为独立模块：`followerRenderer.ts`、`animationLoop.ts`、`touchHandlers.ts` 各自负责单一职责。
 - **问题位置**: [src/components/animation/CamAnimation.tsx](src/components/animation/CamAnimation.tsx)
@@ -180,7 +180,7 @@
 - **影响范围**: 每个 API 响应均增加不必要的内存分配和延迟
 - **v0.4.10 修复**: Content-Type 检查已移至缓冲之前，仅对 `text/html` 响应执行 nonce 替换和缓冲
 
-#### ⬜ HI-09: Axum API 服务器完全无身份验证机制
+#### ⏳ HI-09: Axum API 服务器完全无身份验证机制
 
 - **问题描述**: Web 服务器模式下的所有端点（`/api/simulate`、`/api/export/*`）均无需任何身份验证即可访问。虽然后端配置了 CORS 和 CSP（提供浏览器层面的基础保护），但任何能路由到服务器的非浏览器客户端（同一网络上的对等节点、SSRF 攻击源）均可无限制调用所有计算密集型 API。
 - **问题位置**: [crates/camforge-server/src/main.rs:100-140](crates/camforge-server/src/main.rs#L100-L140) (路由注册无认证中间件)
@@ -232,7 +232,7 @@
 - **影响范围**: 安全审计和合规性评估可能基于错误信息
 - **v0.4.12 修复**: 更新 SECURITY.md 反映实际代码状态（速率限制已实现、CSV 转义两端均已覆盖）
 
-#### ⬜ HI-15: 缺少 OpenAPI/Swagger API 规范文档
+#### ⏳ HI-15: 缺少 OpenAPI/Swagger API 规范文档
 
 - **问题描述**: 尽管 `docs/ARCHITECTURE.md` 列出了端点列表，`docs/DEPLOYMENT.md` 包含 curl 示例，但项目完全没有 OpenAPI/Swagger 规范、自动生成式 API 文档或正式的 API 参考文档。所有 API 文档仅以 Rust 内联 doc 注释的形式存在。`REFACTORING_PLAN.md` Phase 3 步骤 3.8 "Add API documentation comments" 标记为未完成。
 - **问题位置**: 项目整体
@@ -240,7 +240,7 @@
 - **问题类别**: 文档
 - **影响范围**: API 消费者（包括前端团队和第三方集成者）缺乏结构化参考
 
-#### ⬜ HI-16: 前端 TypeScript JSDoc 覆盖率仅约 17%
+#### ⏳ HI-16: 前端 TypeScript JSDoc 覆盖率仅约 17%
 
 - **问题描述**: 在约 65 个前端源文件中，仅有 6 个文件包含 JSDoc `/** */` 注释（`types/index.ts`、`useChartInteraction.ts`、`useChartPadding.ts`、`gifEncoder.ts`、`history.ts`、`csv.ts`）。其余 ~59 个文件——包括所有图表组件、动画组件、UI 控件、API 适配层、状态管理模块——均缺乏 JSDoc 文档。`CONTRIBUTING.md` 虽然规定了 JSDoc 格式标准，但未被遵守。
 - **问题位置**: `src/` 目录中 59 个文件缺少 JSDoc
@@ -257,7 +257,7 @@
 - **影响范围**: 桌面应用在离线环境下字体加载失败，外部 CDN 依赖增加攻击面
 - **v0.4.10 修复**: 字体已完全本地化（`public/fonts/`），CSP 中 Google Fonts 域名已移除
 
-#### ⬜ HI-18: Tauri 桌面端命令零测试覆盖
+#### ⏳ HI-18: Tauri 桌面端命令零测试覆盖
 
 - **问题描述**: `src-tauri/src/commands/` 下的 `run_simulation`、`get_frame_data`、`export_dxf`、`export_csv` 四个核心 IPC 命令完全没有任何单元测试。这是桌面应用的主要入口点，数据验证和业务逻辑的关键路径。`camforge-core` 库的测试仅覆盖底层数学模型，不覆盖命令处理器中的 IPC 参数解析、状态管理、锁行为和导出路径验证。
 - **问题位置**: [src-tauri/src/commands/](src-tauri/src/commands/)（整个目录零测试）
@@ -269,14 +269,14 @@
 
 ### 3.3 中（Medium）
 
-#### ⬜ ME-01: `TitleBar.tsx`、`SettingsPanel.tsx` 等布局组件零测试
+#### ⏳ ME-01: `TitleBar.tsx`、`SettingsPanel.tsx` 等布局组件零测试
 
 - **问题描述**: 自定义标题栏组件（含窗口控制按钮：最小化/最大化/关闭）、设置面板（含拖拽调整宽度）、帮助面板、侧边栏、状态栏等关键布局组件均无任何测试覆盖。
 - **问题位置**: [src/components/layout/TitleBar.tsx](src/components/layout/TitleBar.tsx)、[SettingsPanel.tsx](src/components/layout/SettingsPanel.tsx)、[HelpPanel.tsx](src/components/layout/HelpPanel.tsx)、[Sidebar.tsx](src/components/layout/Sidebar.tsx)
 - **严重程度**: 中
 - **问题类别**: 测试
 
-#### ⬜ ME-02: 图表组件零 Canvas 渲染测试
+#### ⏳ ME-02: 图表组件零 Canvas 渲染测试
 
 - **问题描述**: `MotionCurves.tsx`、`CurvatureChart.tsx`、`GeometryChart.tsx` 三个 Canvas 图表组件完全无测试覆盖。`chartDrawing.test.ts` 仅测试了 `validateChartData` 和 `normalizeChartOptions` 两个入口参数校验函数，而核心绘制函数（`drawMotionCurves`、`drawCamProfile`、`drawCurvatureRadius`、`drawPressureAngle`、`drawAnimationFrame`、`exportToCanvas`）均未测试。Canvas 2D 上下文的 mock 机制在 Vitest + jsdom 中可用但未被利用。
 - **问题位置**:
@@ -285,14 +285,14 @@
 - **严重程度**: 中
 - **问题类别**: 测试
 
-#### ⬜ ME-03: 动画组件零测试覆盖
+#### ⏳ ME-03: 动画组件零测试覆盖
 
 - **问题描述**: `CamAnimation.tsx`（877 行）包含复杂的 SVG 渲染、requestAnimationFrame 循环、触摸手势和键盘事件处理，但完全无测试覆盖。动画状态机（播放/暂停/帧步进）的正确性无法通过自动化验证。
 - **问题位置**: [src/components/animation/CamAnimation.tsx](src/components/animation/CamAnimation.tsx)
 - **严重程度**: 中
 - **问题类别**: 测试
 
-#### ⬜ ME-04: 缺少端到端（E2E）测试框架
+#### ⏳ ME-04: 缺少端到端（E2E）测试框架
 
 - **问题描述**: 项目中无 Playwright、Cypress 或任何 E2E 测试配置。整个应用的关键用户流程（参数修改→仿真计算→结果可视化→导出）无法自动化验证。`TODO.md` Phase 5 "E2E Tests & Final Polish" 所有 5 项任务完成度为 0%。
 - **问题位置**: 项目整体
@@ -307,14 +307,14 @@
 - **问题类别**: 测试
 - **v0.4.14 修复**: 添加 `src/api/__tests__/api.test.ts`，覆盖 HttpApi 和 TauriApi 的 16 个测试用例（请求序列化、错误处理、不支持方法抛异常等）
 
-#### ⬜ ME-06: `Sidebar.tsx` 单文件过长（630 行），含 5 个可折叠面板
+#### ✅ ME-06: `Sidebar.tsx` 单文件过长（630 行），含 5 个可折叠面板
 
 - **问题描述**: 侧边栏管理 5 个可折叠面板（运动规律、几何参数、仿真设置、显示选项、预设管理），每个面板含表单控件和验证逻辑。所有面板逻辑耦合在一个文件中，降低了可维护性和可复用性。
 - **问题位置**: [src/components/layout/Sidebar.tsx](src/components/layout/Sidebar.tsx)
 - **严重程度**: 中
 - **问题类别**: 代码质量
 
-#### ⬜ ME-07: `exports.ts`（stores）单文件过长（699 行）
+#### ✅ ME-07: `exports.ts`（stores）单文件过长（699 行）
 
 - **问题描述**: 该文件同时包含 SVG 生成（~400 行模板字符串 XML）、PNG/TIFF/GIF/Excel 多格式导出编排，以及 Tauri 和浏览器两种环境下的文件保存逻辑。职责过多，各导出格式处理逻辑可提取到 `exporters/` 目录下各自独立的模块中。
 - **问题位置**: [src/stores/simulation/exports.ts](src/stores/simulation/exports.ts)
@@ -443,7 +443,7 @@
 - **严重程度**: 中
 - **问题类别**: 安全
 
-#### ⬜ ME-24: Rust 代码中文注释占比过高，国际化协作存在障碍
+#### ✅ ME-24: Rust 代码中文注释占比过高，国际化协作存在障碍
 
 - **问题描述**: 所有 Rust 模块文档（`//!` 注释）及大多数函数内注释使用中文。对于本地中文团队适合，但如果项目发展为国际化团队或接受外部贡献，中文注释会造成理解障碍。同时 TypeScript 文件中中英文注释混用也不一致（`compute.ts` 使用中文注释，`history.ts` 使用英文注释）。
 - **问题位置**: `crates/` 和 `src/` 中超过 30 处中文注释
@@ -474,13 +474,14 @@
 - **严重程度**: 中
 - **问题类别**: 代码质量
 
-#### ⬜ ME-28: `get_frame_data` 在持有锁期间执行计算密集型操作
+#### ✅ ME-28: `get_frame_data` 在持有锁期间执行计算密集型操作
 
 - **问题描述**: [commands/simulation.rs:246-361](src-tauri/src/commands/simulation.rs#L246-L361) 中 `get_frame_data` 在持有 `data` 和 `params` 两个 Mutex 锁的整个期间内执行凸轮轮廓旋转等非平凡计算，锁持有时间较长。应考虑先克隆必要数据再释放锁进行计算。
 - **问题位置**: [src-tauri/src/commands/simulation.rs:246-361](src-tauri/src/commands/simulation.rs#L246-L361)
 - **严重程度**: 中
 - **问题类别**: 性能
 - **v0.4.12 修复**: 在锁作用域内克隆所需数据，提前释放锁后再进行计算
+- **v0.4.14 修复**: `export_dxf` 和 `export_csv` 同样改为锁内克隆数据后释放锁再进行文件格式生成和 I/O
 
 #### ✅ ME-29: `CamParams::validate()` 角度容差可能过严
 
@@ -489,21 +490,21 @@
 - **严重程度**: 中
 - **问题类别**: 代码质量
 
-#### ⬜ ME-30: `docs/WEB_OPTIMIZATION.md` 内容严重不完整
+#### ✅ ME-30: `docs/WEB_OPTIMIZATION.md` 内容严重不完整
 
 - **问题描述**: 该文档仅包含约 3 段关于 Logo 压缩的文字（约 660 字节），标题为"Web 部署优化说明"但完全未涉及：bundle 大小分析、代码分割策略、懒加载方案、CDN 配置、缓存头设置、预加载/预获取策略或性能预算设定。
 - **问题位置**: [docs/WEB_OPTIMIZATION.md](docs/WEB_OPTIMIZATION.md)
 - **严重程度**: 中
 - **问题类别**: 文档
 
-#### ⬜ ME-31: 缺少架构决策记录（ADR）
+#### ✅ ME-31: 缺少架构决策记录（ADR）
 
 - **问题描述**: `REFACTORING_PLAN.md` 记录了计划中的架构变更，但项目没有任何 ADR 来解释关键设计决策的**原因**——例如为何选择 6 种特定运动规律、为何选择特定的多项式阶数、为何选择 Rust 而非 Python、为何选择 Tauri 而非 Electron、为何 SolidJS 而非 React。
 - **问题位置**: 项目整体
 - **严重程度**: 中
 - **问题类别**: 文档
 
-#### ⬜ ME-32: 缺少独立的测试策略/指南文档
+#### ✅ ME-32: 缺少独立的测试策略/指南文档
 
 - **问题描述**: 尽管 `CONTRIBUTING.md` 简要提及"确保测试通过"，但没有专门文档说明如何运行测试、如何编写测试、测试策略是什么、覆盖率目标是多少。这让新贡献者在编写测试时缺少指导。
 - **问题位置**: 项目整体
@@ -636,7 +637,7 @@
 - **问题类别**: 性能
 - **评估**: 克隆不可避免（除非重构 SimulationData 使用共享引用），标记为已知限制
 
-#### ⬜ LO-14: 缺少性能基准测试
+#### ⏳ LO-14: 缺少性能基准测试
 
 - **问题描述**: 项目无性能分析方法论、无基准测试套件、无性能基线数据。`docs/ARCHITECTURE.md` 提到了并行计算、Canvas HDPI、防抖等优化目标，但未提供量化的性能指标或测试方法。
 - **问题位置**: 项目整体
@@ -650,14 +651,14 @@
 - **严重程度**: 低
 - **问题类别**: 代码质量
 
-#### ⬜ LO-16: `xlsx`（SheetJS）包曾有已知 CVE
+#### ⚠️ LO-16: `xlsx`（SheetJS）包曾有已知 CVE
 
 - **问题描述**: `xlsx` 社区版（v0.18.5）有过安全漏洞历史记录，包括 CVE-2023-30533（原型污染）。版本 0.18.5 可能受影响。该库在 [src/exporters/excel.ts](src/exporters/excel.ts) 中用于生成 Excel 导出。
 - **问题位置**: [package.json:36](package.json#L36)
 - **严重程度**: 低
 - **问题类别**: 安全、依赖管理
 
-#### ⬜ LO-17: `gif.js` 版本较旧且无积极维护
+#### ⚠️ LO-17: `gif.js` 版本较旧且无积极维护
 
 - **问题描述**: `gif.js` v0.2.0 相对老旧，上游已无积极开发活动。当前功能正常实现 GIF 动画导出，但应长期关注替代方案。
 - **问题位置**: [package.json:33](package.json#L33)
@@ -677,16 +678,16 @@
 - **问题位置**: [README.md](README.md)
 - **严重程度**: 低
 - **问题类别**: 文档
-- **v0.4.14 修复**: 添加 GitHub Actions CI 状态徽章，更新版本徽章至 v0.4.14
+- **v0.4.14 修复**: 添加 GitHub Actions CI 状态徽章，更新版本徽章至 v0.4.15
 
-#### ⬜ LO-20: 架构文档中无 SVG/PNG 架构图
+#### ✅ LO-20: 架构文档中无 SVG/PNG 架构图
 
 - **问题描述**: `docs/ARCHITECTURE.md` 和 `docs/REFACTORING_PLAN.md` 中的 ASCII 艺术图功能可用但可读性较差。缺少 SVG/PNG 架构图使得数据流和模块关系的可视化打折扣。
 - **问题位置**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)、[docs/REFACTORING_PLAN.md](docs/REFACTORING_PLAN.md)
 - **严重程度**: 低
 - **问题类别**: 文档
 
-#### ⬜ LO-21: `FrameData` 结构体为直动从动件填充无意义 `0.0` 值
+#### ⏳ LO-21: `FrameData` 结构体为直动从动件填充无意义 `0.0` 值
 
 - **问题描述**: [types.rs:366-398](crates/camforge-core/src/types.rs#L366-L398) `FrameData` 中的 `pivot_x`、`pivot_y`、`arm_angle` 字段对于直动从动件设为 `0.0`。统一类型虽有便利性，但向 API 消费者暴露了无关的内部实现细节。
 - **问题位置**: [crates/camforge-core/src/types.rs:366-398](crates/camforge-core/src/types.rs#L366-L398)
@@ -751,7 +752,7 @@
 - **严重程度**: 低
 - **问题类别**: 依赖管理
 
-#### ⬜ LO-30: `CONTRIBUTING.md` 规定的代码规范未在代码库中一致执行
+#### ✅ LO-30: `CONTRIBUTING.md` 规定的代码规范未在代码库中一致执行
 
 - **问题描述**: `CONTRIBUTING.md` 中规定了 JSDoc 格式、命名规范和代码组织标准，但这些规范在代码库中的执行不一致——例如 JSDoc 覆盖率仅约 17%、中英文注释混用等。
 - **问题位置**: [CONTRIBUTING.md](CONTRIBUTING.md) vs 实际代码库
@@ -765,7 +766,7 @@
 - **严重程度**: 低
 - **问题类别**: 文档
 
-#### ⬜ LO-32: 缺少用户操作手册
+#### ✅ LO-32: 缺少用户操作手册
 
 - **问题描述**: 项目无面向最终用户的使用指南文档。`README.md` 仅提供参数参考和键盘快捷键列表，但不是结构化的用户手册。`TODO.md` Phase 6 第 6.1 项"API docs, user manual"标记为未完成。
 - **问题位置**: 项目整体
@@ -788,8 +789,8 @@
 
 | 优先级 | 问题编号 | 建议措施 | 预估工作量 | 状态 |
 |:------:|:--------|:---------|:----------:|:----:|
-| P1 | HI-01 | 在 `camforge-core` 中添加 `compute_full_simulation(params) -> SimulationData` 公共函数，统一 Tauri 命令和 Axum 路由的计算逻辑；同步 DXF 生成逻辑 | 8h | ⬜ |
-| P1 | HI-02 | 重构三个图表组件以使用 `useChartInteraction` 和 `useChartPadding` Hook；提取共享的提示框渲染和图表背景绘制工具函数 | 6h | ⬜ |
+| P1 | HI-01 | 在 `camforge-core` 中添加 `compute_full_simulation(params) -> SimulationData` 公共函数，统一 Tauri 命令和 Axum 路由的计算逻辑；同步 DXF 生成逻辑 | 8h | ✅ |
+| P1 | HI-02 | 重构三个图表组件以使用 `useChartInteraction` 和 `useChartPadding` Hook；提取共享的提示框渲染和图表背景绘制工具函数 | 6h | ✅ |
 | P1 | HI-03 | 替换所有图表绘制函数中的硬编码颜色为 `chartColors.ts` 常量引用 | 2h | ✅ |
 | P1 | HI-08 | 在 CSP nonce 替换中间件中添加 Content-Type 检查，仅对 `text/html` 响应执行缓冲替换 | 1h | ✅ |
 | P1 | HI-10 | 使用 `tower::limit::RateLimitLayer` 实现实际速率限制，或将代码中的误导性速率限制日志移除 | 2h | ✅ |
@@ -865,7 +866,7 @@
 
 ---
 
-*审查完成时间: 2026-05-01 | 审查工具版本: Claude Code (deepseek-v4-pro) | 当前修复版本: v0.4.14*
+*审查完成时间: 2026-05-01 | 审查工具版本: Claude Code (deepseek-v4-pro) | 当前修复版本: v0.4.15*
 
 ### v0.4.13 新增修复
 

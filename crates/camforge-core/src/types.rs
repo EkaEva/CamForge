@@ -1,25 +1,28 @@
-//! CamForge 类型定义
+//! CamForge type definitions / CamForge 类型定义
 //!
+//! Defines core types for cam parameters, simulation data, etc.
 //! 定义凸轮参数、模拟数据等核心类型
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-/// 从动件类型枚举
+/// Follower type enum / 从动件类型枚举
 ///
+/// Serializes to integer (consistent with frontend TypeScript enum),
+/// deserializes from both integer and string formats.
 /// 序列化为整数（与前端 TypeScript enum 一致），
 /// 反序列化兼容整数和字符串两种格式
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum FollowerType {
-    /// 直动尖底从动件
+    /// Translating knife-edge follower / 直动尖底从动件
     TranslatingKnifeEdge = 1,
-    /// 直动滚子从动件
+    /// Translating roller follower / 直动滚子从动件
     #[default]
     TranslatingRoller = 2,
-    /// 直动平底从动件
+    /// Translating flat-faced follower / 直动平底从动件
     TranslatingFlatFaced = 3,
-    /// 摆动滚子从动件
+    /// Oscillating roller follower / 摆动滚子从动件
     OscillatingRoller = 4,
-    /// 摆动平底从动件
+    /// Oscillating flat-faced follower / 摆动平底从动件
     OscillatingFlatFaced = 5,
 }
 
@@ -82,7 +85,7 @@ impl TryFrom<i32> for FollowerType {
 }
 
 impl FollowerType {
-    /// 获取从动件类型名称
+    /// Return the English follower type name / 获取从动件类型名称
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::TranslatingKnifeEdge => "Translating Knife-Edge",
@@ -93,7 +96,7 @@ impl FollowerType {
         }
     }
 
-    /// 获取从动件类型中文名称
+    /// Return the Chinese follower type name / 获取从动件类型中文名称
     pub fn as_str_zh(&self) -> &'static str {
         match self {
             Self::TranslatingKnifeEdge => "直动尖底",
@@ -104,12 +107,12 @@ impl FollowerType {
         }
     }
 
-    /// 是否为摆动从动件
+    /// Whether this is an oscillating follower type / 是否为摆动从动件
     pub fn is_oscillating(&self) -> bool {
         matches!(self, Self::OscillatingRoller | Self::OscillatingFlatFaced)
     }
 
-    /// 是否为平底从动件
+    /// Whether this is a flat-faced follower type / 是否为平底从动件
     pub fn is_flat_faced(&self) -> bool {
         matches!(
             self,
@@ -117,73 +120,76 @@ impl FollowerType {
         )
     }
 
-    /// 是否需要滚子半径
+    /// Whether this follower type requires a roller radius / 是否需要滚子半径
     pub fn needs_roller(&self) -> bool {
         matches!(self, Self::TranslatingRoller | Self::OscillatingRoller)
     }
 }
 
-/// 凸轮设计参数
+/// Cam design parameters / 凸轮设计参数
 ///
+/// Corresponds to the Python version's ParameterModel.
 /// 对应 Python 版本的 ParameterModel
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CamParams {
-    /// 推程运动角 (度)
+    /// Rise angle (degrees) / 推程运动角 (度)
     #[serde(default, alias = "delta_rise")]
     pub delta_0: f64,
-    /// 远休止角 (度)
+    /// Outer dwell angle (degrees) / 远休止角 (度)
     #[serde(default, alias = "delta_far")]
     pub delta_01: f64,
-    /// 回程运动角 (度)
+    /// Return angle (degrees) / 回程运动角 (度)
     #[serde(default, alias = "delta_fall")]
     pub delta_ret: f64,
-    /// 近休止角 (度)
+    /// Inner dwell angle (degrees) / 近休止角 (度)
     #[serde(default, alias = "delta_near")]
     pub delta_02: f64,
-    /// 推杆最大位移 (mm)
+    /// Maximum follower displacement (mm) / 推杆最大位移 (mm)
     pub h: f64,
-    /// 基圆半径 (mm)
+    /// Base circle radius (mm) / 基圆半径 (mm)
     pub r_0: f64,
-    /// 偏距 (mm)
+    /// Offset (mm) / 偏距 (mm)
     pub e: f64,
-    /// 凸轮角速度 (rad/s)
+    /// Cam angular velocity (rad/s) / 凸轮角速度 (rad/s)
     #[serde(default)]
     pub omega: f64,
-    /// 滚子半径 (mm), 0 = 尖底从动件
+    /// Roller radius (mm), 0 = knife-edge follower / 滚子半径 (mm), 0 = 尖底从动件
     pub r_r: f64,
-    /// 离散点数
+    /// Number of discretization points / 离散点数
     #[serde(default = "default_n_points")]
     pub n_points: usize,
-    /// 压力角阈值 (度)
+    /// Pressure angle threshold (degrees) / 压力角阈值 (度)
     #[serde(default)]
     pub alpha_threshold: f64,
-    /// 推程运动规律 (1-6)
+    /// Rise motion law (1-6) / 推程运动规律 (1-6)
     #[serde(default)]
     pub tc_law: i32,
-    /// 回程运动规律 (1-6)
+    /// Return motion law (1-6) / 回程运动规律 (1-6)
     #[serde(default)]
     pub hc_law: i32,
-    /// 旋向符号 (+1 顺时针, -1 逆时针)
+    /// Rotation sign (+1 clockwise, -1 counterclockwise) / 旋向符号 (+1 顺时针, -1 逆时针)
     pub sn: i32,
-    /// 偏距符号 (+1 正偏距, -1 负偏距)
+    /// Offset sign (+1 positive offset, -1 negative offset) / 偏距符号 (+1 正偏距, -1 负偏距)
     pub pz: i32,
-    /// 从动件类型
+    /// Follower type / 从动件类型
     #[serde(default)]
     pub follower_type: FollowerType,
-    /// 摆动从动件臂长 (mm), 仅摆动类型使用
+    /// Oscillating follower arm length (mm), only for oscillating types / 摆动从动件臂长 (mm), 仅摆动类型使用
     #[serde(default = "default_arm_length")]
     pub arm_length: f64,
-    /// 摆动从动件枢轴至凸轮中心距 (mm), 仅摆动类型使用
+    /// Pivot-to-cam-center distance (mm), only for oscillating types / 摆动从动件枢轴至凸轮中心距 (mm), 仅摆动类型使用
     #[serde(default = "default_pivot_distance")]
     pub pivot_distance: f64,
-    /// 摆动从动件初始臂角 (度), 仅摆动类型使用
+    /// Initial arm angle (degrees), only for oscillating types / 摆动从动件初始臂角 (度), 仅摆动类型使用
     #[serde(default)]
     pub initial_angle: f64,
+    /// Mounting angle (degrees), only for oscillating types.
+    /// 0° = pivot at cam's left, 90° = pivot above cam.
     /// 安装偏角（度），仅摆动从动件使用
     /// 0° = 枢轴在凸轮正左方，90° = 枢轴在凸轮正上方
     #[serde(default)]
     pub gamma: f64,
-    /// 平底偏置量 (mm)，平底中心线相对臂中心线的偏移，默认 0
+    /// Flat-face centerline offset (mm), default 0 / 平底偏置量 (mm)，平底中心线相对臂中心线的偏移，默认 0
     #[serde(default)]
     pub flat_face_offset: f64,
 }
@@ -227,7 +233,7 @@ impl Default for CamParams {
 }
 
 impl CamParams {
-    /// 验证参数有效性
+    /// Validate parameter consistency / 验证参数有效性
     pub fn validate(&self) -> Result<(), String> {
         // NaN/Infinity 检查
         let float_fields = [
@@ -385,58 +391,59 @@ impl CamParams {
     }
 }
 
-/// 完整模拟数据
+/// Full simulation data / 完整模拟数据
 ///
+/// Contains all computed results for one full cam revolution.
 /// 包含凸轮一整圈运动的所有计算结果
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimulationData {
-    /// 全程转角 (度)
+    /// Full-cycle cam angle (degrees) / 全程转角 (度)
     pub delta_deg: Vec<f64>,
-    /// 位移数组 (mm)
+    /// Displacement array (mm) / 位移数组 (mm)
     pub s: Vec<f64>,
-    /// 速度数组 (mm/s)
+    /// Velocity array (mm/s) / 速度数组 (mm/s)
     pub v: Vec<f64>,
-    /// 加速度数组 (mm/s²)
+    /// Acceleration array (mm/s²) / 加速度数组 (mm/s²)
     pub a: Vec<f64>,
-    /// 位移对转角的解析导数 ds/dδ
+    /// Analytical derivative ds/dδ / 位移对转角的解析导数 ds/dδ
     pub ds_ddelta: Vec<f64>,
-    /// 各阶段分界点 (度)
+    /// Phase boundary angles (degrees) / 各阶段分界点 (度)
     pub phase_bounds: Vec<f64>,
-    /// 凸轮理论廓形 X 坐标
+    /// Theoretical profile X coordinates / 凸轮理论廓形 X 坐标
     pub x: Vec<f64>,
-    /// 凸轮理论廓形 Y 坐标
+    /// Theoretical profile Y coordinates / 凸轮理论廓形 Y 坐标
     pub y: Vec<f64>,
-    /// 凸轮实际廓形 X 坐标 (滚子从动件)
+    /// Actual profile X coordinates (roller follower) / 凸轮实际廓形 X 坐标 (滚子从动件)
     pub x_actual: Vec<f64>,
-    /// 凸轮实际廓形 Y 坐标 (滚子从动件)
+    /// Actual profile Y coordinates (roller follower) / 凸轮实际廓形 Y 坐标 (滚子从动件)
     pub y_actual: Vec<f64>,
-    /// 曲率半径数组
+    /// Curvature radius array / 曲率半径数组
     pub rho: Vec<f64>,
-    /// 实际轮廓曲率半径数组 (滚子从动件)
+    /// Actual profile curvature radius array (roller follower) / 实际轮廓曲率半径数组 (滚子从动件)
     pub rho_actual: Vec<f64>,
-    /// 压力角数组 (度)
+    /// Pressure angle array (degrees) / 压力角数组 (度)
     pub alpha_all: Vec<f64>,
-    /// 初始位移 sqrt(r_0² - e²)
+    /// Initial displacement sqrt(r_0² - e²) / 初始位移 sqrt(r_0² - e²)
     pub s_0: f64,
-    /// 最大向径
+    /// Maximum radial distance / 最大向径
     pub r_max: f64,
-    /// 最大压力角绝对值 (度)
+    /// Maximum absolute pressure angle (degrees) / 最大压力角绝对值 (度)
     pub max_alpha: f64,
-    /// 最小曲率半径绝对值
+    /// Minimum absolute curvature radius / 最小曲率半径绝对值
     pub min_rho: Option<f64>,
-    /// 最小曲率半径索引
+    /// Index of minimum curvature radius / 最小曲率半径索引
     pub min_rho_idx: usize,
-    /// 实际轮廓最小曲率半径绝对值 (滚子从动件)
+    /// Minimum actual profile curvature radius (roller follower) / 实际轮廓最小曲率半径绝对值 (滚子从动件)
     pub min_rho_actual: Option<f64>,
-    /// 实际轮廓最小曲率半径索引
+    /// Index of minimum actual profile curvature radius / 实际轮廓最小曲率半径索引
     pub min_rho_actual_idx: usize,
-    /// 推杆最大位移 (mm)
+    /// Maximum follower displacement (mm) / 推杆最大位移 (mm)
     pub h: f64,
-    /// 是否存在凹区域（平底从动件不可用）
+    /// Whether a concave region exists (invalid for flat-faced followers) / 是否存在凹区域（平底从动件不可用）
     pub has_concave_region: bool,
-    /// 平底最小半宽 = max(|ds/ddelta|)，仅平底从动件有意义
+    /// Flat-face minimum half-width = max(|ds/dδ|), only meaningful for flat-faced followers / 平底最小半宽 = max(|ds/ddelta|)，仅平底从动件有意义
     pub flat_face_min_half_width: f64,
-    /// 计算错误信息（NaN/Infinity 等），非空时数据不可信
+    /// Computation error message (NaN/Infinity etc.); data is unreliable when non-None / 计算错误信息（NaN/Infinity 等），非空时数据不可信
     #[serde(skip_serializing_if = "Option::is_none")]
     pub computation_error: Option<String>,
 }
@@ -462,57 +469,58 @@ impl Default for SimulationData {
     }
 }
 
-/// 动画帧数据
+/// Animation frame data / 动画帧数据
 ///
+/// All data needed for a single animation frame.
 /// 单帧动画所需的全部数据
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FrameData {
-    /// 推杆 X 坐标 (直动从动件固定值)
+    /// Follower X coordinate (fixed value for translating followers) / 推杆 X 坐标 (直动从动件固定值)
     pub follower_x: f64,
-    /// 接触点 X 坐标（直动时等于 follower_x，摆动时来自旋转轮廓）
+    /// Contact point X (equals follower_x for translating; from rotated profile for oscillating) / 接触点 X 坐标（直动时等于 follower_x，摆动时来自旋转轮廓）
     pub contact_x: f64,
-    /// 接触点 Y 坐标
+    /// Contact point Y coordinate / 接触点 Y 坐标
     pub contact_y: f64,
-    /// 枢轴 X 坐标（摆动从动件）
+    /// Pivot X coordinate (oscillating followers) / 枢轴 X 坐标（摆动从动件）
     pub pivot_x: f64,
-    /// 枢轴 Y 坐标（摆动从动件）
+    /// Pivot Y coordinate (oscillating followers) / 枢轴 Y 坐标（摆动从动件）
     pub pivot_y: f64,
-    /// 臂角（摆动从动件，弧度）
+    /// Arm angle (oscillating followers, radians) / 臂角（摆动从动件，弧度）
     pub arm_angle: f64,
-    /// 法线方向 X 分量
+    /// Normal direction X component / 法线方向 X 分量
     pub nx: f64,
-    /// 法线方向 Y 分量
+    /// Normal direction Y component / 法线方向 Y 分量
     pub ny: f64,
-    /// 切线方向 X 分量
+    /// Tangent direction X component / 切线方向 X 分量
     pub tx: f64,
-    /// 切线方向 Y 分量
+    /// Tangent direction Y component / 切线方向 Y 分量
     pub ty: f64,
-    /// 当前帧压力角绝对值 (度)
+    /// Absolute pressure angle at this frame (degrees) / 当前帧压力角绝对值 (度)
     pub alpha_i: f64,
-    /// 当前帧位移
+    /// Displacement at this frame / 当前帧位移
     pub s_i: f64,
-    /// 当前帧的 ds/dδ 值（平底从动件接触点偏置）
+    /// ds/dδ value at this frame (flat-face contact offset) / 当前帧的 ds/dδ 值（平底从动件接触点偏置）
     pub ds_ddelta_i: f64,
-    /// 旋转后的凸轮 X 坐标
+    /// Rotated cam X coordinates / 旋转后的凸轮 X 坐标
     pub x_rot: Vec<f64>,
-    /// 旋转后的凸轮 Y 坐标
+    /// Rotated cam Y coordinates / 旋转后的凸轮 Y 坐标
     pub y_rot: Vec<f64>,
 }
 
-/// 运动规律枚举
+/// Motion law enum / 运动规律枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MotionLaw {
-    /// 等速运动
+    /// Uniform motion / 等速运动
     Uniform = 1,
-    /// 等加速等减速
+    /// Constant acceleration / 等加速等减速
     ConstantAcceleration = 2,
-    /// 简谐运动
+    /// Simple harmonic / 简谐运动
     SimpleHarmonic = 3,
-    /// 摆线运动
+    /// Cycloidal / 摆线运动
     Cycloidal = 4,
-    /// 五次多项式 (3-4-5)
+    /// 3-4-5 polynomial / 五次多项式 (3-4-5)
     QuinticPolynomial = 5,
-    /// 七次多项式 (4-5-6-7)
+    /// 4-5-6-7 polynomial / 七次多项式 (4-5-6-7)
     SepticPolynomial = 6,
 }
 
@@ -533,7 +541,7 @@ impl TryFrom<i32> for MotionLaw {
 }
 
 impl MotionLaw {
-    /// 获取运动规律名称
+    /// Return the English motion law name / 获取运动规律名称
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Uniform => "Uniform Motion",
@@ -545,7 +553,7 @@ impl MotionLaw {
         }
     }
 
-    /// 获取运动规律中文名称
+    /// Return the Chinese motion law name / 获取运动规律中文名称
     pub fn as_str_zh(&self) -> &'static str {
         match self {
             Self::Uniform => "等速运动",

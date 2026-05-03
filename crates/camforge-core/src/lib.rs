@@ -1,19 +1,26 @@
-//! CamForge 核心计算库
+//! CamForge core computation library / CamForge 核心计算库
+//!
+//! Provides core algorithms for cam mechanism kinematics, including:
+//! - Motion law computation (displacement, velocity, acceleration)
+//! - Cam profile computation (theoretical and actual profiles)
+//! - Geometric analysis (pressure angle, curvature radius)
 //!
 //! 提供凸轮机构运动学计算的核心算法，包括：
 //! - 运动规律计算（位移、速度、加速度）
 //! - 凸轮轮廓计算（理论廓形、实际廓形）
 //! - 几何分析（压力角、曲率半径）
 //!
+//! Shared by both the Tauri desktop app and the HTTP API server.
 //! 该库可被 Tauri 桌面应用和 HTTP API 服务器共同使用。
 
 pub mod full_motion;
 pub mod geometry;
 pub mod motion;
 pub mod profile;
+pub mod simulation;
 pub mod types;
 
-// 重新导出主要类型和函数
+// Re-export main types and functions / 重新导出主要类型和函数
 pub use full_motion::{compute_full_motion, FullMotionResult};
 pub use geometry::{
     compute_curvature_radius, compute_flat_faced_pressure_angle, compute_pressure_angle,
@@ -25,4 +32,5 @@ pub use profile::{
     compute_rotated_cam, FlatFacedProfileResult, OscFlatProfileResult, OscillatingProfileResult,
     ProfileResult,
 };
+pub use simulation::compute_full_simulation;
 pub use types::{CamParams, FollowerType, FrameData, MotionLaw, SimulationData};

@@ -194,11 +194,15 @@ pub fn export_dxf(
     // 验证文件路径安全性
     let safe_path = validate_export_path(&filepath)?;
 
-    let data_guard = state
-        .data
-        .lock()
-        .map_err(|e| format!("State lock poisoned: {}", e))?;
-    let data = data_guard.as_ref().ok_or("No simulation data available")?;
+    // Clone data under lock, then release before generating DXF content.
+    // This avoids holding the Mutex during file format generation and I/O.
+    let data = {
+        let guard = state
+            .data
+            .lock()
+            .map_err(|e| format!("State lock poisoned: {}", e))?;
+        guard.as_ref().ok_or("No simulation data available")?.clone()
+    };
 
     if data.x.is_empty() || data.y.is_empty() {
         return Err("No profile data available to export".to_string());
@@ -313,16 +317,27 @@ pub fn export_csv(filepath: String, lang: String, state: State<SimState>) -> Res
         return Err("lang must be 'zh' or 'en'".to_string());
     }
 
-    let data_guard = state
-        .data
-        .lock()
-        .map_err(|e| format!("State lock poisoned: {}", e))?;
-    let data = data_guard.as_ref().ok_or("No simulation data available")?;
-    let params_guard = state
-        .params
-        .lock()
-        .map_err(|e| format!("State lock poisoned: {}", e))?;
-    let params = params_guard.as_ref().ok_or("No simulation parameters available")?;
+    // Clone data and params under lock, then release before generating CSV content.
+    // This avoids holding both Mutex locks during file format generation and I/O.
+    let (data, params) = {
+        let data_guard = state
+            .data
+            .lock()
+            .map_err(|e| format!("State lock poisoned: {}", e))?;
+        let data = data_guard
+            .as_ref()
+            .ok_or("No simulation data available")?
+            .clone();
+        let params_guard = state
+            .params
+            .lock()
+            .map_err(|e| format!("State lock poisoned: {}", e))?;
+        let params = params_guard
+            .as_ref()
+            .ok_or("No simulation parameters available")?
+            .clone();
+        (data, params)
+    };
 
     if data.delta_deg.is_empty() || data.x.is_empty() {
         return Err("No simulation data available to export".to_string());

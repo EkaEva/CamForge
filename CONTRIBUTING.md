@@ -128,38 +128,70 @@ camforge/
 
 ## 代码规范 | Coding Standards
 
-### TypeScript
+### TypeScript / SolidJS
 
-- 使用 TypeScript 严格模式
-- 为所有函数添加类型注解
-- 避免使用 `any` 类型
-- 使用 `const` 和 `let`，避免 `var`
+- Use TypeScript strict mode (configured in `tsconfig.json`)
+- Add type annotations for all exported functions
+- Avoid `any` type (ESLint warns on `@typescript-eslint/no-explicit-any`)
+- Use `const` and `let`, never `var` (ESLint enforces `prefer-const`)
+- SolidJS-specific rules enforced by `eslint-plugin-solid`:
+  - No React-specific props (`solid/no-react-specific-props`: error)
+  - Prefer `<For>` over `.map()` for reactive lists (`solid/prefer-for`: warn)
+  - No destructuring of props (`solid/no-destructure`: warn)
+  - Reactivity tracking (`solid/reactivity`: warn)
 
 ### Rust
 
-- 遵循 Rust 标准命名规范
-- 使用 `clippy` 进行代码检查
-- 为公共函数添加文档注释
+- Follow Rust standard naming conventions (snake_case for functions/variables, CamelCase for types)
+- Run `cargo clippy` — CI treats warnings as errors (`-D warnings`)
+- Add doc comments (`///`) for all public functions and types
+- Use `Result<T, String>` for error handling in `camforge-core` (consistent with current codebase)
 
-### 代码风格
+### Code Style | 代码风格
 
-- 使用 2 空格缩进
-- 使用分号
-- 组件使用 PascalCase
-- 函数和变量使用 camelCase
-- 常量使用 UPPER_SNAKE_CASE
+Formatting is enforced by Prettier (frontend) and `cargo fmt` (Rust). Configuration:
 
-### 注释规范
+**Prettier** (`.prettierrc`):
+
+| Option | Value |
+|--------|-------|
+| Semi-colons | Always (`semi: true`) |
+| Quotes | Single (`singleQuote: true`) |
+| Trailing commas | All (`trailingComma: 'all'`) |
+| Print width | 100 (`printWidth: 100`) |
+| Tab width | 2 spaces (`tabWidth: 2`) |
+| Arrow parens | Always (`arrowParens: 'always'`) |
+| Line endings | LF (`endOfLine: 'lf'`) |
+
+**ESLint** (`eslint.config.js`):
+
+- Base: `@eslint/js` recommended + `typescript-eslint` recommended
+- SolidJS: `eslint-plugin-solid` (TypeScript config)
+- Formatting: `eslint-config-prettier` (disables formatting rules that conflict with Prettier)
+- Key rules: `no-console` warns (allow `warn`/`error`), unused vars with `_` prefix allowed
+
+**Naming Conventions**:
+
+| Element | Convention | Example |
+|---------|-----------|---------|
+| Components | PascalCase | `CamAnimation`, `NumberInput` |
+| Functions / variables | camelCase | `computeMotion`, `simulationData` |
+| Constants | UPPER_SNAKE_CASE | `MAX_DPI`, `EPSILON` |
+| TypeScript types / interfaces | PascalCase | `CamParams`, `SimulationData` |
+| Rust functions | snake_case | `compute_rise`, `compute_profile` |
+| Rust types / structs | CamelCase | `CamParams`, `ProfileResult` |
+
+### Comment Conventions | 注释规范
 
 ```typescript
 /**
- * 计算运动规律
- * @param law - 运动规律类型
- * @param t - 归一化时间 (0-1)
- * @param h - 行程 (mm)
- * @param omega - 角速度 (rad/s)
- * @param deltaRad - 运动角 (rad)
- * @returns [位移, 速度, 加速度]
+ * 计算运动规律 | Compute motion law values
+ * @param law - 运动规律类型 (Motion law type)
+ * @param t - 归一化时间 0-1 (Normalized time)
+ * @param h - 行程 mm (Stroke)
+ * @param omega - 角速度 rad/s (Angular velocity)
+ * @param deltaRad - 运动角 rad (Motion angle)
+ * @returns [位移, 速度, 加速度] (displacement, velocity, acceleration)
  */
 export function computeMotion(
   law: MotionLaw,
@@ -168,6 +200,45 @@ export function computeMotion(
   omega: number,
   deltaRad: number
 ): [number, number, number]
+```
+
+- Prefer bilingual comments (English primary, Chinese secondary) for public APIs
+- Use JSDoc for all exported functions and types (current coverage is low — contributions to improve this are welcome)
+
+### Enforcement | 代码规范强制执行
+
+All style and quality rules are enforced through automated checks:
+
+**CI Checks** (`.github/workflows/test.yml`):
+
+| Check | Command | Blocking |
+|-------|---------|----------|
+| Frontend tests | `pnpm test:run` | Yes (fails CI) |
+| TypeScript type check | `pnpm tsc --noEmit` | Yes |
+| ESLint | `pnpm lint` | Yes (warnings allowed) |
+| Prettier format check | `pnpm format:check` | Recommended before PR |
+| Rust tests | `cargo test -p camforge-core -p camforge-server` | Yes |
+| Rust clippy | `cargo clippy -p camforge-core -p camforge-server -- -D warnings` | Yes |
+| Rust formatting | `cargo fmt --check` | Recommended before PR |
+| Dependency audit | `cargo audit` + `pnpm audit` | Advisory (non-blocking) |
+
+**Pre-commit Hooks** (recommended setup):
+
+```bash
+# Install lefthook or husky, then configure:
+# Frontend
+pnpm format          # Auto-fix formatting
+pnpm lint:fix        # Auto-fix lint issues
+
+# Backend
+cargo fmt            # Auto-fix Rust formatting
+cargo clippy --fix   # Auto-fix clippy issues
+```
+
+A pre-commit hook configuration is planned but not yet set up. In the meantime, run these commands manually before committing:
+
+```bash
+pnpm format && pnpm lint && cargo fmt && cargo clippy -p camforge-core -p camforge-server
 ```
 
 ---
