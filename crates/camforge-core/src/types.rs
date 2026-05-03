@@ -365,6 +365,22 @@ impl CamParams {
             ));
         }
 
+        // 滚子从动件滚子半径必须非负
+        if self.follower_type.needs_roller() && self.r_r < 0.0 {
+            return Err(format!(
+                "r_r must be >= 0 for roller followers, got {}",
+                self.r_r
+            ));
+        }
+
+        // 压力角阈值必须为正
+        if self.alpha_threshold <= 0.0 {
+            return Err(format!(
+                "alpha_threshold must be > 0, got {}",
+                self.alpha_threshold
+            ));
+        }
+
         Ok(())
     }
 }
@@ -423,6 +439,27 @@ pub struct SimulationData {
     /// 计算错误信息（NaN/Infinity 等），非空时数据不可信
     #[serde(skip_serializing_if = "Option::is_none")]
     pub computation_error: Option<String>,
+}
+
+impl Default for SimulationData {
+    fn default() -> Self {
+        Self {
+            delta_deg: vec![],
+            s: vec![], v: vec![], a: vec![], ds_ddelta: vec![],
+            phase_bounds: vec![],
+            x: vec![], y: vec![],
+            x_actual: vec![], y_actual: vec![],
+            rho: vec![], rho_actual: vec![],
+            alpha_all: vec![],
+            s_0: 0.0, r_max: 0.0, max_alpha: 0.0,
+            min_rho: None, min_rho_idx: 0,
+            min_rho_actual: None, min_rho_actual_idx: 0,
+            h: 0.0,
+            has_concave_region: false,
+            flat_face_min_half_width: 0.0,
+            computation_error: None,
+        }
+    }
 }
 
 /// 动画帧数据

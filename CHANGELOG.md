@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.13] - 2026-05-03
+
+### Security
+
+- **V13-02**: `SimulateRequest` 和 `ExportRequest` 添加 `#[serde(deny_unknown_fields)]`，拒绝未知字段防止参数注入
+- **V13-03**: `export_csv` 路由（Tauri + 服务器）添加 `lang` 白名单验证，仅允许 "zh"/"en"
+
+### Fixed
+
+- **V13-01**: `CamParams::validate()` 补充滚子从动件 `r_r >= 0` 验证和 `alpha_threshold > 0` 验证
+- **V13-04**: HTTP API `exportDxf`/`exportCsv` 错误处理与 `runSimulation` 对齐（解析 JSON 错误体）
+- **V13-05**: `runSimulation` catch 路径设置 `simulationError`（不再吞噬 API/IPC 错误）
+- **V13-06**: `SimulationData` 添加 `Default` impl，避免未初始化状态
+- **V13-07**: Tauri `export_dxf`/`export_csv` 添加数据长度守卫（空数据时返回错误而非 panic）
+- **V13-08**: CSS 添加 `prefers-reduced-motion: reduce` 媒体查询，尊重用户动画偏好
+
+### Changed
+
+- **版本号更新**：v0.4.12 → v0.4.13（package.json, Cargo.toml, tauri.conf.json, README.md, index.html, static/index.html, CamForgeSplash.tsx, TODO.md, Review.md）
+- **Review.md 统计更新**：63/88 (72%)，Critical 100%，High 67%，Medium 71%，Low 72%
+
+---
+
 ## [0.4.12] - 2026-05-03
 
 ### Security
@@ -932,6 +955,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[0.4.13]: https://github.com/EkaEva/CamForge/compare/v0.4.12...v0.4.13
 [0.4.12]: https://github.com/EkaEva/CamForge/compare/v0.4.11...v0.4.12
 [0.4.11]: https://github.com/EkaEva/CamForge/compare/v0.4.10...v0.4.11
 [0.4.10]: https://github.com/EkaEva/CamForge/compare/v0.4.9...v0.4.10

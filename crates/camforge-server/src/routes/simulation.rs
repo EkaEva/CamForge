@@ -13,6 +13,7 @@ pub type ProfileCoords = (Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>);
 
 /// 运行模拟请求
 #[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SimulateRequest {
     params: CamParams,
 }

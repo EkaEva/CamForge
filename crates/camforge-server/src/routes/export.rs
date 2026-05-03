@@ -16,6 +16,7 @@ use camforge_core::{
 
 /// 导出请求
 #[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExportRequest {
     params: CamParams,
     #[serde(default)]
@@ -114,6 +115,9 @@ pub async fn export_csv(Json(req): Json<ExportRequest>) -> Result<Response<Body>
     params.validate().map_err(ApiError::BadRequest)?;
 
     let lang = req.lang.unwrap_or_else(|| "zh".to_string());
+    if lang != "zh" && lang != "en" {
+        return Err(ApiError::BadRequest("lang must be 'zh' or 'en'".to_string()));
+    }
 
     // 计算数据
     let motion = compute_full_motion(&params)?;

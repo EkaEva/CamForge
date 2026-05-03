@@ -118,7 +118,7 @@ export async function runSimulation() {
     // 错误时使用前端计算作为 fallback
     const data = computeSimulationLocally(params());
     setSimulationData(() => data);
-    setSimulationError(data.computationError ?? null);
+    setSimulationError(data.computationError ?? String(e));
   } finally {
     setIsLoading(false);
   }

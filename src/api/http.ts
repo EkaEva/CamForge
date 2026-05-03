@@ -60,7 +60,8 @@ export class HttpApi implements CamApi {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(error.error || `HTTP ${response.status}`);
     }
 
     return response.blob();
@@ -79,7 +80,8 @@ export class HttpApi implements CamApi {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(error.error || `HTTP ${response.status}`);
     }
 
     return response.text();

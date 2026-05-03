@@ -173,6 +173,10 @@ pub fn export_dxf(
         .map_err(|e| format!("State lock poisoned: {}", e))?;
     let data = data_guard.as_ref().ok_or("No simulation data available")?;
 
+    if data.x.is_empty() || data.y.is_empty() {
+        return Err("No profile data available to export".to_string());
+    }
+
     let mut file = File::create(&safe_path).map_err(|e| e.to_string())?;
 
     // DXF Header
@@ -277,6 +281,11 @@ pub fn export_csv(filepath: String, lang: String, state: State<SimState>) -> Res
     // 验证文件路径安全性
     let safe_path = validate_export_path(&filepath)?;
 
+    // 验证语言参数
+    if lang != "zh" && lang != "en" {
+        return Err("lang must be 'zh' or 'en'".to_string());
+    }
+
     let data_guard = state
         .data
         .lock()
@@ -287,6 +296,10 @@ pub fn export_csv(filepath: String, lang: String, state: State<SimState>) -> Res
         .lock()
         .map_err(|e| format!("State lock poisoned: {}", e))?;
     let params = params_guard.as_ref().ok_or("No simulation parameters available")?;
+
+    if data.delta_deg.is_empty() || data.x.is_empty() {
+        return Err("No simulation data available to export".to_string());
+    }
 
     let mut file = File::create(&safe_path).map_err(|e| e.to_string())?;
 
