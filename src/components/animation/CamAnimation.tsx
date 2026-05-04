@@ -159,9 +159,9 @@ export function CamAnimation(props: CamAnimationProps) {
     // Contact point and oscillating geometry
     let contactX: number;
     let contactY: number;
-    let pivotX = 0;
-    let pivotY = 0;
-    let armAngle = 0;
+    let pivotX: number | null = null;
+    let pivotY: number | null = null;
+    let armAngle: number | null = null;
 
     if (isOscillating) {
       // Direct-frame: cam rotates, pivot is fixed.

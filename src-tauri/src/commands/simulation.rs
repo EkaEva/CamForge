@@ -50,41 +50,16 @@ pub fn run_simulation(params: CamParams, state: State<SimState>) -> Result<Simul
     Ok(sim_data)
 }
 
-/// 获取动画帧数据
+/// Compute frame data from simulation results / 从仿真结果计算帧数据
 ///
-/// 计算单帧动画所需的全部数据
-///
-/// 直接法动画：凸轮旋转，从动件固定。
-/// 摆动从动件的接触点通过运动学直接计算（枢轴固定 + 臂角 δ₀+ψ），
-/// 而非从旋转后的轮廓上取点（反转法轮廓不能简单旋转得到正确的滚子中心位置）。
-#[tauri::command]
-pub fn get_frame_data(frame_idx: usize, state: State<SimState>) -> Result<FrameData, String> {
-    // Clone data under lock, then release before computing.
-    // This avoids holding both Mutex locks during expensive calculations
-    // (profile rotation, oscillating geometry, tangent/normal computation).
-    let (data, params) = {
-        let data_guard = state
-            .data
-            .lock()
-            .map_err(|e| format!("State lock poisoned: {}", e))?;
-        let params_guard = state
-            .params
-            .lock()
-            .map_err(|e| format!("State lock poisoned: {}", e))?;
-
-        let data = data_guard
-            .as_ref()
-            .ok_or("No simulation data available. Run simulation first.")?
-            .clone();
-        let params = params_guard
-            .as_ref()
-            .ok_or("No parameters available. Run simulation first.")?
-            .clone();
-
-        (data, params)
-        // Guards dropped here — locks released before computation begins
-    };
-
+/// Pure function extracted for testability. The `#[tauri::command]` wrapper
+/// handles state management and delegates to this function.
+/// 为可测试性提取的纯函数。`#[tauri::command]` 包装处理状态管理并委托给此函数。
+pub fn compute_frame_data(
+    params: &CamParams,
+    data: &SimulationData,
+    frame_idx: usize,
+) -> Result<FrameData, String> {
     if frame_idx >= data.s.len() {
         return Err(format!(
             "Frame index {} out of range [0, {})",
@@ -118,28 +93,23 @@ pub fn get_frame_data(frame_idx: usize, state: State<SimState>) -> Result<FrameD
     // 接触点坐标和摆动几何
     let (contact_x, contact_y, pivot_x, pivot_y, arm_angle) = if is_oscillating {
         // 直接法：凸轮旋转，枢轴固定
-        // 通过运动学直接计算接触点
         let gamma_rad = params.gamma * DEG2RAD;
         let px = -params.pivot_distance * gamma_rad.cos();
         let py = -params.pivot_distance * gamma_rad.sin();
 
-        // 臂角 = 初始角 + 角位移 ψ = s/L
         let delta0_rad = params.initial_angle * DEG2RAD;
         let psi_i = data.s[frame_idx] / params.arm_length;
         let arm_angle_rad = delta0_rad + psi_i;
 
-        // 臂端点 / 滚子中心
         let cx = px + params.arm_length * arm_angle_rad.cos();
         let cy = py + params.arm_length * arm_angle_rad.sin();
 
-        (cx, cy, px, py, arm_angle_rad)
+        (cx, cy, Some(px), Some(py), Some(arm_angle_rad))
     } else if params.follower_type == FollowerType::TranslatingFlatFaced {
-        // 直动平底：接触点在平底上偏置 ds/dδ 处（不在从动件轴线上）
         let cx = follower_x + data.ds_ddelta[frame_idx];
-        (cx, data.s_0 + data.s[frame_idx], 0.0, 0.0, 0.0)
+        (cx, data.s_0 + data.s[frame_idx], None, None, None)
     } else {
-        // 直动滚子/尖底：接触点在推杆轴上
-        (follower_x, data.s_0 + data.s[frame_idx], 0.0, 0.0, 0.0)
+        (follower_x, data.s_0 + data.s[frame_idx], None, None, None)
     };
 
     // 计算切线/法线方向
@@ -184,4 +154,105 @@ pub fn get_frame_data(frame_idx: usize, state: State<SimState>) -> Result<FrameD
         x_rot,
         y_rot,
     })
+}
+
+/// 获取动画帧数据
+///
+/// 计算单帧动画所需的全部数据
+///
+/// 直接法动画：凸轮旋转，从动件固定。
+/// 摆动从动件的接触点通过运动学直接计算（枢轴固定 + 臂角 δ₀+ψ），
+/// 而非从旋转后的轮廓上取点（反转法轮廓不能简单旋转得到正确的滚子中心位置）。
+#[tauri::command]
+pub fn get_frame_data(frame_idx: usize, state: State<SimState>) -> Result<FrameData, String> {
+    // Clone data under lock, then release before computing.
+    let (data, params) = {
+        let data_guard = state
+            .data
+            .lock()
+            .map_err(|e| format!("State lock poisoned: {}", e))?;
+        let params_guard = state
+            .params
+            .lock()
+            .map_err(|e| format!("State lock poisoned: {}", e))?;
+
+        let data = data_guard
+            .as_ref()
+            .ok_or("No simulation data available. Run simulation first.")?
+            .clone();
+        let params = params_guard
+            .as_ref()
+            .ok_or("No parameters available. Run simulation first.")?
+            .clone();
+
+        (data, params)
+    };
+
+    compute_frame_data(&params, &data, frame_idx)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_compute_frame_data_default() {
+        let params = CamParams::default();
+        let data = compute_full_simulation(&params).unwrap();
+        let frame = compute_frame_data(&params, &data, 0).unwrap();
+        assert!(frame.follower_x.is_finite());
+        assert!(frame.contact_y > 0.0);
+        assert!(frame.pivot_x.is_none());
+        assert!(frame.pivot_y.is_none());
+        assert!(frame.arm_angle.is_none());
+        assert!(!frame.x_rot.is_empty());
+    }
+
+    #[test]
+    fn test_compute_frame_data_oscillating() {
+        let params = CamParams {
+            follower_type: FollowerType::OscillatingRoller,
+            e: 0.0,
+            r_r: 8.0,
+            initial_angle: 30.0,
+            ..CamParams::default()
+        };
+        let data = compute_full_simulation(&params).unwrap();
+        let frame = compute_frame_data(&params, &data, 0).unwrap();
+        assert!(frame.follower_x.is_finite());
+        assert!(frame.pivot_x.is_some());
+        assert!(frame.pivot_y.is_some());
+        assert!(frame.arm_angle.is_some());
+        assert!(frame.pivot_x.unwrap() != 0.0 || frame.pivot_y.unwrap() != 0.0);
+        assert!(frame.arm_angle.unwrap() > 0.0);
+    }
+
+    #[test]
+    fn test_compute_frame_data_flat_faced() {
+        let params = CamParams {
+            follower_type: FollowerType::TranslatingFlatFaced,
+            r_r: 0.0,
+            ..CamParams::default()
+        };
+        let data = compute_full_simulation(&params).unwrap();
+        let frame = compute_frame_data(&params, &data, 0).unwrap();
+        assert!(frame.follower_x.is_finite());
+        assert!(frame.pivot_x.is_none());
+    }
+
+    #[test]
+    fn test_compute_frame_data_out_of_range() {
+        let params = CamParams::default();
+        let data = compute_full_simulation(&params).unwrap();
+        assert!(compute_frame_data(&params, &data, 9999).is_err());
+    }
+
+    #[test]
+    fn test_compute_frame_data_mid_frame() {
+        let params = CamParams::default();
+        let data = compute_full_simulation(&params).unwrap();
+        let frame = compute_frame_data(&params, &data, 180).unwrap();
+        assert!(frame.s_i > 0.0);
+        assert!(frame.alpha_i >= 0.0);
+    }
 }

@@ -4,4 +4,6 @@
 //! 将路由处理函数导出为公共 API，供集成测试使用
 
 pub mod error;
+pub mod middleware;
+pub mod openapi;
 pub mod routes;

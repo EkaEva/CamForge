@@ -4,6 +4,8 @@
 //! 定义凸轮参数、模拟数据等核心类型
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+#[cfg(feature = "openapi")]
+use utoipa::ToSchema;
 
 /// Follower type enum / 从动件类型枚举
 ///
@@ -12,6 +14,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 /// 序列化为整数（与前端 TypeScript enum 一致），
 /// 反序列化兼容整数和字符串两种格式
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub enum FollowerType {
     /// Translating knife-edge follower / 直动尖底从动件
     TranslatingKnifeEdge = 1,
@@ -131,6 +134,7 @@ impl FollowerType {
 /// Corresponds to the Python version's ParameterModel.
 /// 对应 Python 版本的 ParameterModel
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CamParams {
     /// Rise angle (degrees) / 推程运动角 (度)
     #[serde(default, alias = "delta_rise")]
@@ -396,6 +400,7 @@ impl CamParams {
 /// Contains all computed results for one full cam revolution.
 /// 包含凸轮一整圈运动的所有计算结果
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct SimulationData {
     /// Full-cycle cam angle (degrees) / 全程转角 (度)
     pub delta_deg: Vec<f64>,
@@ -474,6 +479,7 @@ impl Default for SimulationData {
 /// All data needed for a single animation frame.
 /// 单帧动画所需的全部数据
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct FrameData {
     /// Follower X coordinate (fixed value for translating followers) / 推杆 X 坐标 (直动从动件固定值)
     pub follower_x: f64,
@@ -482,11 +488,14 @@ pub struct FrameData {
     /// Contact point Y coordinate / 接触点 Y 坐标
     pub contact_y: f64,
     /// Pivot X coordinate (oscillating followers) / 枢轴 X 坐标（摆动从动件）
-    pub pivot_x: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pivot_x: Option<f64>,
     /// Pivot Y coordinate (oscillating followers) / 枢轴 Y 坐标（摆动从动件）
-    pub pivot_y: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pivot_y: Option<f64>,
     /// Arm angle (oscillating followers, radians) / 臂角（摆动从动件，弧度）
-    pub arm_angle: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arm_angle: Option<f64>,
     /// Normal direction X component / 法线方向 X 分量
     pub nx: f64,
     /// Normal direction Y component / 法线方向 Y 分量
@@ -509,6 +518,7 @@ pub struct FrameData {
 
 /// Motion law enum / 运动规律枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub enum MotionLaw {
     /// Uniform motion / 等速运动
     Uniform = 1,

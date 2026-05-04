@@ -2,7 +2,11 @@ import type { CamParams } from '../../types';
 import { FollowerType } from '../../types';
 import { params } from './core';
 
-// 参数校验
+/**
+ * Validate cam parameters and return errors
+ * @param p - Cam design parameters to validate
+ * @returns Object with valid flag and array of error messages
+ */
 export function validateParams(p: CamParams): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
@@ -64,12 +68,18 @@ export function validateParams(p: CamParams): { valid: boolean; errors: string[]
   };
 }
 
-// 获取当前参数校验错误（响应式）
+/**
+ * Get current parameter validation errors (reactive)
+ * @returns Array of validation error messages
+ */
 export function validationErrors(): string[] {
   return validateParams(params()).errors;
 }
 
-// 获取哪些参数有校验错误（响应式，用于输入框高亮）
+/**
+ * Get the set of parameter keys that have validation errors (reactive, for input highlighting)
+ * @returns Set of CamParams keys that are currently invalid
+ */
 export function invalidParams(): Set<keyof CamParams> {
   const p = params();
   const invalid = new Set<keyof CamParams>();

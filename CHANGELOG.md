@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.16] - 2026-05-04
+
+### High Impact
+- **HI-09**: Implemented API Key authentication middleware for Axum server — `API_KEY` env var configures key; dev mode (no key set) allows unauthenticated access with startup warning; `/health` always open; `/api/*` requires `x-api-key` header; frontend adds key header support via `VITE_API_KEY`
+- **HI-15**: Added OpenAPI 3.0 spec auto-generation via `utoipa` 4 — all routes annotated with `#[utoipa::path]`, types with `#[derive(ToSchema)]`, `/docs/json` endpoint serves spec; `camforge-core` uses `cfg_attr` for optional `openapi` feature
+- **HI-16**: Improved JSDoc coverage from ~17% to ~70% — Tier 1 (public APIs, 12 files) 100%, Tier 2 (stores/props, 20 files) 80%, Tier 3 (internal, 39 files) 40%
+- **HI-18**: Added Tauri command tests — extracted `compute_frame_data` pure function, 7 Rust unit tests (default/roller/oscillating/flat-face/out-of-bounds/CSV injection/atomic write); activated vitest setup.ts
+
+### Medium Impact
+- **ME-01**: Added layout component tests — Sidebar (8 tests), MainCanvas (3 tests), ExportPanel (2 tests)
+- **ME-02**: Added chart drawing utility tests — common.test.ts (18 tests covering sanitizeNumber, validateChartData, normalizeChartOptions, etc.)
+- **ME-03**: Added animation component tests — AnimationControls (6 tests), FollowerRenderer (5 tests), CamAnimation (1 test)
+- **ME-04**: Added Playwright E2E test framework — smoke.spec.ts (5 tests: page load, health, OpenAPI, simulate API, auth check)
+
+### Low Impact
+- **LO-14**: Added criterion 0.5 benchmark suite — 5 core function benchmarks (compute_full_simulation with 120/360/720 points + oscillating, compute_full_motion, compute_pressure_angle, compute_curvature_radius, compute_rotated_cam)
+- **LO-21**: Changed `FrameData.pivot_x/pivot_y/arm_angle` from `f64` to `Option<f64>` with `#[serde(skip_serializing_if = "Option::is_none")]` — translating followers return `None`, oscillating return `Some(...)`; frontend types updated to `number | null`
+
 ## [0.4.15] - 2026-05-03
 
 ### High Impact
@@ -995,6 +1013,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[0.4.16]: https://github.com/EkaEva/CamForge/compare/v0.4.15...v0.4.16
 [0.4.15]: https://github.com/EkaEva/CamForge/compare/v0.4.14...v0.4.15
 [0.4.14]: https://github.com/EkaEva/CamForge/compare/v0.4.13...v0.4.14
 [0.4.13]: https://github.com/EkaEva/CamForge/compare/v0.4.12...v0.4.13

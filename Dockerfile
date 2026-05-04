@@ -90,6 +90,9 @@ RUN chown -R camforge:camforge /app
 # 暴露端口
 EXPOSE 3000
 
+# API Key for authentication (empty = disabled; set for production)
+ENV API_KEY=""
+
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1

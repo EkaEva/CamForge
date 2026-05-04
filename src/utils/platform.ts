@@ -14,6 +14,10 @@ declare global {
   }
 }
 
+/**
+ * Check whether the app is running in a Tauri desktop/mobile environment
+ * @returns true if Tauri internals are detected on window
+ */
 export function isTauriEnv(): boolean {
   try {
     return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -22,6 +26,10 @@ export function isTauriEnv(): boolean {
   }
 }
 
+/**
+ * Check whether the app is running on a mobile platform (Android/iOS)
+ * @returns true if running on mobile via Tauri
+ */
 export function isMobilePlatform(): boolean {
   if (typeof window === 'undefined') return false;
 
@@ -40,6 +48,10 @@ export function isMobilePlatform(): boolean {
   return false;
 }
 
+/**
+ * Check whether the app is running on a desktop platform (Tauri but not mobile)
+ * @returns true if running on desktop via Tauri
+ */
 export function isDesktopPlatform(): boolean {
   return isTauriEnv() && !isMobilePlatform();
 }

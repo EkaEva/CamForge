@@ -3,6 +3,7 @@
 import type { SimulationData, CamParams, DisplayOptions } from '../../types';
 import type { Translation } from '../../i18n/translations';
 
+/** Options for chart drawing (dimensions, DPI, language, etc.) */
 export interface ChartDrawOptions {
   width: number;
   height: number;
@@ -12,6 +13,7 @@ export interface ChartDrawOptions {
   translations?: Translation;
 }
 
+/** Options for a single animation frame */
 export interface AnimationFrameOptions {
   width: number;
   height: number;
@@ -21,11 +23,12 @@ export interface AnimationFrameOptions {
   lang?: string;
 }
 
-// 默认 DPI（屏幕显示）
+/** Default DPI for screen display */
 export const DEFAULT_DPI = 100;
 
-// DPI 上限保护
+/** Maximum allowed DPI to prevent excessive resource usage */
 export const MAX_DPI = 600;
+/** Maximum allowed canvas dimension in pixels */
 export const MAX_DIMENSION = 10000;
 
 // i18n fallback strings (used when translations object is not provided)
@@ -83,6 +86,13 @@ const enFallback = {
   animAlpha: 'α:',
 };
 
+/**
+ * Translate a chart drawing key with fallback support
+ * @param lang - Language code ('zh' or 'en')
+ * @param key - Translation key for chart text
+ * @param translations - Optional translation object for i18n override
+ * @returns Translated string
+ */
 export function tr(lang: string, key: keyof typeof enFallback, translations?: Translation): string {
   if (translations) {
     const chartKeys: Partial<Record<keyof typeof enFallback, string>> = {
@@ -122,6 +132,12 @@ export function tr(lang: string, key: keyof typeof enFallback, translations?: Tr
   return (lang === 'zh' ? zhFallback : enFallback)[key];
 }
 
+/**
+ * Sanitize a number, returning a fallback for non-finite values
+ * @param value - The number to sanitize
+ * @param fallback - Fallback value for NaN/Infinity (default 0)
+ * @returns The value if finite, otherwise the fallback
+ */
 export function sanitizeNumber(value: number, fallback = 0): number {
   return Number.isFinite(value) ? value : fallback;
 }
@@ -170,7 +186,11 @@ export function validateAnimationFrameOptions(
   return true;
 }
 
-// 计算 DPI 缩放因子
+/**
+ * Calculate DPI scale factor
+ * @param dpi - Target DPI value
+ * @returns Scale factor relative to DEFAULT_DPI
+ */
 export function getScaleFactor(dpi: number): number {
   return dpi / DEFAULT_DPI;
 }

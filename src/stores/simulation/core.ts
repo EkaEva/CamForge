@@ -12,13 +12,18 @@ const isTauri = isTauriEnv();
 // 参数历史管理（撤销/重做）
 const paramsHistory: HistoryActions<CamParams> = createHistory(defaultParams);
 
-// 参数状态
+/** Reactive cam parameter signal */
 export const [params, setParams] = createSignal<CamParams>(defaultParams);
 
-// 撤销/重做操作
+/** Whether undo is available */
 export const canUndo = () => paramsHistory.canUndo();
+/** Whether redo is available */
 export const canRedo = () => paramsHistory.canRedo();
 
+/**
+ * Undo the last parameter change and re-run simulation
+ * @returns true if undo was performed
+ */
 export function undoParams(): boolean {
   if (paramsHistory.undo()) {
     setParams(() => paramsHistory.state());
@@ -30,6 +35,10 @@ export function undoParams(): boolean {
   return false;
 }
 
+/**
+ * Redo the next parameter change and re-run simulation
+ * @returns true if redo was performed
+ */
 export function redoParams(): boolean {
   if (paramsHistory.redo()) {
     setParams(() => paramsHistory.state());
@@ -41,38 +50,38 @@ export function redoParams(): boolean {
   return false;
 }
 
-// 显示选项状态
+/** Reactive display options signal */
 export const [displayOptions, setDisplayOptions] = createSignal<DisplayOptions>(defaultDisplayOptions);
 
-// 模拟数据状态
+/** Reactive simulation data signal */
 export const [simulationData, setSimulationData] = createSignal<SimulationData | null>(null);
 
-// 模拟计算错误状态（NaN/Infinity 等）
+/** Reactive simulation error signal (NaN/Infinity etc.) */
 export const [simulationError, setSimulationError] = createSignal<string | null>(null);
 
-// 加载状态
+/** Reactive loading state signal */
 export const [isLoading, setIsLoading] = createSignal(false);
 
-// 最后运行时间
+/** Reactive last simulation run time */
 export const [lastRunTime, setLastRunTime] = createSignal<Date | null>(null);
 
-// 参数是否已更新（需要重新运行）
+/** Whether parameters have changed since the last run */
 export const [paramsChanged, setParamsChanged] = createSignal(false);
 
-// 参数更新提示（用于状态栏显示）
+/** Whether parameters were updated (for status bar notification) */
 export const [paramsUpdated, setParamsUpdated] = createSignal(false);
 
-// 导出状态
+/** Reactive export status signal */
 export const [exportStatus, setExportStatus] = createSignal<{
   type: 'idle' | 'exporting' | 'success' | 'error';
   message: string;
   files?: string[];
 }>({ type: 'idle', message: '' });
 
-// 共享游标帧索引（图表拖动 ↔ 机构动画同步）
+/** Shared cursor frame index (syncs chart drag with mechanism animation) */
 export const [cursorFrame, setCursorFrame] = createSignal(0);
 
-// 曲线可见性（图例点击切换）
+/** Curve visibility toggles (legend click) */
 export const [curveVisible, setCurveVisible] = createSignal({ s: true, v: true, a: true });
 
 // 保存上次运行的参数哈希
@@ -83,7 +92,10 @@ function getParamsHash(p: CamParams): string {
   return JSON.stringify(p);
 }
 
-// 运行模拟
+/**
+ * Run the cam simulation with current parameters
+ * @throws Handled internally - falls back to local computation on error
+ */
 export async function runSimulation() {
   const currentParams = params();
   setIsLoading(true);
@@ -124,6 +136,11 @@ export async function runSimulation() {
   }
 }
 
+/**
+ * Update a single cam parameter and record to history
+ * @param key - Parameter key to update
+ * @param value - New value for the parameter
+ */
 export function updateParam<K extends keyof CamParams>(key: K, value: CamParams[K]) {
   setParams((prev) => {
     const newParams = { ...prev, [key]: value };
@@ -137,6 +154,11 @@ export function updateParam<K extends keyof CamParams>(key: K, value: CamParams[
   });
 }
 
+/**
+ * Update a single display option
+ * @param key - Display option key to update
+ * @param value - New value for the option
+ */
 export function updateDisplayOption<K extends keyof DisplayOptions>(key: K, value: DisplayOptions[K]) {
   setDisplayOptions((o) => ({ ...o, [key]: value }));
 }

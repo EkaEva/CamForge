@@ -18,30 +18,41 @@ function initI18n() {
 // 立即初始化
 initI18n();
 
-// 响应式翻译 - 使用 createMemo 确保语言切换时更新
+/** Reactive translation object - updates when language changes */
 export const t = createMemo(() => {
   return language() === 'zh' ? zh : en;
 });
 
-// 切换语言
+/**
+ * Toggle language between 'en' and 'zh', persisting to localStorage
+ */
 export function toggleLanguage() {
   const newLang = language() === 'en' ? 'zh' : 'en';
   setLanguage(newLang);
   localStorage.setItem('language', newLang);
 }
 
-// 设置语言
+/**
+ * Set the active language and persist to localStorage
+ * @param lang - Language to set ('en' or 'zh')
+ */
 export function setLang(lang: Language) {
   setLanguage(lang);
   localStorage.setItem('language', lang);
 }
 
-// 获取语言按钮显示文本
+/**
+ * Get display text for the language toggle button
+ * @returns '中文' when in English mode, 'EN' when in Chinese mode
+ */
 export function getLanguageButtonText(): string {
   return language() === 'zh' ? '中文' : 'EN';
 }
 
-// 导出
+/**
+ * Get the i18n utility object with current translation and helpers
+ * @returns Object containing t, language, toggleLanguage, setLang, and getLanguageButtonText
+ */
 export function useI18n() {
   return {
     t: t(),
@@ -52,4 +63,5 @@ export function useI18n() {
   };
 }
 
+/** Reactive language signal ('en' | 'zh') */
 export { language };

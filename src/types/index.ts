@@ -59,7 +59,7 @@ export const MotionLawNames: Record<MotionLaw, { zh: string; en: string }> = {
   [MotionLaw.Polynomial4567]: { zh: '4-5-6-7 多项式', en: '4-5-6-7 Polynomial' },
 };
 
-/// 凸轮设计参数
+/** Cam design parameters */
 export interface CamParams {
   delta_0: number;        // 推程运动角 (度)
   delta_01: number;       // 远休止角 (度)
@@ -84,7 +84,7 @@ export interface CamParams {
   flat_face_offset: number; // 平底偏置量 (mm), 平底中心线相对臂中心线的偏移
 }
 
-/// 完整模拟数据
+/** Complete simulation output data */
 export interface SimulationData {
   delta_deg: number[];
   s: number[];
@@ -112,7 +112,7 @@ export interface SimulationData {
   computationError?: string;         // 计算错误信息（NaN/Infinity 等），非空时数据不可信
 }
 
-/// 显示选项
+/** Display options for cam visualization */
 export interface DisplayOptions {
   showTangent: boolean;
   showNormal: boolean;

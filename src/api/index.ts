@@ -16,32 +16,50 @@ export { HttpApi } from './http';
 // API 接口定义
 export interface CamApi {
   /**
-   * 运行凸轮模拟
+   * Run cam simulation
+   * @param params - Cam design parameters
+   * @returns Simulation result data
    */
   runSimulation(params: CamParams): Promise<SimulationData>;
 
   /**
-   * 导出 DXF 文件
+   * Export DXF file
+   * @param params - Cam design parameters
+   * @param includeActual - Whether to include actual profile (default true)
+   * @returns DXF file as Blob
    */
   exportDxf(params: CamParams, includeActual?: boolean): Promise<Blob>;
 
   /**
-   * 导出 CSV 文件
+   * Export CSV file
+   * @param params - Cam design parameters
+   * @param lang - Language code (default 'zh')
+   * @returns CSV content as string
    */
   exportCsv(params: CamParams, lang?: string): Promise<string>;
 
   /**
-   * 导出 SVG 文件
+   * Export SVG file
+   * @param params - Cam design parameters
+   * @param lang - Language code (default 'zh')
+   * @returns SVG content as string
    */
   exportSvg(params: CamParams, lang?: string): Promise<string>;
 
   /**
-   * 导出 Excel 文件
+   * Export Excel file
+   * @param params - Cam design parameters
+   * @param lang - Language code (default 'zh')
+   * @returns Excel file as Blob
    */
   exportExcel(params: CamParams, lang?: string): Promise<Blob>;
 
   /**
-   * 导出 GIF 动画
+   * Export GIF animation
+   * @param params - Cam design parameters
+   * @param lang - Language code (default 'zh')
+   * @param onProgress - Progress callback (0-1)
+   * @returns GIF file as Blob
    */
   exportGif(
     params: CamParams,
@@ -62,9 +80,8 @@ async function getHttpApi(): Promise<import('./http').HttpApi> {
 }
 
 /**
- * 获取当前环境的 API 实现
- *
- * 自动检测运行环境并返回对应的 API 实现
+ * Get the API implementation for the current environment
+ * @returns CamApi instance (TauriApi or HttpApi)
  */
 export async function getApi(): Promise<CamApi> {
   if (isTauriEnv()) {
@@ -74,7 +91,8 @@ export async function getApi(): Promise<CamApi> {
 }
 
 /**
- * 同步获取 API 类型（用于类型推断）
+ * Get the current API type synchronously
+ * @returns 'tauri' or 'http'
  */
 export function getApiType(): 'tauri' | 'http' {
   return isTauriEnv() ? 'tauri' : 'http';

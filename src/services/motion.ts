@@ -108,7 +108,9 @@ export function computeMotion(
 }
 
 /**
- * 验证运动规律值是否有效
+ * Check whether a motion law value is valid
+ * @param law - Motion law value to check
+ * @returns true if the value is a valid MotionLaw (1-6 integer)
  */
 export function isValidMotionLaw(law: number): boolean {
   return law >= 1 && law <= 6 && Number.isInteger(law);

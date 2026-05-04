@@ -6,11 +6,11 @@ use axum::{
     body::Body,
     extract::Request,
     http::{header::CONTENT_TYPE, HeaderValue, Method, StatusCode},
-    middleware,
     response::Response,
     routing::{get, post},
     Router,
 };
+use axum::middleware::{self as axum_middleware, Next};
 use base64::Engine;
 use rand::Rng;
 use std::collections::HashMap;
@@ -23,9 +23,17 @@ use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::services::ServeDir;
 
 mod error;
+mod middleware;
 mod routes;
 
+use middleware::{api_key_middleware, ApiKeyState};
+
 use routes::{export_csv, export_dxf, export_svg, health, simulate};
+
+/// OpenAPI JSON endpoint / OpenAPI JSON 端点
+async fn openapi_json() -> axum::Json<utoipa::openapi::OpenApi> {
+    axum::Json(camforge_server::openapi::build_openapi())
+}
 
 /// 生成加密安全的随机 nonce（Base64 编码，16 字节）
 fn generate_nonce() -> String {
@@ -106,7 +114,7 @@ fn build_csp(nonce: &str) -> String {
 /// - `index.html`: `no-cache` — 每次验证，确保用户拿到最新版本
 /// - `assets/*` (Vite 带 hash 的 JS/CSS): `max-age=31536000, immutable` — 1 年强缓存
 /// - 其他静态资源 (字体、splash 等): `max-age=86400` — 1 天缓存
-async fn cache_control(request: Request, next: middleware::Next) -> Response<Body> {
+async fn cache_control(request: Request, next: Next) -> Response<Body> {
     let path = request.uri().path().to_owned();
     let mut response = next.run(request).await;
     let headers = response.headers_mut();
@@ -129,7 +137,7 @@ async fn cache_control(request: Request, next: middleware::Next) -> Response<Bod
 /// 安全响应头中间件
 ///
 /// 为每个请求生成 nonce，注入到 HTML 响应和 CSP 头中
-async fn security_headers(request: Request, next: middleware::Next) -> Response<Body> {
+async fn security_headers(request: Request, next: Next) -> Response<Body> {
     // 为每个请求生成唯一 nonce
     let nonce = generate_nonce();
     let csp = build_csp(&nonce);
@@ -209,7 +217,7 @@ struct RateLimitState {
 async fn rate_limit_middleware(
     axum::extract::State(state): axum::extract::State<Arc<RateLimitState>>,
     request: Request,
-    next: middleware::Next,
+    next: Next,
 ) -> Response<Body> {
     // 提取客户端 IP（优先 X-Forwarded-For，回退 unknown）
     let ip = request
@@ -261,6 +269,17 @@ async fn main() {
         .unwrap_or(60);
     let rate_limit_window: u64 = 60; // seconds
 
+    // API Key 认证配置
+    let api_key = env::var("API_KEY").ok();
+    let api_key_state = Arc::new(ApiKeyState {
+        expected_key: api_key.clone(),
+    });
+    if api_key.is_some() {
+        println!("API Key authentication: ENABLED");
+    } else {
+        eprintln!("[WARN] API_KEY not set — API authentication disabled. Set API_KEY environment variable for production.");
+    }
+
     // 共享速率限制状态
     let rate_limit_state = Arc::new(RateLimitState {
         max_requests: rate_limit,
@@ -276,12 +295,18 @@ async fn main() {
         .route("/api/export/csv", post(export_csv))
         .route("/api/export/svg", post(export_svg))
         .route("/health", get(health))
+        // OpenAPI JSON
+        .route("/docs/json", get(openapi_json))
         // 静态文件服务（前端）
         .fallback_service(ServeDir::new("static"))
-        .layer(middleware::from_fn(security_headers))
-        .layer(middleware::from_fn(cache_control))
+        .layer(axum_middleware::from_fn(security_headers))
+        .layer(axum_middleware::from_fn(cache_control))
         .layer(cors)
-        .layer(middleware::from_fn_with_state(
+        .layer(axum_middleware::from_fn_with_state(
+            api_key_state,
+            api_key_middleware,
+        ))
+        .layer(axum_middleware::from_fn_with_state(
             rate_limit_state,
             rate_limit_middleware,
         ))

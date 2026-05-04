@@ -1,7 +1,7 @@
 //! API 路由模块
 
-mod export;
-mod simulation;
+pub mod export;
+pub mod simulation;
 
 pub use export::{export_csv, export_dxf, export_svg};
 pub use simulation::simulate;

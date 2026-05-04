@@ -1,38 +1,70 @@
-// Test setup file for Vitest
 import { vi } from 'vitest';
 
-// Mock Tauri environment
-vi.mock('../utils/tauri', () => ({
-  isTauriEnv: () => false,
-  invokeTauri: vi.fn(),
+// Mock Tauri API
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn(),
+}));
+
+// Mock Tauri dialog
+vi.mock('@tauri-apps/plugin-dialog', () => ({
+  save: vi.fn(),
+  open: vi.fn(),
+}));
+
+// Mock Tauri fs
+vi.mock('@tauri-apps/plugin-fs', () => ({
+  writeFile: vi.fn(),
+  readTextFile: vi.fn(),
+  writeTextFile: vi.fn(),
+  mkdir: vi.fn(),
+  exists: vi.fn(),
 }));
 
 // Mock localStorage
-const localStorageMock = {
-  store: {} as Record<string, string>,
-  getItem: vi.fn((key: string) => localStorageMock.store[key] || null),
-  setItem: vi.fn((key: string, value: string) => {
-    localStorageMock.store[key] = value;
-  }),
-  removeItem: vi.fn((key: string) => {
-    delete localStorageMock.store[key];
-  }),
-  clear: vi.fn(() => {
-    localStorageMock.store = {};
-  }),
-  get length() {
-    return Object.keys(localStorageMock.store).length;
-  },
-  key: vi.fn((index: number) => Object.keys(localStorageMock.store)[index] || null),
-};
+const localStorageMock = (() => {
+  let store: Record<string, string> = {};
+  return {
+    getItem: vi.fn((key: string) => store[key] ?? null),
+    setItem: vi.fn((key: string, value: string) => {
+      store[key] = value;
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete store[key];
+    }),
+    clear: vi.fn(() => {
+      store = {};
+    }),
+    get length() {
+      return Object.keys(store).length;
+    },
+    key: vi.fn((index: number) => Object.keys(store)[index] ?? null),
+  };
+})();
+Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock });
 
-Object.defineProperty(global, 'localStorage', {
-  value: localStorageMock,
-  writable: true,
+// Mock matchMedia
+Object.defineProperty(globalThis, 'matchMedia', {
+  value: vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
 });
 
-// Mock canvas context
-HTMLCanvasElement.prototype.getContext = vi.fn((contextId: string) => {
+// Mock ResizeObserver
+globalThis.ResizeObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}));
+
+// Mock canvas getContext
+HTMLCanvasElement.prototype.getContext = vi.fn().mockImplementation((contextId: string) => {
   if (contextId === '2d') {
     return {
       fillRect: vi.fn(),
@@ -43,32 +75,41 @@ HTMLCanvasElement.prototype.getContext = vi.fn((contextId: string) => {
       setTransform: vi.fn(),
       drawImage: vi.fn(),
       save: vi.fn(),
+      fillText: vi.fn(),
       restore: vi.fn(),
-      scale: vi.fn(),
-      translate: vi.fn(),
-      rotate: vi.fn(),
       beginPath: vi.fn(),
       moveTo: vi.fn(),
       lineTo: vi.fn(),
-      arc: vi.fn(),
-      fill: vi.fn(),
-      stroke: vi.fn(),
       closePath: vi.fn(),
-      measureText: vi.fn(() => ({ width: 10 })),
-      fillText: vi.fn(),
-      strokeText: vi.fn(),
-      setLineDash: vi.fn(),
+      stroke: vi.fn(),
+      fill: vi.fn(),
+      arc: vi.fn(),
+      rect: vi.fn(),
+      measureText: vi.fn(() => ({ width: 0 })),
+      transform: vi.fn(),
+      translate: vi.fn(),
+      scale: vi.fn(),
+      rotate: vi.fn(),
       clip: vi.fn(),
       createLinearGradient: vi.fn(() => ({
         addColorStop: vi.fn(),
       })),
-    } as unknown as CanvasRenderingContext2D;
+      createRadialGradient: vi.fn(() => ({
+        addColorStop: vi.fn(),
+      })),
+      canvas: { width: 800, height: 600 },
+    };
   }
   return null;
-});
+}) as any;
 
-// Reset mocks between tests
-beforeEach(() => {
-  localStorageMock.store = {};
-  vi.clearAllMocks();
-});
+// Mock IntersectionObserver
+globalThis.IntersectionObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}));
+
+// Mock URL.createObjectURL / revokeObjectURL
+globalThis.URL.createObjectURL = vi.fn(() => 'blob:mock');
+globalThis.URL.revokeObjectURL = vi.fn();

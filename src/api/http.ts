@@ -16,25 +16,43 @@ import type { CamApi } from './index';
  */
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
+/** API Key for server authentication (optional) / 服务器认证 API Key（可选） */
+const API_KEY = import.meta.env.VITE_API_KEY || '';
+
+/** Build headers with Content-Type and optional API Key / 构建 headers（含 Content-Type 和可选 API Key） */
+function buildHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (API_KEY) {
+    headers['x-api-key'] = API_KEY;
+  }
+  return headers;
+}
+
 /**
- * HTTP API 实现
+ * HTTP REST API implementation of CamApi
  */
 export class HttpApi implements CamApi {
   private baseUrl: string;
 
+  /**
+   * @param baseUrl - Optional base URL override; defaults to VITE_API_URL or ''
+   */
   constructor(baseUrl?: string) {
     this.baseUrl = baseUrl || API_BASE_URL;
   }
 
   /**
-   * 运行凸轮模拟
+   * Run cam simulation via HTTP API
+   * @param params - Cam design parameters
+   * @returns Simulation result data
+   * @throws Error on HTTP failure or non-OK response
    */
   async runSimulation(params: CamParams): Promise<SimulationData> {
     const response = await fetch(`${this.baseUrl}/api/simulate`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: buildHeaders(),
       body: JSON.stringify({ params }),
     });
 
@@ -48,14 +66,16 @@ export class HttpApi implements CamApi {
   }
 
   /**
-   * 导出 DXF 文件
+   * Export DXF file via HTTP API
+   * @param params - Cam design parameters
+   * @param includeActual - Whether to include actual profile
+   * @returns DXF file as Blob
+   * @throws Error on HTTP failure or non-OK response
    */
   async exportDxf(params: CamParams, includeActual = true): Promise<Blob> {
     const response = await fetch(`${this.baseUrl}/api/export/dxf`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: buildHeaders(),
       body: JSON.stringify({ params, include_actual: includeActual }),
     });
 
@@ -68,14 +88,16 @@ export class HttpApi implements CamApi {
   }
 
   /**
-   * 导出 CSV 文件
+   * Export CSV file via HTTP API
+   * @param params - Cam design parameters
+   * @param lang - Language code
+   * @returns CSV content as string
+   * @throws Error on HTTP failure or non-OK response
    */
   async exportCsv(params: CamParams, lang = 'zh'): Promise<string> {
     const response = await fetch(`${this.baseUrl}/api/export/csv`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: buildHeaders(),
       body: JSON.stringify({ params, lang }),
     });
 
@@ -88,9 +110,11 @@ export class HttpApi implements CamApi {
   }
 
   /**
-   * 导出 SVG 文件
-   *
-   * 注意：SVG 导出需要前端渲染，HTTP API 不支持
+   * Export SVG file (not supported via HTTP)
+   * @param _params - Cam design parameters (unused)
+   * @param _lang - Language code (unused)
+   * @returns Never resolves normally
+   * @throws Error always - SVG requires frontend rendering
    */
   async exportSvg(_params: CamParams, _lang = 'zh'): Promise<string> {
     // SVG 需要前端 Canvas 渲染，无法在纯后端生成
@@ -98,9 +122,11 @@ export class HttpApi implements CamApi {
   }
 
   /**
-   * 导出 Excel 文件
-   *
-   * 注意：Excel 导出需要前端库，HTTP API 不支持
+   * Export Excel file (not supported via HTTP)
+   * @param _params - Cam design parameters (unused)
+   * @param _lang - Language code (unused)
+   * @returns Never resolves normally
+   * @throws Error always - Excel requires frontend library
    */
   async exportExcel(_params: CamParams, _lang = 'zh'): Promise<Blob> {
     // Excel 生成需要 xlsx 库，在前端完成
@@ -108,9 +134,12 @@ export class HttpApi implements CamApi {
   }
 
   /**
-   * 导出 GIF 动画
-   *
-   * 注意：GIF 导出需要前端 Canvas 渲染
+   * Export GIF animation (not supported via HTTP)
+   * @param _params - Cam design parameters (unused)
+   * @param _lang - Language code (unused)
+   * @param _onProgress - Progress callback (unused)
+   * @returns Never resolves normally
+   * @throws Error always - GIF requires frontend rendering
    */
   async exportGif(
     _params: CamParams,
@@ -122,7 +151,8 @@ export class HttpApi implements CamApi {
   }
 
   /**
-   * 健康检查
+   * Perform a health check on the HTTP API server
+   * @returns Server status and version
    */
   async healthCheck(): Promise<{ status: string; version: string }> {
     const response = await fetch(`${this.baseUrl}/health`);

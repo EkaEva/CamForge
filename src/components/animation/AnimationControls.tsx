@@ -6,9 +6,9 @@ interface FrameData {
   followerX: number;
   contactX: number;
   contactY: number;
-  pivotX: number;
-  pivotY: number;
-  armAngle: number;
+  pivotX: number | null;
+  pivotY: number | null;
+  armAngle: number | null;
   tx: number;
   ty: number;
   nx: number;

@@ -6,8 +6,7 @@ export default defineConfig({
   plugins: [solid({ hot: false })],
   test: {
     environment: 'jsdom',
-    globals: true,
-    setupFiles: [],
-    exclude: ['**/node_modules/**', '**/dist/**', '**/src-tauri/**', '**/crates/**'],
+    setupFiles: ['./src/test/setup.ts'],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/src-tauri/**', '**/crates/**', '**/e2e/**'],
   },
 });

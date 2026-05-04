@@ -9,7 +9,7 @@ use axum::{
 use camforge_core::{compute_full_simulation, CamParams};
 
 /// 导出请求
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, utoipa::ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ExportRequest {
     params: CamParams,
@@ -20,6 +20,18 @@ pub struct ExportRequest {
 }
 
 // ===== 辅助函数 =====
+#[utoipa::path(
+    post,
+    path = "/api/export/dxf",
+    tag = "export",
+    request_body = ExportRequest,
+    responses(
+        (status = 200, description = "DXF file generated", content_type = "application/octet-stream"),
+        (status = 400, description = "Invalid parameters"),
+        (status = 401, description = "Invalid or missing API key"),
+    ),
+    security(("api_key" = [])),
+)]
 pub async fn export_dxf(Json(req): Json<ExportRequest>) -> Result<Response<Body>, ApiError> {
     let data = compute_full_simulation(&req.params).map_err(ApiError::BadRequest)?;
 
@@ -38,6 +50,18 @@ pub async fn export_dxf(Json(req): Json<ExportRequest>) -> Result<Response<Body>
 }
 
 /// 导出 CSV 文件
+#[utoipa::path(
+    post,
+    path = "/api/export/csv",
+    tag = "export",
+    request_body = ExportRequest,
+    responses(
+        (status = 200, description = "CSV file generated", content_type = "text/csv"),
+        (status = 400, description = "Invalid parameters or lang"),
+        (status = 401, description = "Invalid or missing API key"),
+    ),
+    security(("api_key" = [])),
+)]
 pub async fn export_csv(Json(req): Json<ExportRequest>) -> Result<Response<Body>, ApiError> {
     let lang = req.lang.clone().unwrap_or_else(|| "zh".to_string());
     if lang != "zh" && lang != "en" {
@@ -121,6 +145,18 @@ fn generate_svg_content(x: &[f64], y: &[f64], r_0: f64) -> String {
 }
 
 /// 导出 SVG 文件
+#[utoipa::path(
+    post,
+    path = "/api/export/svg",
+    tag = "export",
+    request_body = ExportRequest,
+    responses(
+        (status = 200, description = "SVG file generated", content_type = "image/svg+xml"),
+        (status = 400, description = "Invalid parameters"),
+        (status = 401, description = "Invalid or missing API key"),
+    ),
+    security(("api_key" = [])),
+)]
 pub async fn export_svg(Json(req): Json<ExportRequest>) -> Result<Response<Body>, ApiError> {
     let data = compute_full_simulation(&req.params).map_err(ApiError::BadRequest)?;
 

@@ -7,9 +7,9 @@ interface FrameData {
   followerX: number;
   contactX: number;
   contactY: number;
-  pivotX: number;
-  pivotY: number;
-  armAngle: number;
+  pivotX: number | null;
+  pivotY: number | null;
+  armAngle: number | null;
   tx: number;
   ty: number;
   nx: number;
@@ -71,8 +71,8 @@ export function FollowerRenderer(props: FollowerRendererProps) {
         );
 
         const oscillatingFollower = (() => {
-          const pxSvg = fd.pivotX * z;
-          const pySvg = -fd.pivotY * z;
+          const pxSvg = fd.pivotX! * z;
+          const pySvg = -fd.pivotY! * z;
           const armLen = Math.hypot(cxSvg - pxSvg, cySvg - pySvg);
           const cosA = armLen > EPSILON ? (cxSvg - pxSvg) / armLen : 1;
           const sinA = armLen > EPSILON ? (cySvg - pySvg) / armLen : 0;

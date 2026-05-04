@@ -9,21 +9,23 @@ import type { CamApi } from './index';
 import { invokeTauri } from '../utils/tauri';
 
 /**
- * Tauri IPC API 实现
+ * Tauri IPC API implementation of CamApi
  */
 export class TauriApi implements CamApi {
   /**
-   * 运行凸轮模拟
+   * Run cam simulation via Tauri IPC
+   * @param params - Cam design parameters
+   * @returns Simulation result data
    */
   async runSimulation(params: CamParams): Promise<SimulationData> {
     return invokeTauri<SimulationData>('run_simulation', { params });
   }
 
   /**
-   * 导出 DXF 文件
-   *
-   * 注意：Tauri 环境下直接保存到文件，不返回 Blob
-   * 这里返回空 Blob 以保持接口一致性
+   * Export DXF file (placeholder - actual save uses Tauri file dialog)
+   * @param _params - Cam design parameters (unused)
+   * @param _includeActual - Whether to include actual profile (unused)
+   * @returns Empty Blob placeholder
    */
   async exportDxf(_params: CamParams, _includeActual = true): Promise<Blob> {
     // Tauri 环境下使用文件保存对话框
@@ -33,7 +35,10 @@ export class TauriApi implements CamApi {
   }
 
   /**
-   * 导出 CSV 文件
+   * Export CSV file (placeholder - actual logic in simulation.ts)
+   * @param _params - Cam design parameters (unused)
+   * @param _lang - Language code (unused)
+   * @returns Empty string placeholder
    */
   async exportCsv(_params: CamParams, _lang = 'zh'): Promise<string> {
     // Tauri 环境下 CSV 生成在前端完成
@@ -42,7 +47,10 @@ export class TauriApi implements CamApi {
   }
 
   /**
-   * 导出 SVG 文件
+   * Export SVG file (placeholder - actual logic in simulation.ts)
+   * @param _params - Cam design parameters (unused)
+   * @param _lang - Language code (unused)
+   * @returns Empty string placeholder
    */
   async exportSvg(_params: CamParams, _lang = 'zh'): Promise<string> {
     // SVG 生成在前端完成
@@ -50,7 +58,10 @@ export class TauriApi implements CamApi {
   }
 
   /**
-   * 导出 Excel 文件
+   * Export Excel file (placeholder - actual logic in simulation.ts)
+   * @param _params - Cam design parameters (unused)
+   * @param _lang - Language code (unused)
+   * @returns Empty Blob placeholder
    */
   async exportExcel(_params: CamParams, _lang = 'zh'): Promise<Blob> {
     // Excel 生成在前端完成
@@ -58,7 +69,11 @@ export class TauriApi implements CamApi {
   }
 
   /**
-   * 导出 GIF 动画
+   * Export GIF animation (placeholder - actual logic in simulation.ts)
+   * @param _params - Cam design parameters (unused)
+   * @param _lang - Language code (unused)
+   * @param _onProgress - Progress callback (unused)
+   * @returns Empty Blob placeholder
    */
   async exportGif(
     _params: CamParams,
