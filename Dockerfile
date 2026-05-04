@@ -4,7 +4,7 @@
 # ============================================
 # 阶段 1: 构建后端 (Rust)
 # ============================================
-FROM rust:1.82-alpine AS backend-builder
+FROM rust:1.85-alpine AS backend-builder
 
 WORKDIR /app
 
