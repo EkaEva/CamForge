@@ -1,344 +1,248 @@
-// 绘制动画单帧（用于 GIF 导出）
-
-import type { SimulationData, CamParams } from '../../types';
-import { EPSILON } from '../../constants/numeric';
+import { ANIMATION_COLORS, CHART_COLORS, LINE_STYLES } from '../../constants/chartColors';
 import {
-  type AnimationFrameOptions,
-  validateChartData,
   validateAnimationFrameOptions,
-  tr,
+  sanitizeNumber,
 } from './common';
+import type { FrameData, CamParams } from '../../types';
+import { FollowerType } from '../../types';
 
+const C = ANIMATION_COLORS;
+
+/**
+ * Draw a full animation frame: cam profile, follower, and reference lines.
+ * 绘制完整动画帧：凸轮轮廓、从动件和参考线。
+ */
 export function drawAnimationFrame(
   ctx: CanvasRenderingContext2D,
-  data: SimulationData,
+  data: FrameData,
   params: CamParams,
-  options: AnimationFrameOptions
+  options: {
+    width: number;
+    height: number;
+    zoom?: number;
+    panX?: number;
+    panY?: number;
+  }
 ): void {
-  // 输入验证
-  if (!validateChartData(data)) {
-    console.warn('Invalid simulation data for animation frame');
-    return;
-  }
-  if (!validateAnimationFrameOptions(options, data.s.length)) {
-    console.warn('Invalid animation frame options');
-    return;
-  }
+  const opts = validateAnimationFrameOptions(options);
+  const { width, height, zoom, panX, panY } = opts;
+  const dpr = window.devicePixelRatio || 1;
 
-  const { width, height, frameIndex, displayOptions, zoom } = options;
-  const { s, x, y, x_actual, y_actual, s_0, alpha_all, ds_ddelta, r_max, phase_bounds } = data;
-  const n = s.length;
-  const sn = params.sn;
-  const pz = params.pz;
-  const e = params.e;
-  const r_r = params.r_r;
-  const r_0 = params.r_0;
-  const h = params.h;
+  ctx.save();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, width, height);
 
-  // 背景
-  ctx.fillStyle = '#FFFFFF';
+  // Background
+  ctx.fillStyle = CHART_COLORS.background;
   ctx.fillRect(0, 0, width, height);
 
-  // 计算中心和缩放
-  const margin = r_max * 0.15;
-  const size = 2 * (r_max + margin);
-  const centerX = width / 2;
-  const centerY = height / 2;
-  const scale = Math.min(width, height) / size * zoom;
+  // Transform: center + pan + zoom
+  const cx = width / 2 + panX;
+  const cy = height / 2 + panY;
+  ctx.translate(cx, cy);
+  ctx.scale(zoom, zoom);
 
-  // 当前帧角度
-  const angleDeg = (frameIndex * 360) / n;
-  const angleRad = -sn * (angleDeg * Math.PI / 180);
-
-  // 旋转凸轮轮廓
-  const cosA = Math.cos(angleRad);
-  const sinA = Math.sin(angleRad);
-
-  const rotatePoint = (px: number, py: number): [number, number] => {
-    return [px * cosA - py * sinA, px * sinA + py * cosA];
-  };
-
-  // 选择轮廓（实际或理论）
-  const profileX = r_r > 0 ? x_actual : x;
-  const profileY = r_r > 0 ? y_actual : y;
-
-  // 绘制基圆（虚线）
-  if (displayOptions.showBaseCircle) {
-    ctx.strokeStyle = '#9CA3AF';
-    ctx.lineWidth = 0.5 * scale;
-    ctx.setLineDash([2 * scale, 2 * scale]);
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, s_0 * scale, 0, 2 * Math.PI);
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-
-  // 绘制凸轮轮廓
-  ctx.strokeStyle = '#EF4444';
-  ctx.lineWidth = 0.8 * scale;
+  // Draw base circle
+  const r0 = sanitizeNumber(params.r_0);
   ctx.beginPath();
-  for (let i = 0; i < profileX.length; i++) {
-    const [rx, ry] = rotatePoint(profileX[i], profileY[i]);
-    const px = centerX + rx * scale;
-    const py = centerY - ry * scale;
-    if (i === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
-  }
-  ctx.closePath();
+  ctx.arc(0, 0, r0, 0, Math.PI * 2);
+  ctx.strokeStyle = C.baseCircle;
+  ctx.lineWidth = LINE_STYLES.thin;
+  ctx.setLineDash([4, 4]);
   ctx.stroke();
+  ctx.setLineDash([]);
 
-  // 推杆位置
-  const followerX = centerX - sn * pz * e * scale;
-  const contactY = centerY - (s_0 + s[frameIndex]) * scale;
-
-  // 绘制推杆
-  if (r_r > 0) {
-    // 滚子从动件
-    ctx.strokeStyle = '#4B5563';
-    ctx.lineWidth = 0.8 * scale;
+  // Draw cam profile
+  if (data.cam_x && data.cam_y) {
     ctx.beginPath();
-    ctx.arc(followerX, contactY, r_r * scale, 0, 2 * Math.PI);
-    ctx.stroke();
-
-    // 滚子中心点
-    ctx.fillStyle = '#4B5563';
-    ctx.beginPath();
-    ctx.arc(followerX, contactY, r_0 * 0.02 * scale, 0, 2 * Math.PI);
-    ctx.fill();
-
-    // 推杆杆身
-    ctx.strokeStyle = '#4B5563';
-    ctx.lineWidth = 0.8 * scale;
-    ctx.beginPath();
-    ctx.moveTo(followerX, contactY);
-    ctx.lineTo(followerX, contactY - r_max * 0.3 * scale);
-    ctx.stroke();
-  } else {
-    // 尖底从动件
-    const tipWidth = r_0 * 0.075 * scale;
-    const tipHeight = r_0 * 0.1 * scale;
-    const outlineOffset = 0.4 * scale;
-
-    ctx.fillStyle = '#4B5563';
-    ctx.strokeStyle = '#4B5563';
-    ctx.lineWidth = 0.8 * scale;
-    ctx.beginPath();
-    ctx.moveTo(followerX - tipWidth, contactY - tipHeight);
-    ctx.lineTo(followerX, contactY - outlineOffset);
-    ctx.lineTo(followerX + tipWidth, contactY - tipHeight);
+    ctx.moveTo(sanitizeNumber(data.cam_x[0]), sanitizeNumber(data.cam_y[0]));
+    for (let i = 1; i < data.cam_x.length; i++) {
+      ctx.lineTo(sanitizeNumber(data.cam_x[i]), sanitizeNumber(data.cam_y[i]));
+    }
     ctx.closePath();
+    ctx.fillStyle = C.camFill;
     ctx.fill();
-    ctx.stroke();
-
-    // 推杆杆身
-    ctx.beginPath();
-    ctx.moveTo(followerX, contactY - tipHeight);
-    ctx.lineTo(followerX, contactY - r_max * 0.3 * scale);
+    ctx.strokeStyle = C.camStroke;
+    ctx.lineWidth = LINE_STYLES.medium;
     ctx.stroke();
   }
 
-  // 计算切线和法线方向
-  const deltaI = (angleDeg * Math.PI) / 180;
-  const theta = -sn * deltaI;
-  const cosT = Math.cos(theta);
-  const sinT = Math.sin(theta);
-  const cosD = Math.cos(deltaI);
-  const sinD = Math.sin(deltaI);
-
-  const sp = s_0 + s[frameIndex];
-  const dsd = ds_ddelta[frameIndex];
-
-  const dx0 = sp * cosD + dsd * sinD - pz * e * sinD;
-  const dy0 = -sp * sinD + dsd * cosD - pz * e * cosD;
-  const dx = -sn * dx0;
-  const dy = dy0;
-  let tx = dx * cosT - dy * sinT;
-  let ty = dx * sinT + dy * cosT;
-  const lenT = Math.hypot(tx, ty);
-  if (lenT > EPSILON) {
-    tx /= lenT;
-    ty /= lenT;
-  } else {
-    tx = 1;
-    ty = 0;
-  }
-
-  const nx1 = -ty, ny1 = tx;
-  const nx2 = ty, ny2 = -tx;
-  const cfx = -sn * pz * e;
-  const cfy = s_0 + s[frameIndex];
-  const dot1 = (0 - cfx) * nx1 + (0 - cfy) * ny1;
-  let nx: number, ny: number;
-  if (dot1 > 0) {
-    nx = nx1;
-    ny = ny1;
-  } else {
-    nx = nx2;
-    ny = ny2;
-  }
-
-  // 绘制切线
-  if (displayOptions.showTangent) {
-    ctx.strokeStyle = '#10B981';
-    ctx.lineWidth = 0.3 * scale;
-    ctx.beginPath();
-    ctx.moveTo(followerX - r_0 * tx * scale, contactY + r_0 * ty * scale);
-    ctx.lineTo(followerX + r_0 * tx * scale, contactY - r_0 * ty * scale);
-    ctx.stroke();
-  }
-
-  // 绘制法线
-  if (displayOptions.showNormal || displayOptions.showPressureArc) {
-    ctx.strokeStyle = '#F59E0B';
-    ctx.lineWidth = 0.3 * scale;
-    ctx.beginPath();
-    ctx.moveTo(followerX + r_0 * nx * scale, contactY - r_0 * ny * scale);
-    ctx.lineTo(followerX - r_0 * nx * scale, contactY + r_0 * ny * scale);
-    ctx.stroke();
-  }
-
-  // 绘制压力角弧
-  if (displayOptions.showPressureArc) {
-    const alphaI = alpha_all[frameIndex];
-    if (alphaI > 0.5) {
-      const alphaRad = (alphaI * Math.PI) / 180;
-      const arcR = r_0 * 0.3 * scale;
-
-      ctx.strokeStyle = '#4B5563';
-      ctx.lineWidth = 0.3 * scale;
-      ctx.beginPath();
-      ctx.moveTo(followerX, contactY);
-      ctx.lineTo(followerX, contactY + r_0 * 0.5 * scale);
-      ctx.stroke();
-
-      const thetaStart = Math.PI / 2;
-      let thetaN = Math.atan2(-ny, nx);
-      let diff = ((thetaN - thetaStart + Math.PI) % (2 * Math.PI)) - Math.PI;
-
-      if (Math.abs(Math.abs(diff) - alphaRad) > 0.1) {
-        thetaN = Math.atan2(ny, -nx);
-        diff = ((thetaN - thetaStart + Math.PI) % (2 * Math.PI)) - Math.PI;
-      }
-
-      ctx.strokeStyle = '#4B5563';
-      ctx.lineWidth = 0.3 * scale;
-      ctx.beginPath();
-      for (let i = 0; i <= 30; i++) {
-        const t = i / 30;
-        const th = thetaStart + diff * t;
-        const arcX = followerX + arcR * Math.cos(th);
-        const arcY = contactY + arcR * Math.sin(th);
-        if (i === 0) ctx.moveTo(arcX, arcY);
-        else ctx.lineTo(arcX, arcY);
-      }
-      ctx.stroke();
-    }
-  }
-
-  // 绘制行程极限
-  if (displayOptions.showLowerLimit) {
-    ctx.strokeStyle = '#06B6D4';
-    ctx.lineWidth = 0.3 * scale;
-    ctx.setLineDash([4 * scale, 2 * scale]);
-    ctx.beginPath();
-    ctx.moveTo(centerX - r_0 * 0.8 * scale, centerY - s_0 * scale);
-    ctx.lineTo(centerX + r_0 * 0.8 * scale, centerY - s_0 * scale);
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-
-  if (displayOptions.showUpperLimit) {
-    ctx.strokeStyle = '#D946EF';
-    ctx.lineWidth = 0.3 * scale;
-    ctx.setLineDash([2 * scale, 2 * scale]);
-    ctx.beginPath();
-    ctx.moveTo(centerX - r_0 * 0.8 * scale, centerY - (s_0 + h) * scale);
-    ctx.lineTo(centerX + r_0 * 0.8 * scale, centerY - (s_0 + h) * scale);
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-
-  // 绘制相位边界线
-  if (displayOptions.showBoundaries) {
-    ctx.strokeStyle = '#9CA3AF';
-    ctx.lineWidth = 0.3 * scale;
-    for (const bound of phase_bounds.slice(1)) {
-      const boundIdx = Math.floor(bound * n / 360);
-      if (boundIdx < n) {
-        const [bx, by] = rotatePoint(profileX[boundIdx], profileY[boundIdx]);
-        ctx.beginPath();
-        ctx.moveTo(centerX, centerY);
-        ctx.lineTo(centerX + bx * scale, centerY - by * scale);
-        ctx.stroke();
-      }
-    }
-  }
-
-  // 绘制固定支座
-  const sz = r_0 * 0.12 * scale;
-  const circleR = sz * 0.2;
-  const triTopY = circleR + sz * 0.05;
-  const triBotY = sz * 1.35;
-  const hw = sz * 1.3;
-  const baseY = triBotY;
-  const hatchLen = sz * 0.5;
-  const nHatch = 5;
-
-  ctx.strokeStyle = '#4B5563';
-  ctx.fillStyle = '#4B5563';
-  ctx.lineWidth = 0.7 * scale;
-
+  // Draw center point
   ctx.beginPath();
-  ctx.arc(centerX, centerY, circleR, 0, 2 * Math.PI);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(centerX, centerY + triTopY);
-  ctx.lineTo(centerX - sz, centerY + triBotY);
-  ctx.lineTo(centerX + sz, centerY + triBotY);
-  ctx.closePath();
+  ctx.arc(0, 0, 2, 0, Math.PI * 2);
+  ctx.fillStyle = C.centerPoint;
   ctx.fill();
 
-  ctx.lineWidth = 1 * scale;
-  ctx.beginPath();
-  ctx.moveTo(centerX - hw, centerY + baseY);
-  ctx.lineTo(centerX + hw, centerY + baseY);
-  ctx.stroke();
+  // Draw follower
+  const isOscillating =
+    params.follower_type === FollowerType.OscillatingRoller ||
+    params.follower_type === FollowerType.OscillatingFlatFaced;
 
-  ctx.lineWidth = 0.5 * scale;
-  for (let j = 0; j < nHatch; j++) {
-    const x0 = centerX - hw + (2 * hw) * (j + 0.5) / nHatch;
-    ctx.beginPath();
-    ctx.moveTo(x0, centerY + baseY);
-    ctx.lineTo(x0 - hatchLen * 0.6, centerY + baseY + hatchLen);
-    ctx.stroke();
+  if (isOscillating && data.pivot_x != null && data.pivot_y != null) {
+    drawOscillatingFollower(ctx, data, params);
+  } else {
+    drawTranslatingFollower(ctx, data, params);
   }
 
-  // 信息面板
-  const panelX = width - 100;
-  const panelY = 10;
-  const panelW = 90;
-  const panelH = 50;
+  // Draw pressure angle line
+  if (data.pressure_angle != null) {
+    drawPressureAngleLine(ctx, data, params);
+  }
 
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-  ctx.fillRect(panelX, panelY, panelW, panelH);
+  ctx.restore();
+}
 
-  ctx.strokeStyle = '#E5E7EB';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(panelX, panelY, panelW, panelH);
+function drawTranslatingFollower(
+  ctx: CanvasRenderingContext2D,
+  data: FrameData,
+  params: CamParams
+) {
+  const fx = sanitizeNumber(data.follower_x);
+  const fy = sanitizeNumber(data.follower_y);
 
-  ctx.fillStyle = '#6B7280';
-  ctx.font = '10px -apple-system, sans-serif';
-  ctx.textAlign = 'left';
+  if (params.follower_type === FollowerType.TranslatingFlatFaced) {
+    // Flat-faced follower
+    const halfWidth = params.r_r || 20;
+    ctx.beginPath();
+    ctx.rect(fx - halfWidth, fy - 2, halfWidth * 2, 4);
+    ctx.fillStyle = C.followerBody;
+    ctx.fill();
+    ctx.strokeStyle = C.followerStroke;
+    ctx.lineWidth = LINE_STYLES.thin;
+    ctx.stroke();
 
-  const animLang = options.lang || 'zh';
-  ctx.fillText(tr(animLang, 'animAngle'), panelX + 5, panelY + 12);
-  ctx.fillText(tr(animLang, 'animDisp'), panelX + 5, panelY + 24);
-  ctx.fillText(tr(animLang, 'animAlpha'), panelX + 5, panelY + 36);
+    // Follower stem
+    ctx.beginPath();
+    ctx.moveTo(fx, fy);
+    ctx.lineTo(fx, fy - params.h);
+    ctx.strokeStyle = C.followerStroke;
+    ctx.lineWidth = LINE_STYLES.medium;
+    ctx.stroke();
+  } else if (params.follower_type === FollowerType.TranslatingKnifeEdge) {
+    // Knife-edge follower
+    ctx.beginPath();
+    ctx.arc(fx, fy, 2, 0, Math.PI * 2);
+    ctx.fillStyle = C.followerBody;
+    ctx.fill();
 
-  ctx.fillStyle = '#111827';
-  ctx.textAlign = 'right';
-  ctx.fillText(`${angleDeg.toFixed(1)}°`, panelX + panelW - 5, panelY + 12);
-  ctx.fillText(`${s[frameIndex].toFixed(3)} mm`, panelX + panelW - 5, panelY + 24);
-  ctx.fillText(`${alpha_all[frameIndex].toFixed(2)}°`, panelX + panelW - 5, panelY + 36);
+    // Follower stem
+    ctx.beginPath();
+    ctx.moveTo(fx, fy);
+    ctx.lineTo(fx, fy - params.h);
+    ctx.strokeStyle = C.followerStroke;
+    ctx.lineWidth = LINE_STYLES.medium;
+    ctx.stroke();
+  } else {
+    // Roller follower
+    const rr = sanitizeNumber(params.r_r);
+    ctx.beginPath();
+    ctx.arc(fx, fy, rr, 0, Math.PI * 2);
+    ctx.fillStyle = C.rollerFill;
+    ctx.fill();
+    ctx.strokeStyle = C.rollerStroke;
+    ctx.lineWidth = LINE_STYLES.thin;
+    ctx.stroke();
+
+    // Follower stem
+    ctx.beginPath();
+    ctx.moveTo(fx, fy - rr);
+    ctx.lineTo(fx, fy - params.h);
+    ctx.strokeStyle = C.followerStroke;
+    ctx.lineWidth = LINE_STYLES.medium;
+    ctx.stroke();
+  }
+}
+
+function drawOscillatingFollower(
+  ctx: CanvasRenderingContext2D,
+  data: FrameData,
+  params: CamParams
+) {
+  const fx = sanitizeNumber(data.follower_x);
+  const fy = sanitizeNumber(data.follower_y);
+  const px = sanitizeNumber(data.pivot_x!);
+  const py = sanitizeNumber(data.pivot_y!);
+
+  // Draw pivot point
+  ctx.beginPath();
+  ctx.arc(px, py, 3, 0, Math.PI * 2);
+  ctx.fillStyle = C.pivotPoint;
+  ctx.fill();
+
+  if (params.follower_type === FollowerType.OscillatingFlatFaced) {
+    // Flat-faced oscillating follower
+    const halfWidth = params.r_r || 20;
+    const angle = data.arm_angle || 0;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+
+    ctx.beginPath();
+    ctx.moveTo(fx - halfWidth * cos, fy - halfWidth * sin);
+    ctx.lineTo(fx + halfWidth * cos, fy + halfWidth * sin);
+    ctx.strokeStyle = C.followerStroke;
+    ctx.lineWidth = LINE_STYLES.medium;
+    ctx.stroke();
+
+    // Arm from pivot to follower
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(fx, fy);
+    ctx.strokeStyle = C.armLine;
+    ctx.lineWidth = LINE_STYLES.thin;
+    ctx.stroke();
+  } else {
+    // Roller oscillating follower
+    const rr = sanitizeNumber(params.r_r);
+    ctx.beginPath();
+    ctx.arc(fx, fy, rr, 0, Math.PI * 2);
+    ctx.fillStyle = C.rollerFill;
+    ctx.fill();
+    ctx.strokeStyle = C.rollerStroke;
+    ctx.lineWidth = LINE_STYLES.thin;
+    ctx.stroke();
+
+    // Arm from pivot to roller center
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(fx, fy);
+    ctx.strokeStyle = C.armLine;
+    ctx.lineWidth = LINE_STYLES.thin;
+    ctx.stroke();
+  }
+}
+
+function drawPressureAngleLine(
+  ctx: CanvasRenderingContext2D,
+  data: FrameData,
+  params: CamParams
+) {
+  const fx = sanitizeNumber(data.follower_x);
+  const fy = sanitizeNumber(data.follower_y);
+
+  // Normal line (pressure angle direction)
+  const normalLen = 30;
+  const nx = sanitizeNumber(data.normal_x || 0);
+  const ny = sanitizeNumber(data.normal_y || 0);
+  const norm = Math.sqrt(nx * nx + ny * ny) || 1;
+
+  ctx.beginPath();
+  ctx.moveTo(fx, fy);
+  ctx.lineTo(fx + (nx / norm) * normalLen, fy + (ny / norm) * normalLen);
+  ctx.strokeStyle = C.normalLine;
+  ctx.lineWidth = LINE_STYLES.thin;
+  ctx.setLineDash([3, 3]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Tangent line
+  const tx = -ny / norm;
+  const ty = nx / norm;
+  ctx.beginPath();
+  ctx.moveTo(fx - tx * normalLen, fy - ty * normalLen);
+  ctx.lineTo(fx + tx * normalLen, fy + ty * normalLen);
+  ctx.strokeStyle = C.tangentLine;
+  ctx.lineWidth = LINE_STYLES.thin;
+  ctx.setLineDash([3, 3]);
+  ctx.stroke();
+  ctx.setLineDash([]);
 }

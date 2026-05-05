@@ -1,7 +1,7 @@
 import type { CamParams } from '../types';
 import { FollowerType } from '../types';
 
-/// 默认凸轮设计参数
+/** Default cam design parameters / 默认凸轮设计参数 */
 export const defaultParams: CamParams = {
   delta_0: 60,        // 推程运动角 (度)
   delta_01: 70,       // 远休止角 (度)

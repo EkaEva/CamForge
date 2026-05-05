@@ -103,6 +103,11 @@ export async function saveFile(
   }
 }
 
+/**
+ * Get the current UI language for export formatting.
+ * 获取当前 UI 语言用于导出格式化。
+ * @returns 'zh' or 'en'
+ */
 export function getCurrentLang(): string {
   return language();
 }

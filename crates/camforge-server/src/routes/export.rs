@@ -19,7 +19,7 @@ pub struct ExportRequest {
     include_actual: Option<bool>,
 }
 
-// ===== 辅助函数 =====
+// ===== DXF 生成辅助 =====
 #[utoipa::path(
     post,
     path = "/api/export/dxf",
@@ -173,7 +173,6 @@ pub async fn export_svg(Json(req): Json<ExportRequest>) -> Result<Response<Body>
         .map_err(|e| ApiError::Internal(e.to_string()))
 }
 
-// ===== 辅助函数 =====
 
 fn generate_dxf_content(
     x: &[f64],

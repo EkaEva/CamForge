@@ -1,4 +1,16 @@
-// Fallback: mirrors camforge-core::compute_full_motion. Keep formulas in sync with Rust.
+/**
+ * Compute full cam simulation locally in the browser (fallback when Tauri is unavailable).
+ * 在浏览器本地计算完整凸轮仿真（Tauri 不可用时的回退方案）。
+ *
+ * Mirrors `camforge_core::compute_full_simulation` in Rust. Keep formulas in sync.
+ * 镜像 Rust 端 `camforge_core::compute_full_simulation`，需保持公式同步。
+ *
+ * @param p - Cam parameters defining the mechanism geometry and motion laws
+ * @returns Simulation data containing displacement, velocity, acceleration, cam profile coordinates, pressure angles, and curvature radii
+ * @throws Returns partial data with NaN values if computation encounters invalid geometry (e.g., undercutting, negative curvature)
+ *
+ * @see `crates/camforge-core/src/simulation.rs` — Rust reference implementation
+ */
 import type { CamParams, SimulationData } from '../../types';
 import { FollowerType } from '../../types';
 import { computeMotion } from '../../services/motion';

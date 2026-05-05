@@ -258,8 +258,7 @@ mod tests {
         assert!((arr[4] - 0.8).abs() < 1e-10);
     }
 
-    // ===== 新增测试 =====
-
+    
     #[test]
     fn test_rise_point_uniform() {
         let (s, _v, a) = compute_rise_point(

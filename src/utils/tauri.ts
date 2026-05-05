@@ -1,90 +1,45 @@
-/**
- * Tauri 环境工具函数
- *
- * 提供类型安全的 Tauri API 访问。
- */
+import { isTauriEnv } from './platform';
+
+export { isTauriEnv };
 
 /**
- * 检查是否在 Tauri 环境中运行
- *
- * @returns 如果在 Tauri WebView 中运行则返回 true
+ * Invoke a Tauri command via IPC.
+ * @param command - The Tauri command name
+ * @param args - Arguments to pass to the command
+ * @throws Error if not running in Tauri environment
  */
-export function isTauriEnv(): boolean {
-  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-}
-
-/**
- * 类型安全的 Tauri invoke 调用
- *
- * @param cmd - 命令名称
- * @param args - 命令参数
- * @returns 命令执行结果
- * @throws 如果不在 Tauri 环境中或命令执行失败
- *
- * @example
- * ```ts
- * const data = await invokeTauri<SimulationData>('run_simulation', { params });
- * ```
- */
-export async function invokeTauri<T>(
-  cmd: string,
-  args?: Record<string, unknown>
-): Promise<T> {
+export async function invokeCommand<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   if (!isTauriEnv()) {
-    throw new Error('Not in Tauri environment');
+    throw new Error(`Tauri command "${command}" called outside Tauri environment`);
   }
-
   const { invoke } = await import('@tauri-apps/api/core');
-  return invoke(cmd, args) as Promise<T>;
+  return invoke<T>(command, args);
 }
 
 /**
- * 动态导入 Tauri API
- *
- * 用于需要使用完整 Tauri API 的场景。
- *
- * @returns Tauri API 模块
- * @throws 如果不在 Tauri 环境中
+ * Open a save file dialog and return the selected path.
+ * @param options - Dialog options (filters, default path, etc.)
+ * @returns The selected file path, or null if cancelled
  */
-export async function getTauriApi() {
-  if (!isTauriEnv()) {
-    throw new Error('Not in Tauri environment');
-  }
-
-  const { invoke } = await import('@tauri-apps/api/core');
-  return { invoke };
+export async function saveFileDialog(options?: {
+  filters?: { name: string; extensions: string[] }[];
+  defaultPath?: string;
+}): Promise<string | null> {
+  if (!isTauriEnv()) return null;
+  const { save } = await import('@tauri-apps/plugin-dialog');
+  return save({
+    filters: options?.filters,
+    defaultPath: options?.defaultPath,
+  });
 }
 
 /**
- * 安全的 Tauri 调用包装器
- *
- * 如果不在 Tauri 环境中，返回 fallback 值而不抛出错误。
- *
- * @param cmd - 命令名称
- * @param args - 命令参数
- * @param fallback - 非 Tauri 环境下的回退值
- * @returns 命令结果或回退值
+ * Write binary data to a file path.
+ * @param path - The file path to write to
+ * @param data - The binary data to write
  */
-export async function safeInvokeTauri<T>(
-  cmd: string,
-  args: Record<string, unknown> | undefined,
-  fallback: T
-): Promise<T> {
-  if (!isTauriEnv()) {
-    return fallback;
-  }
-
-  try {
-    return await invokeTauri<T>(cmd, args);
-  } catch (error) {
-    console.warn(`Tauri command '${cmd}' failed:`, error);
-    return fallback;
-  }
+export async function writeFile(path: string, data: Uint8Array): Promise<void> {
+  if (!isTauriEnv()) return;
+  const { writeFile: tauriWriteFile } = await import('@tauri-apps/plugin-fs');
+  await tauriWriteFile(path, data);
 }
-
-export default {
-  isTauriEnv,
-  invokeTauri,
-  getTauriApi,
-  safeInvokeTauri,
-};

@@ -243,6 +243,49 @@ pnpm format && pnpm lint && cargo fmt && cargo clippy -p camforge-core -p camfor
 
 ---
 
+### Store 组织
+
+- 单文件 store 保持扁平（<200 行），如 `settings.ts`、`history.ts`
+- 超过 200 行的 store 拆分为子目录并使用 `index.ts` barrel 导出，如 `simulation/`
+
+### 目录职责边界
+
+- `api/` — 传输适配层（HTTP/Tauri IPC 报文封装）
+- `services/` — 重量级计算操作（纯函数，如 `motion.ts`）
+- `exporters/` — 文件格式导出逻辑（DXF, CSV, SVG 等）
+- `utils/` — 轻量级工具函数（数组、防抖、平台检测等）
+- `constants/` — 全局常量（数值、颜色、默认参数等）
+
+### 导入约定
+
+- 优先从 `index.ts` barrel 导入
+- 当 barrel 未导出所需符号或 tree-shaking 关键时，允许直接文件导入
+
+### 测试目录
+
+- `src/test/` — 测试基础设施（setup.ts, mocks）
+- `__tests__/` — 实际测试文件，与源码同位置放置
+- E2E 测试使用 `.spec.ts` 后缀，放在 `e2e/` 目录
+
+### Web Workers
+
+- Web Workers 放置在 `src/workers/`，使用 `tiffWorker.ts` 命名模式
+
+### 静态资源
+
+- 静态资源统一放置在 `public/`，不在 `src/assets/` 中
+
+### 注释语言
+
+- JSDoc 必须双语（英文为主，中文为辅）
+- 内联注释可任选语言
+- Rust 验证消息使用英文（供 API 消费者）
+- 用户可见字符串走 i18n 系统
+
+### 导出风格
+
+- 统一使用 named exports，不使用 `export default`
+
 ## 提交规范 | Commit Guidelines
 
 我们使用 [Conventional Commits](https://www.conventionalcommits.org/) 规范：
