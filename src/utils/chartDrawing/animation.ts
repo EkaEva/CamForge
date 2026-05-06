@@ -219,24 +219,26 @@ function drawPressureAngleLine(
   const fx = sanitizeNumber(data.follower_x);
   const fy = sanitizeNumber(data.follower_y);
 
-  // Normal line (pressure angle direction)
+  // Draw pressure angle indicator at follower contact point
   const normalLen = 30;
-  const nx = sanitizeNumber(data.normal_x || 0);
-  const ny = sanitizeNumber(data.normal_y || 0);
-  const norm = Math.sqrt(nx * nx + ny * ny) || 1;
+
+  // Normal direction: from cam center to follower contact point
+  const dist = Math.sqrt(fx * fx + fy * fy) || 1;
+  const nx = fx / dist;
+  const ny = fy / dist;
 
   ctx.beginPath();
   ctx.moveTo(fx, fy);
-  ctx.lineTo(fx + (nx / norm) * normalLen, fy + (ny / norm) * normalLen);
+  ctx.lineTo(fx + nx * normalLen, fy + ny * normalLen);
   ctx.strokeStyle = C.normalLine;
   ctx.lineWidth = LINE_STYLES.thin;
   ctx.setLineDash([3, 3]);
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Tangent line
-  const tx = -ny / norm;
-  const ty = nx / norm;
+  // Tangent line (perpendicular to normal)
+  const tx = -ny;
+  const ty = nx;
   ctx.beginPath();
   ctx.moveTo(fx - tx * normalLen, fy - ty * normalLen);
   ctx.lineTo(fx + tx * normalLen, fy + ty * normalLen);
