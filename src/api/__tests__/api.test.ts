@@ -127,11 +127,11 @@ describe('HttpApi', () => {
   it('should GET /health on healthCheck', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ status: 'ok', version: '0.4.16' }),
+      json: () => Promise.resolve({ status: 'ok', version: '0.4.17' }),
     } as Response);
 
     const result = await api.healthCheck();
-    expect(result).toEqual({ status: 'ok', version: '0.4.16' });
+    expect(result).toEqual({ status: 'ok', version: '0.4.17' });
   });
 });
 

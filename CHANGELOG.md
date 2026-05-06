@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.17] - 2026-05-06
+
+### Structure & Conventions Audit (28 items, 100% resolved)
+
+- **SC-01**: Delete empty `src/assets/` directory
+- **SC-02**: Add `static/` to `.gitignore` (stale build output)
+- **SC-03**: Add store organization conventions to CONTRIBUTING.md
+- **SC-04**: Add directory responsibility boundary docs to CONTRIBUTING.md
+- **SC-05**: Update project structure tree in CONTRIBUTING.md to match actual layout
+- **SC-06**: Rename `motion-laws.ts` → `motionLaws.ts` (camelCase consistency)
+- **SC-08**: Add `chartColors` barrel export in `constants/index.ts`
+- **SC-09**: Add i18n convention for validation messages to CONTRIBUTING.md
+- **SC-10**: Replace hardcoded zoom values in CamAnimation.tsx with `ZOOM_MIN`/`ZOOM_MAX` constants
+- **SC-11**: Move `DEFAULT_DPI`/`MAX_DPI`/`MAX_DIMENSION` from `chartDrawing/common.ts` to `constants/numeric.ts`
+- **SC-12**: Add bilingual JSDoc to all 10 `settings.ts` exported functions
+- **SC-13**: Add comprehensive JSDoc to `computeSimulationLocally` (318-line core function)
+- **SC-14**: Add bilingual JSDoc to all 6 `presets.ts` exported functions
+- **SC-15**: Add JSDoc to `randomizeParams` (retry logic documented)
+- **SC-16**: Add JSDoc to all `exports.ts` functions
+- **SC-17**: Add JSDoc to component Props interfaces
+- **SC-18**: Fix duplicate/stale section markers in Rust files (`export.rs`, `motion.rs`)
+- **SC-19**: Convert Chinese-only comments to bilingual JSDoc in `types/index.ts`
+- **SC-20**: Move controls test files from `components/__tests__/` to `controls/__tests__/`
+- **SC-21**: Move `ErrorBoundary.tsx` to `ui/`, remove `export default`
+- **SC-22**: Add `splash/README.md` explaining React/Remotion usage
+- **SC-23**: Add Web Workers convention to CONTRIBUTING.md
+- **SC-24**: Delete unused `useChartInteraction`/`useChartPadding` hooks (222 LOC dead code)
+- **SC-25**: Remove unused `getLanguageButtonText()` export
+- **SC-26**: Remove duplicate `ChartPadding` interface (resolved via SC-24)
+- **SC-27**: Remove `export default` from `App.tsx`, `ErrorBoundary.tsx`, `tauri.ts`
+- **SC-28**: Replace hardcoded colors in `animation.ts` with `ANIMATION_COLORS` constants
+- **SC-29**: Unify `isTauriEnv()` to `platform.ts`, `tauri.ts` re-exports
+- **SC-30**: Add JSDoc to `exports.ts` wrapper functions noting store dependency
+- **SC-31**: Fix `///` → `/** */` JSDoc in `cam.ts` and `display.ts`
+- **SC-32**: Add import convention to CONTRIBUTING.md (prefer barrel imports)
+- **SC-33**: Add test directory convention to CONTRIBUTING.md
+
 ## [0.4.16] - 2026-05-04
 
 ### High Impact
@@ -1013,6 +1050,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[0.4.17]: https://github.com/EkaEva/CamForge/compare/v0.4.16...v0.4.17
 [0.4.16]: https://github.com/EkaEva/CamForge/compare/v0.4.15...v0.4.16
 [0.4.15]: https://github.com/EkaEva/CamForge/compare/v0.4.14...v0.4.15
 [0.4.14]: https://github.com/EkaEva/CamForge/compare/v0.4.13...v0.4.14
