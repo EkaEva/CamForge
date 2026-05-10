@@ -89,10 +89,10 @@ export function Sidebar(props: SidebarProps) {
     reader.onload = (event) => {
       const content = event.target?.result as string;
       const result = loadPresetFromJSON(content);
-      if (result.success) {
+      if (result) {
         setLoadError(null);
       } else {
-        setLoadError(result.error || '加载失败');
+        setLoadError('加载失败');
         setTimeout(() => setLoadError(null), 3000);
       }
     };

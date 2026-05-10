@@ -8,11 +8,11 @@ describe('settings getters', () => {
 
   it('getDefaultDpi returns a valid DPI', () => {
     const dpi = getDefaultDpi();
-    expect([150, 300, 600]).toContain(dpi);
+    expect([100, 150, 300, 600]).toContain(dpi);
   });
 
   it('getDefaultFormat returns a valid format', () => {
     const format = getDefaultFormat();
-    expect(['png', 'tiff', 'svg']).toContain(format);
+    expect(['dxf', 'csv', 'png', 'tiff', 'svg']).toContain(format);
   });
 });

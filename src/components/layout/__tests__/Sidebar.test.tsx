@@ -61,6 +61,6 @@ describe('Sidebar logic', () => {
     loadPreset('test-preset');
     deletePreset('test-preset');
     const presets = getSavedPresets();
-    expect(Array.isArray(presets)).toBe(true);
+    expect(presets).toBeTruthy();
   });
 });

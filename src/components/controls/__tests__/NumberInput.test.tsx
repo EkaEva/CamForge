@@ -2,7 +2,7 @@
 
 import { render, fireEvent } from '@solidjs/testing-library';
 import { describe, it, expect, vi } from 'vitest';
-import { NumberInput } from '../controls/NumberInput';
+import { NumberInput } from '../NumberInput';
 
 describe('NumberInput', () => {
   it('renders with initial value and label', () => {

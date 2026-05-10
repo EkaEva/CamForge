@@ -1,5 +1,4 @@
 import { createSignal, createEffect } from 'solid-js';
-import { isTauriEnv } from '../utils/platform';
 
 /**
  * Theme mode: 'light', 'dark', or 'system' (follows OS preference).
@@ -142,5 +141,8 @@ export function useTheme() {
  * @returns A signal with the current export settings
  */
 export function useExportSettings() {
-  return exportSettings;
+  return {
+    settings: exportSettings,
+    updateSettings: updateExportSettings,
+  };
 }

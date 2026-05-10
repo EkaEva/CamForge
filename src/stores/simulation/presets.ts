@@ -7,7 +7,7 @@ import { params, setParams } from './core';
  * @param name - The preset name
  */
 export function savePreset(name: string) {
-  const presets = getSavedPresets();
+  const presets = getPresetMap();
   presets[name] = params();
   localStorage.setItem('camforge-presets', JSON.stringify(presets));
 }
@@ -19,7 +19,7 @@ export function savePreset(name: string) {
  * @returns true if the preset was found and loaded, false otherwise
  */
 export function loadPreset(name: string): boolean {
-  const presets = getSavedPresets();
+  const presets = getPresetMap();
   if (presets[name]) {
     setParams(presets[name]);
     return true;
@@ -32,7 +32,15 @@ export function loadPreset(name: string): boolean {
  * 从 localStorage 获取所有已保存的预设。
  * @returns Record mapping preset names to CamParams
  */
-export function getSavedPresets(): Record<string, CamParams> {
+export function getSavedPresets(): string[] {
+  try {
+    return Object.keys(JSON.parse(localStorage.getItem('camforge-presets') || '{}'));
+  } catch {
+    return [];
+  }
+}
+
+function getPresetMap(): Record<string, CamParams> {
   try {
     return JSON.parse(localStorage.getItem('camforge-presets') || '{}');
   } catch {
@@ -46,7 +54,7 @@ export function getSavedPresets(): Record<string, CamParams> {
  * @param name - The preset name to delete
  */
 export function deletePreset(name: string) {
-  const presets = getSavedPresets();
+  const presets = getPresetMap();
   delete presets[name];
   localStorage.setItem('camforge-presets', JSON.stringify(presets));
 }

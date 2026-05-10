@@ -1,12 +1,18 @@
-import { ANIMATION_COLORS, CHART_COLORS, LINE_STYLES } from '../../constants/chartColors';
+import { ANIMATION_COLORS, CAM_PROFILE_COLORS, CHART_COLORS } from '../../constants/chartColors';
 import {
   validateAnimationFrameOptions,
   sanitizeNumber,
 } from './common';
-import type { FrameData, CamParams } from '../../types';
+import type { AnimationFrameOptions, CamParams, SimulationData } from './common';
 import { FollowerType } from '../../types';
 
+type FrameData = SimulationData;
+
 const C = ANIMATION_COLORS;
+const LINE_WIDTH = {
+  thin: 1,
+  medium: 2,
+} as const;
 
 /**
  * Draw a full animation frame: cam profile, follower, and reference lines.
@@ -16,16 +22,18 @@ export function drawAnimationFrame(
   ctx: CanvasRenderingContext2D,
   data: FrameData,
   params: CamParams,
-  options: {
-    width: number;
-    height: number;
-    zoom?: number;
-    panX?: number;
-    panY?: number;
-  }
+  options: AnimationFrameOptions
 ): void {
-  const opts = validateAnimationFrameOptions(options);
-  const { width, height, zoom, panX, panY } = opts;
+  if (!validateAnimationFrameOptions(options, data.s.length)) return;
+  const { width, height, zoom } = options;
+  const panX = 0;
+  const panY = 0;
+  const frameIndex = options.frameIndex;
+  const camX = data.x;
+  const camY = data.y;
+  const followerX = data.x_actual[frameIndex] ?? data.x[frameIndex] ?? 0;
+  const followerY = data.y_actual[frameIndex] ?? data.y[frameIndex] ?? 0;
+  const frame = { followerX, followerY, pressureAngle: data.alpha_all[frameIndex] };
   const dpr = window.devicePixelRatio || 1;
 
   ctx.save();
@@ -33,7 +41,7 @@ export function drawAnimationFrame(
   ctx.clearRect(0, 0, width, height);
 
   // Background
-  ctx.fillStyle = CHART_COLORS.background;
+  ctx.fillStyle = CHART_COLORS.bgLight;
   ctx.fillRect(0, 0, width, height);
 
   // Transform: center + pan + zoom
@@ -46,31 +54,31 @@ export function drawAnimationFrame(
   const r0 = sanitizeNumber(params.r_0);
   ctx.beginPath();
   ctx.arc(0, 0, r0, 0, Math.PI * 2);
-  ctx.strokeStyle = C.baseCircle;
-  ctx.lineWidth = LINE_STYLES.thin;
+  ctx.strokeStyle = CAM_PROFILE_COLORS.baseCircle;
+  ctx.lineWidth = LINE_WIDTH.thin;
   ctx.setLineDash([4, 4]);
   ctx.stroke();
   ctx.setLineDash([]);
 
   // Draw cam profile
-  if (data.cam_x && data.cam_y) {
+  if (camX.length && camY.length) {
     ctx.beginPath();
-    ctx.moveTo(sanitizeNumber(data.cam_x[0]), sanitizeNumber(data.cam_y[0]));
-    for (let i = 1; i < data.cam_x.length; i++) {
-      ctx.lineTo(sanitizeNumber(data.cam_x[i]), sanitizeNumber(data.cam_y[i]));
+    ctx.moveTo(sanitizeNumber(camX[0]), sanitizeNumber(camY[0]));
+    for (let i = 1; i < camX.length; i++) {
+      ctx.lineTo(sanitizeNumber(camX[i]), sanitizeNumber(camY[i]));
     }
     ctx.closePath();
-    ctx.fillStyle = C.camFill;
+    ctx.fillStyle = C.camProfile;
     ctx.fill();
-    ctx.strokeStyle = C.camStroke;
-    ctx.lineWidth = LINE_STYLES.medium;
+    ctx.strokeStyle = C.camProfile;
+    ctx.lineWidth = LINE_WIDTH.medium;
     ctx.stroke();
   }
 
   // Draw center point
   ctx.beginPath();
   ctx.arc(0, 0, 2, 0, Math.PI * 2);
-  ctx.fillStyle = C.centerPoint;
+  ctx.fillStyle = C.center;
   ctx.fill();
 
   // Draw follower
@@ -78,146 +86,151 @@ export function drawAnimationFrame(
     params.follower_type === FollowerType.OscillatingRoller ||
     params.follower_type === FollowerType.OscillatingFlatFaced;
 
-  if (isOscillating && data.pivot_x != null && data.pivot_y != null) {
-    drawOscillatingFollower(ctx, data, params);
+  if (isOscillating) {
+    drawOscillatingFollower(ctx, frame, params);
   } else {
-    drawTranslatingFollower(ctx, data, params);
+    drawTranslatingFollower(ctx, frame, params);
   }
 
   // Draw pressure angle line
-  if (data.pressure_angle != null) {
-    drawPressureAngleLine(ctx, data, params);
+  if (Number.isFinite(frame.pressureAngle)) {
+    drawPressureAngleLine(ctx, frame);
   }
 
   ctx.restore();
 }
 
+type FramePoint = {
+  followerX: number;
+  followerY: number;
+  pressureAngle: number;
+};
+
 function drawTranslatingFollower(
   ctx: CanvasRenderingContext2D,
-  data: FrameData,
+  frame: FramePoint,
   params: CamParams
 ) {
-  const fx = sanitizeNumber(data.follower_x);
-  const fy = sanitizeNumber(data.follower_y);
+  const fx = sanitizeNumber(frame.followerX);
+  const fy = sanitizeNumber(frame.followerY);
 
   if (params.follower_type === FollowerType.TranslatingFlatFaced) {
     // Flat-faced follower
     const halfWidth = params.r_r || 20;
     ctx.beginPath();
     ctx.rect(fx - halfWidth, fy - 2, halfWidth * 2, 4);
-    ctx.fillStyle = C.followerBody;
+    ctx.fillStyle = C.follower;
     ctx.fill();
-    ctx.strokeStyle = C.followerStroke;
-    ctx.lineWidth = LINE_STYLES.thin;
+    ctx.strokeStyle = C.follower;
+    ctx.lineWidth = LINE_WIDTH.thin;
     ctx.stroke();
 
     // Follower stem
     ctx.beginPath();
     ctx.moveTo(fx, fy);
     ctx.lineTo(fx, fy - params.h);
-    ctx.strokeStyle = C.followerStroke;
-    ctx.lineWidth = LINE_STYLES.medium;
+    ctx.strokeStyle = C.follower;
+    ctx.lineWidth = LINE_WIDTH.medium;
     ctx.stroke();
   } else if (params.follower_type === FollowerType.TranslatingKnifeEdge) {
     // Knife-edge follower
     ctx.beginPath();
     ctx.arc(fx, fy, 2, 0, Math.PI * 2);
-    ctx.fillStyle = C.followerBody;
+    ctx.fillStyle = C.follower;
     ctx.fill();
 
     // Follower stem
     ctx.beginPath();
     ctx.moveTo(fx, fy);
     ctx.lineTo(fx, fy - params.h);
-    ctx.strokeStyle = C.followerStroke;
-    ctx.lineWidth = LINE_STYLES.medium;
+    ctx.strokeStyle = C.follower;
+    ctx.lineWidth = LINE_WIDTH.medium;
     ctx.stroke();
   } else {
     // Roller follower
     const rr = sanitizeNumber(params.r_r);
     ctx.beginPath();
     ctx.arc(fx, fy, rr, 0, Math.PI * 2);
-    ctx.fillStyle = C.rollerFill;
+    ctx.fillStyle = C.follower;
     ctx.fill();
-    ctx.strokeStyle = C.rollerStroke;
-    ctx.lineWidth = LINE_STYLES.thin;
+    ctx.strokeStyle = C.follower;
+    ctx.lineWidth = LINE_WIDTH.thin;
     ctx.stroke();
 
     // Follower stem
     ctx.beginPath();
     ctx.moveTo(fx, fy - rr);
     ctx.lineTo(fx, fy - params.h);
-    ctx.strokeStyle = C.followerStroke;
-    ctx.lineWidth = LINE_STYLES.medium;
+    ctx.strokeStyle = C.follower;
+    ctx.lineWidth = LINE_WIDTH.medium;
     ctx.stroke();
   }
 }
 
 function drawOscillatingFollower(
   ctx: CanvasRenderingContext2D,
-  data: FrameData,
+  frame: FramePoint,
   params: CamParams
 ) {
-  const fx = sanitizeNumber(data.follower_x);
-  const fy = sanitizeNumber(data.follower_y);
-  const px = sanitizeNumber(data.pivot_x!);
-  const py = sanitizeNumber(data.pivot_y!);
+  const fx = sanitizeNumber(frame.followerX);
+  const fy = sanitizeNumber(frame.followerY);
+  const px = -sanitizeNumber(params.pivot_distance);
+  const py = 0;
 
   // Draw pivot point
   ctx.beginPath();
   ctx.arc(px, py, 3, 0, Math.PI * 2);
-  ctx.fillStyle = C.pivotPoint;
+  ctx.fillStyle = C.support;
   ctx.fill();
 
   if (params.follower_type === FollowerType.OscillatingFlatFaced) {
     // Flat-faced oscillating follower
     const halfWidth = params.r_r || 20;
-    const angle = data.arm_angle || 0;
+    const angle = Math.atan2(fy - py, fx - px);
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
 
     ctx.beginPath();
     ctx.moveTo(fx - halfWidth * cos, fy - halfWidth * sin);
     ctx.lineTo(fx + halfWidth * cos, fy + halfWidth * sin);
-    ctx.strokeStyle = C.followerStroke;
-    ctx.lineWidth = LINE_STYLES.medium;
+    ctx.strokeStyle = C.follower;
+    ctx.lineWidth = LINE_WIDTH.medium;
     ctx.stroke();
 
     // Arm from pivot to follower
     ctx.beginPath();
     ctx.moveTo(px, py);
     ctx.lineTo(fx, fy);
-    ctx.strokeStyle = C.armLine;
-    ctx.lineWidth = LINE_STYLES.thin;
+    ctx.strokeStyle = C.support;
+    ctx.lineWidth = LINE_WIDTH.thin;
     ctx.stroke();
   } else {
     // Roller oscillating follower
     const rr = sanitizeNumber(params.r_r);
     ctx.beginPath();
     ctx.arc(fx, fy, rr, 0, Math.PI * 2);
-    ctx.fillStyle = C.rollerFill;
+    ctx.fillStyle = C.follower;
     ctx.fill();
-    ctx.strokeStyle = C.rollerStroke;
-    ctx.lineWidth = LINE_STYLES.thin;
+    ctx.strokeStyle = C.follower;
+    ctx.lineWidth = LINE_WIDTH.thin;
     ctx.stroke();
 
     // Arm from pivot to roller center
     ctx.beginPath();
     ctx.moveTo(px, py);
     ctx.lineTo(fx, fy);
-    ctx.strokeStyle = C.armLine;
-    ctx.lineWidth = LINE_STYLES.thin;
+    ctx.strokeStyle = C.support;
+    ctx.lineWidth = LINE_WIDTH.thin;
     ctx.stroke();
   }
 }
 
 function drawPressureAngleLine(
   ctx: CanvasRenderingContext2D,
-  data: FrameData,
-  params: CamParams
+  frame: FramePoint
 ) {
-  const fx = sanitizeNumber(data.follower_x);
-  const fy = sanitizeNumber(data.follower_y);
+  const fx = sanitizeNumber(frame.followerX);
+  const fy = sanitizeNumber(frame.followerY);
 
   // Draw pressure angle indicator at follower contact point
   const normalLen = 30;
@@ -230,8 +243,8 @@ function drawPressureAngleLine(
   ctx.beginPath();
   ctx.moveTo(fx, fy);
   ctx.lineTo(fx + nx * normalLen, fy + ny * normalLen);
-  ctx.strokeStyle = C.normalLine;
-  ctx.lineWidth = LINE_STYLES.thin;
+  ctx.strokeStyle = C.normal;
+  ctx.lineWidth = LINE_WIDTH.thin;
   ctx.setLineDash([3, 3]);
   ctx.stroke();
   ctx.setLineDash([]);
@@ -242,8 +255,8 @@ function drawPressureAngleLine(
   ctx.beginPath();
   ctx.moveTo(fx - tx * normalLen, fy - ty * normalLen);
   ctx.lineTo(fx + tx * normalLen, fy + ty * normalLen);
-  ctx.strokeStyle = C.tangentLine;
-  ctx.lineWidth = LINE_STYLES.thin;
+  ctx.strokeStyle = C.tangent;
+  ctx.lineWidth = LINE_WIDTH.thin;
   ctx.setLineDash([3, 3]);
   ctx.stroke();
   ctx.setLineDash([]);

@@ -2,7 +2,7 @@
 
 import { render, fireEvent } from '@solidjs/testing-library';
 import { describe, it, expect, vi } from 'vitest';
-import { Select } from '../controls/Select';
+import { Select } from '../Select';
 
 describe('Select', () => {
   const options = [

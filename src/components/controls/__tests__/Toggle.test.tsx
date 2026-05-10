@@ -3,7 +3,7 @@
 import { createSignal } from 'solid-js';
 import { render, fireEvent } from '@solidjs/testing-library';
 import { describe, it, expect, vi } from 'vitest';
-import { Toggle } from '../controls/Toggle';
+import { Toggle } from '../Toggle';
 
 describe('Toggle', () => {
   it('renders with label', () => {
