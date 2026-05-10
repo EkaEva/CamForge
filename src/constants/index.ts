@@ -8,5 +8,5 @@
 
 export { defaultParams } from './cam';
 export { defaultDisplayOptions } from './display';
-export { motionLawOptions } from './motion-laws';
+export { motionLawOptions } from './motionLaws';
 export { DATA_RANGE_MARGIN, PERCENTILE_CLIP_LOW, PERCENTILE_CLIP_HIGH, PERCENTILE_CLIP_MID_LOW, PERCENTILE_CLIP_MID_HIGH, EPSILON, TARGET_FPS, MAX_UNDO_STEPS } from './numeric';

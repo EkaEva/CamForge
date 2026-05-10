@@ -8,7 +8,7 @@ export { isTauriEnv };
  * @param args - Arguments to pass to the command
  * @throws Error if not running in Tauri environment
  */
-export async function invokeCommand<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+export async function invokeTauri<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   if (!isTauriEnv()) {
     throw new Error(`Tauri command "${command}" called outside Tauri environment`);
   }

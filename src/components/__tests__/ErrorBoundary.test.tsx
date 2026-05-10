@@ -2,7 +2,7 @@
 
 import { render } from '@solidjs/testing-library';
 import { describe, it, expect, vi } from 'vitest';
-import { ErrorBoundary } from '../ErrorBoundary';
+import { ErrorBoundary } from '../ui/ErrorBoundary';
 
 describe('ErrorBoundary', () => {
   it('renders children when no error', () => {

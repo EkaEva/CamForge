@@ -1,5 +1,5 @@
 import { JSX, ParentComponent, ErrorBoundary as SolidErrorBoundary } from 'solid-js';
-import { Icon } from './ui/Icon';
+import { Icon } from './Icon';
 
 interface ErrorBoundaryProps {
   fallback?: JSX.Element;

@@ -20,7 +20,7 @@ export interface ExportSettings {
   downloadDir: string;
 }
 
-const [themeMode, setThemeMode] = createSignal<ThemeMode>(
+const [themeMode, setThemeModeSignal] = createSignal<ThemeMode>(
   (localStorage.getItem('camforge-theme-mode') as ThemeMode) || 'system'
 );
 
@@ -51,7 +51,7 @@ export function initTheme() {
  */
 export function toggleTheme() {
   const current = themeMode();
-  setThemeMode(current === 'light' ? 'dark' : current === 'dark' ? 'system' : 'light');
+  setThemeModeSignal(current === 'light' ? 'dark' : current === 'dark' ? 'system' : 'light');
 }
 
 /**
@@ -60,7 +60,7 @@ export function toggleTheme() {
  * @param mode - The theme mode to set
  */
 export function setThemeMode(mode: ThemeMode) {
-  setThemeMode(mode);
+  setThemeModeSignal(mode);
 }
 
 /**
@@ -119,14 +119,20 @@ export function setDownloadDir(dir: string) {
  * 响应式主题钩子，返回当前解析后的主题（'light' 或 'dark'）。
  * @returns A signal with the current theme
  */
+export const isDark = () => useTheme().isDark();
+
 export function useTheme() {
-  return () => {
+  const theme = themeMode;
+  const isDark = () => {
     const mode = themeMode();
-    return mode === 'system'
-      ? window.matchMedia('(prefers-color-scheme: dark)').matches
-        ? 'dark'
-        : 'light'
-      : mode;
+    return mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  };
+
+  return {
+    theme,
+    isDark,
+    toggleTheme,
+    setThemeMode,
   };
 }
 

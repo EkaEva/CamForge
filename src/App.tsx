@@ -2,7 +2,7 @@ import { onMount, onCleanup, createSignal } from 'solid-js';
 import { TitleBar, Sidebar, MainCanvas } from './components/layout';
 import { SettingsPanel } from './components/layout/SettingsPanel';
 import { HelpPanel } from './components/layout/HelpPanel';
-import { ErrorBoundary } from './components/ErrorBoundary';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { ToastContainer } from './components/ui/Toast';
 import { initTheme } from './stores/settings';
 import { undoParams, redoParams, canUndo, canRedo, runSimulation } from './stores/simulation';
